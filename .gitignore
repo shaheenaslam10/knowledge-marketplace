@@ -21,6 +21,8 @@ node_modules/
 out/
 *.tsbuildinfo
 .eslintcache
+test-results/
+playwright-report/
 
 # ---- Env & secrets (NEVER commit real values) ----
 .env

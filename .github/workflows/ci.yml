@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "arena/**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (lint, contracts, migrations, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hem
+          POSTGRES_PASSWORD: hem
+          POSTGRES_DB: hem
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hem"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://hem:hem@127.0.0.1:5432/hem
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Ruff (lint + format)
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Modular-monolith dependency contracts
+        run: lint-imports
+      - name: No missing migrations
+        run: python manage.py makemigrations --check --dry-run
+      - name: Tests
+        run: |
+          set -o pipefail
+          pytest --cov=apps --cov=config --cov-report=term-missing -q | tee /tmp/pytest.log || {
+            echo "::group::pytest failure tail"
+            tail -60 /tmp/pytest.log
+            echo "::endgroup::"
+            grep -E "^(FAILED|ERROR)|short test summary|=====" /tmp/pytest.log | tail -8 | while IFS= read -r line; do echo "::error::${line:0:250}"; done
+            exit 1
+          }
+
+  frontend:
+    name: Frontend (lint, types, unit, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+  docs-sync:
+    name: Docs sync (env vars)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check_env_docs.py
+
+  compose-smoke:
+    name: Compose smoke (clean checkout → up → seed → worker → e2e)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      # Host-side test deps BEFORE compose up: the dev frontend container writes
+      # root-owned artifacts through the bind mount, so host npm must not run after it.
+      - name: Install frontend test deps (host)
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Start stack
+        run: docker compose up --build -d
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8000/healthz; then echo "backend healthy"; exit 0; fi
+            sleep 2
+          done
+          echo "backend never became healthy"; docker compose logs backend; exit 1
+      - name: Wait for frontend
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/ -o /dev/null; then echo "frontend up"; exit 0; fi
+            sleep 2
+          done
+          echo "frontend never came up"; docker compose logs frontend; exit 1
+      - name: API root + schema
+        run: |
+          curl -sf http://localhost:8000/api/v1/ | grep -q "Hybrid Expert Marketplace API"
+          curl -sf http://localhost:8000/api/schema/ -H "Accept: application/json" | grep -q openapi
+      - name: Worker processes a task
+        run: docker compose exec -T backend python manage.py worker_smoke --timeout 30
+      - name: Seed demo data
+        run: docker compose exec -T backend python manage.py seed_demo
+      - name: E2E smoke (Playwright)
+        working-directory: frontend
+        run: |
+          if ! npm run e2e > /tmp/pw.log 2>&1; then
+            curl -s http://localhost:3000/ | grep -oE "<h1[^>]*>[^<]{0,60}|__next_error__|Application error|api-status" | head -4 | while IFS= read -r line; do echo "::error::html: ${line:0:200}"; done
+            grep -E "Error:" /tmp/pw.log | head -3 | while IFS= read -r line; do echo "::error::e2e: ${line:0:200}"; done
+            docker compose logs frontend --tail 60 2>&1 | grep -iE "error|unhandled|failed" | head -3 | while IFS= read -r line; do echo "::error::fe: ${line:0:220}"; done
+            exit 1
+          fi
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs --tail 100
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
