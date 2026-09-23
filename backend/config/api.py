@@ -46,5 +46,7 @@ urlpatterns = [
     path("", include("apps.taxonomy.api.urls")),
     path("", include("apps.files.api.urls")),
     path("", include("apps.experts.api.urls")),
+    path("", include("apps.service_requests.api.urls")),
+    path("", include("apps.bidding.api.urls")),
 ]
 urls_v1 = urlpatterns

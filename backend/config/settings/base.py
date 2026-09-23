@@ -57,6 +57,9 @@ LOCAL_APPS = [
     "apps.taxonomy",  # shared subjects/skills/categories (Phase 3)
     "apps.accounts",  # Phase 2: custom user, auth, roles, StudentProfile
     "apps.experts",  # Phase 3: application, profile, directory
+    "apps.service_requests",  # Phase 4: student briefs + lifecycle
+    "apps.bidding",  # Phase 4: offers + transactional selection
+    "apps.orders",  # Phase 4: order anchor (awaiting_payment only)
     "apps.payments",  # Phase 1: gateway interface only
     "apps.seed",  # top layer: demo data (accounts cannot import domain apps)
 ]

@@ -270,6 +270,91 @@ class Command(BaseCommand):
         # a plain user who never applied (lifecycle: not_applied)
         make_user("noapply@demo.local", "Not Applied User", demo_password)
 
+        # --- marketplace demo (Phase 4): requests + offers -----------------
+        # a second approved expert kept OUT of the directory (is_public=False)
+        hina = make_user("expert.market@demo.local", "Hina S.", demo_password)
+        hina_application = apply_as(
+            hina,
+            {
+                "display_name": "Hina S.",
+                "headline": "Linear algebra & calculus coach",
+                "bio": "Step-by-step coaching so students solve problems themselves.",
+                "expertise_summary": "Mathematics tutoring",
+                "experience_years": 4,
+                "qualifications": "MSc Mathematics",
+                "languages": "English, Urdu",
+                "availability_note": "Weekends",
+                "_subjects": [subj_stats],
+                "_skills": [skill_pandas],
+            },
+            "ayra-certificate.png",
+        )
+        if hina_application.status == ExpertApplication.Status.SUBMITTED:
+            expert_services.start_review(hina_application.pk, reviewer=admin)
+            hina_application = expert_services.approve(
+                hina_application.pk, reviewer=admin, note="OK."
+            )
+        from apps.experts.models import ExpertProfile
+
+        ExpertProfile.objects.filter(pk=hina.pk).update(is_public=False)  # feed-only expert
+
+        from apps.bidding import services as bidding_services
+        from apps.service_requests import services as request_services
+        from apps.service_requests.models import ServiceRequest
+
+        student_user = User.objects.get(email="student@demo.local")
+        subject = subj_python or subj_stats
+        if not ServiceRequest.objects.filter(
+            student=student_user, title__startswith="Coach me through"
+        ).exists():
+            open_req = request_services.create_request(
+                student_user,
+                payload={
+                    "category": "concept_coaching",
+                    "title": "Coach me through pandas groupby assignments",
+                    "description": "I want to actually understand groupby/agg myself - guided practice, "
+                    "not solutions. Two sessions per week would be ideal.",
+                    "subject": subject,
+                    "budget_min": 3000,
+                    "budget_max": 9000,
+                    "pricing_type": "fixed",
+                },
+            )
+            open_req = request_services.publish(student_user, open_req, attested=True)
+            if ayra_application.status == ExpertApplication.Status.APPROVED:
+                bidding_services.submit(
+                    ayra,
+                    open_req,
+                    payload={
+                        "amount": 7000,
+                        "currency": "USD",
+                        "timeline_text": "Start this week, 2 sessions/week",
+                        "message": "Happy to coach - we work through exercises together.",
+                    },
+                )
+            if hina_application.status == ExpertApplication.Status.APPROVED:
+                bidding_services.submit(
+                    hina,
+                    open_req,
+                    payload={
+                        "amount": 5500,
+                        "currency": "USD",
+                        "timeline_text": "Weekends",
+                        "message": "Weekend deep-dives with practice sets.",
+                    },
+                )
+            draft_req = request_services.create_request(
+                student_user,
+                payload={
+                    "category": "exam_prep",
+                    "title": "Statistics final exam prep (draft)",
+                    "description": "Planning a 3-week revision plan - still drafting the details.",
+                    "subject": subj_stats or subject,
+                    "budget_max": 12000,
+                },
+            )
+            del draft_req  # stays a draft on purpose (demo of the editable state)
+
         # expert @demo.local keeps the expert role even though "student@" etc.
         # exist — sanity: directory should contain Ayra only (Zoya suspended).
         from apps.experts.services import directory_queryset

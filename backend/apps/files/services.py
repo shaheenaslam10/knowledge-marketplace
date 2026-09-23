@@ -54,6 +54,16 @@ PURPOSE_RULES: dict[str, PurposeRule] = {
         ),
         access=Attachment.Access.PRIVATE,
     ),
+    Attachment.Purpose.REQUEST_BRIEF: PurposeRule(
+        max_bytes=10 * MB,
+        extensions=frozenset({"pdf", "png", "jpg", "jpeg"}),
+        magic=(
+            (b"%PDF", "application/pdf"),
+            (b"\x89PNG\r\n\x1a\n", "image/png"),
+            (b"\xff\xd8\xff", "image/jpeg"),
+        ),
+        access=Attachment.Access.PRIVATE,  # participants granted via grant_download (Phase 4)
+    ),
     Attachment.Purpose.AVATAR: PurposeRule(
         max_bytes=2 * MB,
         extensions=frozenset({"png", "jpg", "jpeg", "webp"}),
@@ -124,7 +134,11 @@ def store_upload(uploader, *, purpose: str, uploaded_file) -> tuple[Attachment, 
     digest = hasher.hexdigest()
     content_type = _sniff(chunks[0][:16], rule)
 
-    existing = Attachment.objects.filter(uploader=uploader, sha256=digest, size=size).first()
+    # Dedupe is scoped per purpose: identical bytes for a different purpose
+    # (e.g. credential vs request_brief) must create their own access row.
+    existing = Attachment.objects.filter(
+        uploader=uploader, purpose=purpose, sha256=digest, size=size
+    ).first()
     if existing:
         return existing, False
 
@@ -154,7 +168,15 @@ def grant_download(user, attachment: Attachment) -> bool:
         return True
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    return user.pk == attachment.uploader_id or user.is_staff
+    if user.pk == attachment.uploader_id or user.is_staff:
+        return True
+    # Request briefs: the selected (accepted) expert keeps participant access;
+    # browsing experts see metadata only — no signed URLs (docs/workflows/files.md).
+    if attachment.purpose == Attachment.Purpose.REQUEST_BRIEF:
+        return attachment.service_requests.filter(
+            offers__expert_id=user.pk, offers__status="accepted"
+        ).exists()
+    return False
 
 
 def issue_download_token(attachment: Attachment) -> str:

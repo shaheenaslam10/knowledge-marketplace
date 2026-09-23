@@ -49,9 +49,19 @@ def test_seed_creates_all_personas(seeded, django_user_model):
 
 def test_seed_is_idempotent(seeded, django_user_model):
     call_command("seed_demo")  # second run must not duplicate or crash
-    assert django_user_model.objects.filter(email__endswith="@demo.local").count() == 8
-    assert ExpertApplication.objects.count() == 5
-    assert [p.slug for p in directory_queryset()] == ["ayra-k"]
+    assert (
+        django_user_model.objects.filter(email__endswith="@demo.local").count() == 9
+    )  # + expert.market@
+    assert ExpertApplication.objects.count() == 6
+    assert [p.slug for p in directory_queryset()] == ["ayra-k"]  # feed-only expert stays out
+
+    from apps.bidding.models import Offer
+    from apps.service_requests.models import ServiceRequest
+
+    assert (
+        ServiceRequest.objects.filter(student__email="student@demo.local").count() == 2
+    )  # open + draft
+    assert Offer.objects.count() == 2  # Ayra + Hina on the open request
 
 
 def test_seed_refuses_outside_dev_test(monkeypatch, settings):

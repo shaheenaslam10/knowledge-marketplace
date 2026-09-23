@@ -32,9 +32,10 @@ class Attachment(TimeStampedModel):
     class Purpose(models.TextChoices):
         CREDENTIAL = "credential", "Credential (expert application)"
         AVATAR = "avatar", "Avatar"
+        REQUEST_BRIEF = "request_brief", "Request brief attachment"
 
     class Access(models.TextChoices):
-        """`private` = uploader + authorized staff only (grant_download gates
+        """`private` = uploader + authorized parties only (grant_download gates
         every request); `public` = readable by anyone (avatars only)."""
 
         PRIVATE = "private", "Private"

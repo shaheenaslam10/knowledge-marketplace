@@ -65,8 +65,8 @@ def test_store_upload_rejects_bad_extension_size_and_purpose(user):
     with pytest.raises(DomainError) as err:
         store_upload(user, purpose="credential", uploaded_file=big)
     assert err.value.code == "file_too_large"
-    with pytest.raises(DomainError):
-        store_upload(user, purpose="request_brief", uploaded_file=PNG)  # purpose arrives in Phase 4
+    brief, _ = store_upload(user, purpose="request_brief", uploaded_file=PNG)  # Phase 4 purpose
+    assert brief.access == Attachment.Access.PRIVATE  # briefs are never public
 
 
 def test_dedupe_same_bytes_same_uploader(user):
