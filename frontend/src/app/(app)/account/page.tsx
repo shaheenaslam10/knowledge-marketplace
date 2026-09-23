@@ -58,6 +58,16 @@ export default function AccountPage() {
         </dl>
       </Card>
 
+      <Card>
+        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">My orders</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Every engagement — open marketplace, managed pool, or managed direct — from payment to completion.
+        </p>
+        <Link href="/orders" className="mt-3 inline-block text-sm underline" data-testid="link-orders">
+          Open order workspace
+        </Link>
+      </Card>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Student profile</p>
