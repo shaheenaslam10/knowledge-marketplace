@@ -17,7 +17,7 @@
 | DB | docker postgres:16 | services postgres:16 | managed (Neon free) | managed (Neon) or VM container |
 | Files | local disk (`MEDIA_ROOT`) | local disk | R2 staging bucket | R2 prod bucket |
 | Email | console | locmem (tests) | Brevo test/sandbox | Brevo/SMTP |
-| Payments | `PAYMENT_GATEWAY=manual` (interface only in Phase 1) | FakeGateway/manual | Stripe test (Phase 8) | Stripe live or manual |
+| Payments | `PAYMENT_GATEWAY=manual` (interface only in Phase 1) | FakeGateway/manual | Stripe test (Phase 7) | Stripe live or manual |
 | Realtime | in-memory channel layer (1 ASGI proc) | in-memory | in-memory (1 proc) | in-memory (1 proc) → Redis later |
 
 ## Environment variables (canonical — mirrored in `/.env.example`)
@@ -64,19 +64,19 @@
 ### Payments
 | Variable | Example |
 |---|---|
-| `PAYMENT_GATEWAY` | `manual` \| `stripe` (adapter registry; Phase 8 registers stripe) |
+| `PAYMENT_GATEWAY` | `manual` \| `stripe` (adapter registry; Phase 7 registers stripe) |
 | `MANUAL_PAYMENT_INSTRUCTIONS` | text shown to students in manual mode (**wired — read by the gateway**) |
-| `STRIPE_SECRET_KEY` | `sk_…` (Phase 8) |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_…` (Phase 8) |
-| `STRIPE_API_COUNTRY` | `US` (Phase 8) |
+| `STRIPE_SECRET_KEY` | `sk_…` (Phase 7) |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` (Phase 7) |
+| `STRIPE_API_COUNTRY` | `US` (Phase 7) |
 
 ### Email
 | Variable | Example |
 |---|---|
 | `DEFAULT_FROM_EMAIL` | `no-reply@example.com` |
-| `EMAIL_BACKEND_MODE` | `console` \| `smtp` \| `brevo` — **wired in Phase 9** (console backend is active now) |
-| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP mode (Phase 9) |
-| `BREVO_API_KEY` | Brevo mode (Phase 9) |
+| `EMAIL_BACKEND_MODE` | `console` \| `smtp` \| `brevo` — **wired in Phase 8** (console backend is active now) |
+| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP mode (Phase 8) |
+| `BREVO_API_KEY` | Brevo mode (Phase 8) |
 
 ### Production hardening (read by `config/settings/prod.py`)
 | Variable | Example |
@@ -89,7 +89,7 @@
 |---|---|
 | `FILE_STORAGE` | `local` \| `r2` |
 | `MEDIA_ROOT` | `./var/media` |
-| `R2_BUCKET` / `R2_ACCOUNT_ID` / `R2_ACCESS_KEY` / `R2_SECRET_KEY` / `R2_REGION` | R2 mode (Phase 10) |
+| `R2_BUCKET` / `R2_ACCOUNT_ID` / `R2_ACCESS_KEY` / `R2_SECRET_KEY` / `R2_REGION` | R2 mode (Phase 9) |
 
 ### Auth (Phase 2)
 | Variable | Example |

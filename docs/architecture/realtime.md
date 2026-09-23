@@ -16,7 +16,7 @@ Deliberate choice: WS transports are **hints to refetch**, never the source of t
 
 ## Stack & topology
 
-- **Django Channels 4.3.x** on the same ASGI process as HTTP (uvicorn). Consumers in `messaging/consumers.py` and `notifications/consumers.py` (Phase 9). Phase 1 ships the ASGI/routing/auth/origin-validation foundation plus a `PingConsumer` connectivity proof.
+- **Django Channels 4.3.x** on the same ASGI process as HTTP (uvicorn). Consumers in `messaging/consumers.py` and `notifications/consumers.py` (Phase 8). Phase 1 ships the ASGI/routing/auth/origin-validation foundation plus a `PingConsumer` connectivity proof.
 - **Channel layer: `InMemoryChannelLayer`** (MVP). Valid because MVP runs **exactly one ASGI process** (documented constraint in system-architecture + deployment). Groups used: `thread_{id}`, `user_{id}`, `order_{id}`.
 - Scale-out path (no code changes, settings only): swap to `channels_redis.RedisChannelLayer` when a second ASGI process is needed — Redis then enters the stack for this one purpose (see scalability doc triggers). Auth still via cookie on WS handshake.
 

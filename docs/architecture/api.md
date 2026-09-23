@@ -37,7 +37,7 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/experts` | ✅ public directory: approved + public + active experts only; `q` search, `subject`/`skill` slug filters, `rating_min`; cursor pagination. No private fields ever |
-| GET | `/experts/{slug}` | ✅ public profile (same visibility rules; suspended/opted-out → 404). Reviews sub-resource arrives Phase 10 |
+| GET | `/experts/{slug}` | ✅ public profile (same visibility rules; suspended/opted-out → 404). Reviews sub-resource arrives Phase 9 |
 | GET | `/experts/apply-info` | ✅ public requirements + taxonomy reference for the apply form |
 | GET | `/me/expert-application` | ✅ own application + lifecycle status (`not_applied` when none) |
 | POST | `/me/expert-application` | ✅ create application (draft) |
@@ -45,8 +45,8 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 | POST | `/me/expert-application/submit` | ✅ validates attestations + ≥1 credential + verified email → `submitted` |
 | GET/PATCH | `/me/expert-profile` | ✅ own expert profile / availability + visibility (approval required) |
 | POST | `/experts/apply` | superseded by the `/me/expert-application` trio (draft → edit → submit) |
-| GET | `/me/earnings` | ledger-derived earnings + payout status (Phase 8) |
-| GET | `/me/payouts` | payout history (Phase 8) |
+| GET | `/me/earnings` | ledger-derived earnings + payout status (Phase 7) |
+| GET | `/me/payouts` | payout history (Phase 7) |
 | GET | `/public/stats` | homepage counters (later phase) |
 
 ### Taxonomy — `/api/v1/taxonomy`
@@ -110,7 +110,7 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 ### Files — `/api/v1/files` — ✅ **foundation implemented (Phase 3)**
 | POST | `/files` | ✅ authed | multipart upload; purposes `credential` (pdf/png/jpg ≤10 MB, private) + `avatar` (png/jpg/webp ≤2 MB, public); content sniffing, sha256 dedupe |
 | GET | `/files/{id}` | ✅ uploader/staff | metadata |
-| GET | `/files/{id}/download-url` | ✅ authorized | 5-min signed token (R2 presigned arrives with the Phase 10 adapter); staff views of private credentials are audited |
+| GET | `/files/{id}/download-url` | ✅ authorized | 5-min signed token (R2 presigned arrives with the Phase 9 adapter); staff views of private credentials are audited |
 | GET | `/files/{id}/download?token=` | ✅ signed token / public | local streaming; `Content-Disposition` + `nosniff` |
 Other purposes (`request_brief`, `message`, `delivery`, `dispute_evidence`) land with their phases.
 

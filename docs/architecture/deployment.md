@@ -51,6 +51,6 @@ Managed DB alternative: **Neon free tier** (0.5 GB, autosuspend) — recommended
 - `docker-compose.yml` (dev): `db` (postgres:16-alpine, volume), `backend` (uvicorn, autoreload mount), `worker`, `frontend` (next dev), Caddy optional profile. `docker-compose.prod.yml` overrides: images, no mounts, resource limits, log rotation, restart policies, `depends_on` healthchecks.
 - All containers non-root; backend image multi-stage (build wheels → slim runtime).
 
-## Pre-launch checklist (Phase 13)
+## Pre-launch checklist (Phase 12)
 
 Domain + DNS, TLS, Stripe live keys + webhook, R2 bucket + CORS, email sender domain verified (SPF/DKIM), env file review (no DEBUG, strong SECRET_KEY), backups scheduled + restore tested, uptime monitor, admin URL + staff accounts, ToS/privacy/integrity policy pages live, seed data removed (`scripts/reset_prod.py` guard against running seed in prod).

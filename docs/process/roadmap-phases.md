@@ -1,45 +1,43 @@
 # Development Phases, Dependencies & Acceptance Criteria
 
-> Status: Phase 1 ✅ complete · Last updated: Phase 1
-> Sequence follows the brief's suggested order (no deviations needed — dependencies confirmed consistent). Each phase: deliverables → acceptance criteria → "runs locally" proof. Doc updates happen **inside** each phase.
+> Status: **Phase 4 ✅ complete · Next: Phase 5 (Managed Service + Owner Assignment)** · Last updated: Phase 5 kickoff
+> **Single source of truth.** The table below reflects what the system actually contains after each phase. Renumbered at Phase 5 kickoff (owner direction): the marketplace foundation (requests + open bidding + selection + order creation) shipped together in Phase 4, so the former "Bidding & Selection" phase no longer exists and later phases shifted down one. Per-phase completion records live at the bottom of this file.
 
 ## Phase overview
 
 | Phase | Name | Depends on | Core deliverables |
 |---|---|---|---|
-| 0 | Architecture & Documentation | — | ✅ this docs set, ADRs, review |
+| 0 | Architecture & Documentation | — | ✅ docs set, ADRs, review |
 | 1 | Project Foundation | 0 | ✅ monorepo scaffolds (backend+frontend), Docker Compose, CI, `.env.example`, health endpoints, seed command, lint/test gates, worker pipeline, OpenAPI, error envelope, gateway interface |
-| 2 | Authentication & Roles | 1 | register/verify/login/reset, JWT cookies, role model, admin groups, audit middleware, throttles |
+| 2 | Authentication & Roles | 1 | ✅ register/verify/login/reset, JWT cookies, role model, admin groups, audit middleware, throttles |
 | 3 | Student/Expert Profiles | 2 | ✅ profiles, taxonomy, expert application+approval (admin), files app (credentials, avatars), public expert directory API |
-| 3.5 | Design & experience architecture (docs) | 3 | ✅ three-experience structure (ADR-0013), design system + motion + component selection (ADR-0014); implementation = design-foundation slice of Phase 4 |
-| 4 | Requests & Open Marketplace | 3 | ServiceRequest CRUD + integrity attestation, visibility, opportunities board, subjects/tags filters, request files |
-| 5 | Bidding & Selection | 4 | offers lifecycle, accept→order creation (orders app core state machine + services), notifications MVP (in-app+email) |
-| 6 | Managed Service & Owner Assignment | 4 | triage actions, pool invitations, direct assignments, quote/price guidance |
-| 7 | Orders & Delivery | 5 | delivery/revision/approve/auto-approve/cancel flows, order workspaces (FE), timers, order timeline |
-| 8 | Payments & Commissions | 7 | Stripe Connect adapter (+manual), PaymentIntent flow, webhooks+idempotency, ledger, refunds, payout sweeper, earnings UI |
-| 9 | Messaging & Notifications | 5 | threads+WS realtime, read receipts, notification center+preferences+digests, realtime toasts |
-| 10 | Files, Reviews & Disputes | 7,8 | secure downloads (R2 presigned), review flows+aggregates, dispute lifecycle+resolution execution |
-| 11 | Admin & Analytics | 6–10 | admin dashboards/KPIs, moderation queues, audit viewer, config UI, reconciliation views, seed polish |
-| 12 | Security, Testing & Performance | all | authorization matrix test suite, CSP/headers, dependency audit, E2E pack, perf budgets, checklist gate |
-| 13 | Production Deployment | 12 | staging→prod deploy, backups+restore drill, monitoring, legal pages, launch checklist |
+| 3.5 | Design & Product Architecture | 3 | ✅ three-experience structure (ADR-0013), design system + motion + component selection (ADR-0014) |
+| 4 | Marketplace + Open Bidding + Selection | 3.5 | ✅ design foundation in code (tokens, customized kit, motion, three shells); ServiceRequest lifecycle + integrity attestation, visibility rules, opportunities feed, offers (blind, editable pending), **transactional selection** → Order (`awaiting_payment`, commission snapshot); request files (`request_brief`); `bundle:check` budget gate |
+| 5 | Managed Service + Owner Assignment | 4 | owner triage (approve/reject), pool invitations (first-accept wins), direct assignments, quote/price guidance, expert accept/decline, **convergence into the same Order** (`source=managed_pool|managed_direct`) |
+| 6 | Orders & Delivery | 5 | delivery/revision/approve/auto-approve/cancel flows, order workspaces (FE), timers, order timeline |
+| 7 | Payments & Commissions | 6 | Stripe Connect adapter (+manual), PaymentIntent flow, webhooks+idempotency, ledger, refunds, payout sweeper, earnings UI |
+| 8 | Messaging & Notifications | 5 | threads+WS realtime, read receipts, notification center+preferences+digests, realtime toasts |
+| 9 | Files, Reviews & Disputes | 6,7 | secure downloads (R2 presigned), review flows+aggregates, dispute lifecycle+resolution execution |
+| 10 | Admin & Analytics | 5–9 | admin dashboards/KPIs, moderation queues, audit viewer, config UI, reconciliation views, seed polish |
+| 11 | Security, Testing & Performance | all | authorization matrix test suite, CSP/headers, dependency audit, E2E pack, perf budgets, checklist gate |
+| 12 | Production Deployment | 11 | staging→prod deploy, backups+restore drill, monitoring, legal pages, launch checklist |
 
-Notes on ordering: payments after orders (order must exist to pay for); messaging at 9 (marketplace usable without realtime chat); files core lands in 3 (credentials) with delivery-file extensions in 7/10.
-
-**Revised sequence (Phase 3.5 refinement, owner direction):** design architecture ✅ → design system ✅ (docs; implementation = Phase 4 slice) → **marketplace domain → marketplace UX → managed-service UX → payments → communication → admin operations → final visual/performance polish.** The marketplace foundation stays the next functional phase; **no major user-facing marketplace screens are built before the design-system foundation exists in code** (tokens, shadcn base kit, Motion runtime, three experience shells — the design-foundation slice opens Phase 4 and can proceed in parallel with backend domain work). Marketing-site content depth grows with the marketplace-UX and polish phases; the operations portal ships as scaffolding until the admin-operations phase (Django admin remains the ops tool, ADR-0010).
+Notes on ordering: payments after orders (an order must exist to pay for); messaging at 8 (marketplace usable without realtime chat); files core landed in 3 (credentials) + 4 (`request_brief`), delivery-file extensions in 6/9; the operations portal stays scaffolding until Phase 10 (Django admin remains the ops tool, ADR-0010). Sequence rationale (Phase 3.5 refinement): design system ✅ → marketplace domain → managed service → orders/delivery → payments → communication → files/reviews/disputes → admin → hardening → launch.
 
 ## Per-phase acceptance criteria (summary — detailed gates)
 
 - **Every phase:** backend `pytest` green + frontend `build` green in CI; `docker compose up` gives a working app; README updated; docs updated; committed & pushed with clear message; demo-able via seed data.
 - **Phase 4+ (design gate, from 3.5):** new user-facing screens consume the design-system tokens/primitives (no ad-hoc styling systems), vendored patterns are recorded in component-selection.md, and CI bundle checks stay within design-system.md §Performance.
-- **P2:** matrix tests for roles on existing endpoints; audit rows on admin actions.
-- **P5:** open-flow E2E locally: post→offer→accept→order(awaiting_payment) with Stripe test-mode charge (gateway adapter stubbed money-safe) OR manual mode.
-- **P6:** managed-flow E2E: submit→triage(approve pool / direct assign)→accept→order.
-- **P8:** webhook idempotency tests; ledger balance invariant test; refund+partial refund paths; payout scheduling incl. minimums; expert earnings math verified against commission snapshots.
-- **P9:** two-browser chat demo; offline email fallback; preference toggles honored.
-- **P10:** cross-account file access denied (tested); review aggregates correct; dispute→partial refund→ledger verified.
-- **P11:** owner can operate a full day (vet, triage, resolve, reconcile) from admin alone.
-- **P12:** security checklist (docs/architecture/security.md) signed off; coverage gates met.
-- **P13:** restore drill passed; uptime monitor green; live order cycle with real (or manual-mode) money.
+- **P2 (done):** matrix tests for roles on existing endpoints; audit rows on admin actions.
+- **P4 (done):** open-flow E2E locally: post→offer→accept→order(`awaiting_payment`); selection race-safety suite.
+- **P5:** managed-flow E2E: submit→triage(approve pool / direct assign)→accept→order with correct `Order.source`; first-accept-wins race test; ineligible-expert rejections.
+- **P6:** delivery/revision/approve loops tested incl. auto-approve timer; order workspace live for both roles.
+- **P7:** webhook idempotency tests; ledger balance invariant test; refund+partial refund paths; payout scheduling incl. minimums; expert earnings math verified against commission snapshots.
+- **P8:** two-browser chat demo; offline email fallback; preference toggles honored.
+- **P9:** cross-account file access denied (tested); review aggregates correct; dispute→partial refund→ledger verified.
+- **P10:** owner can operate a full day (vet, triage, resolve, reconcile) from admin alone.
+- **P11:** security checklist (docs/architecture/security.md) signed off; coverage gates met.
+- **P12:** restore drill passed; uptime monitor green; live order cycle with real (or manual-mode) money.
 
 ## Effort shape (relative, not calendar-promising)
 

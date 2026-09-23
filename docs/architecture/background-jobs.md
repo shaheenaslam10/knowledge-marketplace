@@ -24,10 +24,10 @@ see ADR-0002 amendment. Revised choice:
 | bidding | expire stale offers | daily (Phase 5) | BR-15 |
 | assignments | expire invitations/assignments | hourly (Phase 6) | BR-20/21 |
 | orders | auto-approve deliveries, unpaid sweeper, deadline warnings | 15 min/hourly (Phase 7) | BR-24/26 |
-| payments | payout sweeper, refund executor, webhook checker | hourly/on demand (Phase 8) | BR-30/31 |
-| notifications | email fan-out, digests, prune | on notify/daily (Phase 9) | |
-| files | retention cleanup | daily (Phase 10) | |
-| audit/ledger | nightly ledger balance check | daily (Phase 8) | charge = commission + credit |
+| payments | payout sweeper, refund executor, webhook checker | hourly/on demand (Phase 7) | BR-30/31 |
+| notifications | email fan-out, digests, prune | on notify/daily (Phase 8) | |
+| files | retention cleanup | daily (Phase 9) | |
+| audit/ledger | nightly ledger balance check | daily (Phase 7) | charge = commission + credit |
 
 ## Design rules
 
