@@ -22,17 +22,23 @@ interface ApiFetchOptions extends RequestInit {
 }
 
 /**
- * Thin API client (foundation). Rules:
- * - credentials always included (cookie-based auth arrives in Phase 2)
+ * Thin API client. Rules:
+ * - credentials always included — auth is httpOnly cookies (`hm_access`/`hm_refresh`),
+ *   never JS-readable tokens
+ * - mutating requests carry `X-Requested-With` (documented CSRF defense-in-depth)
  * - the error envelope {"error":{code,message,details}} is parsed into ApiError
- * - 401 handling/refresh gets layered here in Phase 2 — call sites must not change
+ * - on 401 the caller decides UX (sign-in redirect); the browser regains a valid
+ *   session through the login/refresh endpoints — no transparent retry loop here,
+ *   so a single request can never trigger cascading refreshes
  */
 export async function apiFetch<T>({ path, baseUrl, ...init }: ApiFetchOptions): Promise<T> {
+  const method = (init.method ?? "GET").toUpperCase();
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     credentials: "include",
     headers: {
       Accept: "application/json",
+      ...(method !== "GET" && method !== "HEAD" ? { "X-Requested-With": "XMLHttpRequest" } : {}),
       ...(init.body ? { "Content-Type": "application/json" } : {}),
       ...init.headers,
     },

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SessionProvider } from "@/features/auth/SessionProvider";
 import { SITE_URL } from "@/lib/config";
 import "./globals.css";
 
@@ -15,7 +16,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        {/* Cookie-auth session state for client components (the cookie itself
+            is httpOnly — /api/v1/me is the source of truth). */}
+        <SessionProvider>{children}</SessionProvider>
+      </body>
     </html>
   );
 }
