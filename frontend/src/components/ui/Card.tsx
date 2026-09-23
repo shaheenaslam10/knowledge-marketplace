@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Card({ children, className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}
+      className={cn("rounded-lg border border-border bg-surface p-6 shadow-sm", className)}
+      {...props}
     >
       {children}
     </div>

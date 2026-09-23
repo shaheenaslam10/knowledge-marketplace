@@ -112,7 +112,7 @@ export const profilesApi = {
 /** Uploads one file; returns the attachment id for owner objects to reference. */
 export async function uploadFile(
   file: File,
-  purpose: "credential" | "avatar",
+  purpose: "credential" | "avatar" | "request_brief",
   baseUrl = API_URL_BROWSER,
 ): Promise<{ id: string; original_name: string }> {
   const form = new FormData();

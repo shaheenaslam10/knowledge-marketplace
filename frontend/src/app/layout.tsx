@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen antialiased">
+      <body className="min-h-screen font-sans antialiased">
         {/* Cookie-auth session state for client components (the cookie itself
             is httpOnly — /api/v1/me is the source of truth). */}
         <SessionProvider>{children}</SessionProvider>

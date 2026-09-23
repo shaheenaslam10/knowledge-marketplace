@@ -18,7 +18,7 @@ describe("Button", () => {
 
   it("applies variant classes", () => {
     render(<Button variant="secondary">X</Button>);
-    expect(screen.getByRole("button").className).toContain("border-slate-300");
+    expect(screen.getByRole("button").className).toContain("bg-surface");
   });
 
   it("is keyboard accessible with visible focus support", async () => {

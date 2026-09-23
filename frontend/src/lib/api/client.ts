@@ -1,4 +1,5 @@
 import type { ErrorEnvelope } from "@/types/api";
+import { API_URL_BROWSER } from "@/lib/config";
 
 /** Typed error carrying the backend's stable machine code — UI maps codes to copy. */
 export class ApiError extends Error {
@@ -18,7 +19,7 @@ export class ApiError extends Error {
 interface ApiFetchOptions extends RequestInit {
   /** relative to the configured base URL, e.g. "/api/v1/..." */
   path: string;
-  baseUrl: string;
+  baseUrl?: string;
 }
 
 /**
@@ -32,8 +33,9 @@ interface ApiFetchOptions extends RequestInit {
  *   so a single request can never trigger cascading refreshes
  */
 export async function apiFetch<T>({ path, baseUrl, ...init }: ApiFetchOptions): Promise<T> {
+  const url = (baseUrl ?? API_URL_BROWSER) + path;
   const method = (init.method ?? "GET").toUpperCase();
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(url, {
     ...init,
     credentials: "include",
     headers: {

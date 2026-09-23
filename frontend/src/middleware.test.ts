@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { resolveRoute } from "./middleware";
 
+describe("phase 4 prefixes", () => {
+  it.each(["/requests", "/opportunities", "/offers", "/portal"])("guards %s", (path) => {
+    expect(resolveRoute(path, false)).toBe("/login");
+    expect(resolveRoute(path, true)).toBeNull();
+  });
+});
+
 describe("middleware route resolution (protected-route foundation)", () => {
   it("redirects anonymous users from protected paths to login", () => {
     expect(resolveRoute("/account", false)).toBe("/login");
