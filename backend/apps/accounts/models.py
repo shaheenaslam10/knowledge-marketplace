@@ -96,3 +96,42 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
 
     def get_short_name(self) -> str:
         return self.name.split(" ", 1)[0] if self.name else self.email
+
+
+class StudentProfile(TimeStampedModel):
+    """Marketplace preferences for the student side of the account.
+
+    Deliberately minimal, non-sensitive data only: display preferences and
+    learning interests. Identity/auth stays on User; education history and
+    richer academic context can extend this model later without touching auth.
+    Students are self-service (BR-01/BR-03) — no approval gate to BE a student;
+    onboarding is just profile setup. Interests reference the SHARED taxonomy
+    so requests (Phase 4) and expert profiles align on one subject system.
+    """
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="student_profile",
+    )
+    display_name = models.CharField(max_length=150, blank=True)
+    bio = models.CharField(
+        "short bio",
+        max_length=1000,
+        blank=True,
+        help_text="Learning context for experts (never graded-work instructions).",
+    )
+    interests = models.ManyToManyField(
+        "taxonomy.TaxonomyTerm",
+        blank=True,
+        related_name="interested_students",
+        limit_choices_to={"kind__in": ["subject", "skill"]},
+    )
+
+    class Meta:
+        verbose_name = "student profile"
+        verbose_name_plural = "student profiles"
+
+    def __str__(self) -> str:
+        return f"student-profile:{self.user_id}"

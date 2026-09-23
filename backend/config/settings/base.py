@@ -52,8 +52,13 @@ THIRD_PARTY_APPS = [
 ]
 LOCAL_APPS = [
     "apps.core",
-    "apps.accounts",  # Phase 2: custom user, auth, roles
+    "apps.audit",  # sidecar: append-only audit log (Phase 3)
+    "apps.files",  # sidecar: attachments + secure access (Phase 3)
+    "apps.taxonomy",  # shared subjects/skills/categories (Phase 3)
+    "apps.accounts",  # Phase 2: custom user, auth, roles, StudentProfile
+    "apps.experts",  # Phase 3: application, profile, directory
     "apps.payments",  # Phase 1: gateway interface only
+    "apps.seed",  # top layer: demo data (accounts cannot import domain apps)
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 

@@ -72,8 +72,18 @@ source_modules = ["apps.core"]
 forbidden_modules = ["apps.accounts", "apps.payments"]
 
 [[tool.importlinter.contracts]]
-name = "Domain layers may depend downward only (payments < accounts < core)"
+name = "Domain layers may depend downward only"
 type = "layers"
-# import-linter layers are listed highest-first: payments may import accounts+core,
-# accounts may import core, core imports neither.
-layers = ["apps.payments", "apps.accounts", "apps.core"]
+# import-linter layers are listed highest-first. seed (demo data) may import
+# everything; experts may import accounts/taxonomy/files/audit; sidecars
+# (files/audit) import core only; core imports no domain app.
+layers = [
+    "apps.seed",
+    "apps.payments",
+    "apps.experts",
+    "apps.accounts",
+    "apps.taxonomy",
+    "apps.files",
+    "apps.audit",
+    "apps.core",
+]
