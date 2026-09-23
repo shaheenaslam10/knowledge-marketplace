@@ -10,7 +10,7 @@ import { APPLICATION_STATUS_COPY } from "@/features/experts/status";
 import { canSubmitApplication, isApplicationEditable, type ApplicationStatus, type TaxonomyTerm } from "@/features/experts/types";
 
 /**
- * Expert application (ADR-0011) — a SEPARATE, role-specific flow: students
+ * Expert application (ADR-0012) — a SEPARATE, role-specific flow: students
  * never see this, and approval is required before expert status. Steps:
  * complete form → upload credential(s) → attestations → submit for review.
  */

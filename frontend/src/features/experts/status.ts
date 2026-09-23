@@ -1,6 +1,6 @@
 import type { ApplicationStatus } from "./types";
 
-/** Lifecycle copy for the applicant's own view (ADR-0011 state machine). */
+/** Lifecycle copy for the applicant's own view (ADR-0012 state machine). */
 export const APPLICATION_STATUS_COPY: Record<ApplicationStatus, { title: string; detail: string; tone: "neutral" | "info" | "success" | "danger" }> = {
   not_applied: {
     title: "Not applied",

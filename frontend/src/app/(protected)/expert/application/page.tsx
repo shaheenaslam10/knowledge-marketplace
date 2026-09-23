@@ -9,7 +9,7 @@ import { expertsApi } from "@/features/experts/api";
 import { APPLICATION_STATUS_COPY } from "@/features/experts/status";
 import { canSubmitApplication, type ApplicationStatus } from "@/features/experts/types";
 
-/** Expert application status — the applicant's own lifecycle view (ADR-0011). */
+/** Expert application status — the applicant's own lifecycle view (ADR-0012). */
 export default function ExpertApplicationStatusPage() {
   const [status, setStatus] = useState<ApplicationStatus | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);

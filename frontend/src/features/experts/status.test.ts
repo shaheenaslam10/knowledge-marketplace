@@ -3,7 +3,7 @@ import { APPLICATION_STATUS_COPY } from "./status";
 import { canSubmitApplication, isApplicationEditable } from "./types";
 
 
-describe("expert application lifecycle copy (ADR-0011)", () => {
+describe("expert application lifecycle copy (ADR-0012)", () => {
   it("covers every lifecycle state", () => {
     const states = [
       "not_applied",

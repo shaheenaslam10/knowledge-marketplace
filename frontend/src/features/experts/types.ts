@@ -30,7 +30,7 @@ export interface PublicExpert {
   approved_at: string | null;
 }
 
-/** Expert application lifecycle (ADR-0011) — `not_applied` = no application yet. */
+/** Expert application lifecycle (ADR-0012) — `not_applied` = no application yet. */
 export type ApplicationStatus =
   | "not_applied"
   | "draft"

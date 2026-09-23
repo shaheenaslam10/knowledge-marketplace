@@ -1,6 +1,6 @@
 """Seed/demo data (idempotent) — accounts + taxonomy + expert personas.
 
-Role onboarding demo coverage (ADR-0011):
+Role onboarding demo coverage (ADR-0012):
 - admin/owner      provisioned account (never via public signup, BR-05)
 - student          self-service account + completed student profile
 - expert personas  one per application state: approved (directory-visible),

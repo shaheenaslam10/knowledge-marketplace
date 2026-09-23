@@ -11,7 +11,7 @@ import { useSession } from "@/features/auth/SessionProvider";
 
 /**
  * Account home (Phase 2 placeholder + Phase 3 role-aware next steps):
- * shows the student onboarding and expert-application state, per ADR-0011's
+ * shows the student onboarding and expert-application state, per ADR-0012's
  * separation of student onboarding vs the expert pipeline vs admin (admin
  * management stays in Django admin — there is no public admin flow).
  */

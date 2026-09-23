@@ -7,7 +7,7 @@ import { profilesApi } from "@/features/experts/api";
 import type { TaxonomyTerm } from "@/features/experts/types";
 
 /**
- * Student onboarding (ADR-0011): self-service profile setup — no approval gate.
+ * Student onboarding (ADR-0012): self-service profile setup — no approval gate.
  * Collects only marketplace-useful, non-sensitive preferences.
  */
 export default function StudentOnboardingPage() {

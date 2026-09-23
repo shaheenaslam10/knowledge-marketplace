@@ -1,5 +1,5 @@
 """Experts domain — expert application (review artifact) and expert profile
-(live business object) are DISTINCT models (role-onboarding decision, ADR-0011):
+(live business object) are DISTINCT models (role-onboarding decision, ADR-0012):
 
 - `ExpertApplication` — one per user; carries the submitted information,
   the credentials, and the LIFECYCLE STATE. Admin reviews THIS.
