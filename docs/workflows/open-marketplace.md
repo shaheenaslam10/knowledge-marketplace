@@ -1,6 +1,8 @@
 # Open Marketplace — Bidding Workflow
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23
+> Status: ✅ Phase 4 implemented (requests, offers, selection → Order awaiting_payment) · Last updated: Phase 4
+>
+> Implementation deltas: withdrawn offers are **resubmittable** while the request is open (BR-16 reversal, explicit endpoint); expiration runs via `bidding.tasks.expire_stale_requests` (django-q2 schedule, hourly, ops setup); brief attachments are visible as **metadata only** to browsing experts — content (signed URLs) unlocks for the selected expert (docs/workflows/files.md).
 
 ## Actors & surfaces
 

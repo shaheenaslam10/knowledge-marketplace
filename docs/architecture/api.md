@@ -127,6 +127,21 @@ Other purposes (`request_brief`, `message`, `delivery`, `dispute_evidence`) land
 | GET | `/me/student-profile` | authed | `{"profile": null}` until onboarding (self-service — never approval-gated) |
 | PATCH | `/me/student-profile` | authed | idempotent create/update; display name, bio, interest ids (taxonomy subject/skill) |
 
+### Marketplace — ✅ **implemented (Phase 4)**
+| Method | Path | Notes |
+|---|---|---|
+| GET/POST | `/me/requests` | student's own requests (cursor pagination, `status` filter) / create draft |
+| GET/PATCH | `/me/requests/{id}` | owner only; PATCH draft-only (`request_locked` otherwise) |
+| POST | `/me/requests/{id}/publish` | requires `attested: true` (BR-10); draft→open + 30d TTL |
+| POST | `/me/requests/{id}/cancel` · `/reopen` | BR-09 / BR-08 (reopen once) |
+| GET | `/requests` | **expert feed**: eligible open requests only; `q`, `subject`, `skill`, `category`, `pricing_type`, `deadline_before`, `budget_min` filters |
+| GET | `/requests/{id}` | owner/staff/eligible expert; blind bidding (`bidding`: count + own status only); selected expert keeps access; increments view_count |
+| POST | `/requests/{id}/offers` | expert submit (min amount BR-18; one per request BR-15; ≤20 pending; net preview BR-17) |
+| GET | `/me/offers` · PATCH `/me/offers/{id}` · POST `/me/offers/{id}/withdraw` · `/resubmit` | expert offer management (pending editable; withdrawn resubmittable while open) |
+| GET | `/me/requests/{id}/offers` | owner: offers + expert public cards (never private data) |
+| POST | `/me/requests/{id}/offers/{offer_id}/accept` | **transactional selection** → offer accepted, siblings declined, request `matched`, Order `awaiting_payment` |
+| POST | `/me/requests/{id}/offers/{offer_id}/decline` | owner declines pending offer (optional reason) |
+
 ### Health & ops
 | GET | `/healthz` (app+db), `/readyz` (migrations applied) | public | for load balancers/uptime |
 

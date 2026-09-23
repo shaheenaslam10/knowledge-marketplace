@@ -161,3 +161,26 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 | Roadmap revision (sequence + Phase 4 design gate + bundle checks) | this file |
 
 **Housekeeping in the same change:** Phase 3's onboarding ADR renumbered **ADR-0011 → ADR-0012** (ADR-0011 was already taken by the Phase 0 Brevo email adapter) — all 16 references updated across docs and code comments; no behavior changed.
+
+
+---
+
+## Phase 4 — completion record (Marketplace Foundation + Design Foundation)
+
+**Status: ✅ complete.** First real marketplace workflow: student creates a request → eligible experts discover it → experts submit offers → student selects one (transactional) → Order created in `awaiting_payment`.
+
+| Area | What exists |
+|---|---|
+| Design foundation | tokens (`@theme` iris/teal light+dark), vendored+customized kit (Button/Badge/Card/Input/Textarea/Label/Skeleton/Separator/Dialog/Sheet/DropdownMenu), motion/react runtime + Reveal/Stagger/Spotlight/TextReveal, three experience shells (`(marketing)`/`(app)`/`(portal)`), bundle-budget CI gate |
+| Requests | `ServiceRequest`: integrity-relevant categories, subject+skills taxonomy, budget (minor units), deadline, `request_brief` attachments; draft→open→matched→… state machine in services; BR-10 attestation at publish; BR-08 TTL + reopen-once; cancel paths |
+| Visibility | owner/staff/eligible-expert-only detail access; feed = open-mode open requests minus owner; suspended/paused experts excluded; selected expert keeps access; guests never see requests |
+| Offers | one per expert per request (editable pending, withdraw + resubmit while open, 20-pending cap, min amount BR-18, net preview BR-17); blind bidding everywhere |
+| Selection | single transaction: row locks, full server-side re-validation, siblings auto-declined, request `matched`, Order created (`awaiting_payment`, 15% commission snapshot) — ADR-0015 |
+| Orders | unified anchor; managed service converges via the same factory (`managed_pool`/`managed_direct` enums ready) |
+| Files | `request_brief` purpose (pdf/png/jpg ≤10MB, private); metadata-only for browsing experts; participant access for the selected expert; per-purpose dedupe |
+| Jobs | `bidding.tasks.expire_stale_requests` (django-q2 + ORM; hourly schedule is ops setup) |
+| API | 13 versioned endpoints (catalog in api.md), envelope/DomainError/request-id/pagination unchanged; OpenAPI auto |
+| Frontend | student `/requests*`, expert `/opportunities*`, `/offers`; role-aware shared shell; portal scaffold; 37 vitest |
+| Tests | +32 backend (173 total): lifecycle, visibility, IDOR, blind bidding, selection guards (double-select, withdrawn offer, suspended expert), brief access matrix, seed idempotency (9 users/6 applications/2 requests/2 offers) |
+
+**Deliberate scope decisions:** payments/order transitions, messaging, managed ops, marketing pages (beyond shared hero components) all untouched — next phases per the revised sequence.

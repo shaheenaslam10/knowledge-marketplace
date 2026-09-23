@@ -1,6 +1,6 @@
 # Design System — Hybrid Expert Marketplace
 
-> Status: ✅ adopted (pre-Phase-4) · Last updated: Phase 3.5 · ADR-0014 · Related: [motion system](motion-system.md), [component selection](component-selection.md), [web experiences](../architecture/web-experiences.md), [frontend](../architecture/frontend.md)
+> Status: ✅ implemented in the Phase 4 design-foundation slice · Last updated: Phase 4 · ADR-0014 · Related: [motion system](motion-system.md), [component selection](component-selection.md), [web experiences](../architecture/web-experiences.md), [frontend](../architecture/frontend.md)
 
 ## Brand personality
 

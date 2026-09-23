@@ -97,6 +97,13 @@ erDiagram
 ### audit
 - **AuditLog**: `actor` FK nullable (system=null); `action`; `object_type`; `object_id`; `changes` JSONB (before/after); `ip`; `user_agent`; `created_at`. Index (object_type, object_id), (actor, created_at). Insert-only.
 
+### Phase 4 implementation notes (ADR-0015)
+- `ServiceRequest`/`Offer` pks are UUIDs (non-enumerable URLs; Attachment precedent).
+- `Order.expert_id` stores the **user pk** (BigInteger) + `expert_name`/`expert_slug` snapshot — ADR-0001's lateral rule with the concrete type fixed.
+- `search_vector` (GIN, full-text) is **deferred**; Phase 4 ships simple PostgreSQL filters (subject/skill/category/pricing/deadline/budget/q ilike) per the roadmap's optimize-when-measured rule.
+- Order rows are created at selection in `awaiting_payment` only; delivery/revision columns exist but transition in the payments phase.
+- `service_requests` managed columns (`quote_amount`, `review_notes`, `reviewer`) exist now so managed service needs no second migration wave.
+
 ## Key status enums (canonical)
 
 | Model | Values |

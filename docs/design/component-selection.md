@@ -1,6 +1,6 @@
 # Component & Pattern Selection
 
-> Status: ✅ adopted (pre-Phase-4) · Last updated: Phase 3.5 · ADR-0014 · Related: [design system](design-system.md), [motion system](motion-system.md)
+> Status: ✅ implemented in the Phase 4 design-foundation slice · Last updated: Phase 4 · ADR-0014 · Related: [design system](design-system.md), [motion system](motion-system.md)
 
 Process (mandatory before building any major surface): **search ready-made → select best fit → record here → adapt to tokens → implement consistently.** Nothing is invented from scratch while a maintained pattern exists; nothing is vendored without this record. Sources: shadcn/ui (application foundation), Aceternity UI (marketing storytelling, vendored selectively), Motion for React (all choreography), Lucide (icons), Recharts (admin charts, later). Visually incompatible styles are rejected — everything passes through our tokens.
 
