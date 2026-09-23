@@ -65,7 +65,7 @@
 | Variable | Example |
 |---|---|
 | `PAYMENT_GATEWAY` | `manual` \| `stripe` (adapter registry; Phase 8 registers stripe) |
-| `MANUAL_PAYMENT_INSTRUCTIONS` | text shown to students in manual mode |
+| `MANUAL_PAYMENT_INSTRUCTIONS` | text shown to students in manual mode (**wired — read by the gateway**) |
 | `STRIPE_SECRET_KEY` | `sk_…` (Phase 8) |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` (Phase 8) |
 | `STRIPE_API_COUNTRY` | `US` (Phase 8) |
@@ -73,10 +73,16 @@
 ### Email
 | Variable | Example |
 |---|---|
-| `EMAIL_BACKEND_MODE` | `console` \| `smtp` \| `brevo` (adapters complete in Phase 9) |
 | `DEFAULT_FROM_EMAIL` | `no-reply@example.com` |
-| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP mode |
-| `BREVO_API_KEY` | Brevo mode |
+| `EMAIL_BACKEND_MODE` | `console` \| `smtp` \| `brevo` — **wired in Phase 9** (console backend is active now) |
+| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP mode (Phase 9) |
+| `BREVO_API_KEY` | Brevo mode (Phase 9) |
+
+### Production hardening (read by `config/settings/prod.py`)
+| Variable | Example |
+|---|---|
+| `SECURE_SSL_REDIRECT` | `True` (default) |
+| `SECURE_HSTS_SECONDS` | `31536000` (default) |
 
 ### Files
 | Variable | Example |

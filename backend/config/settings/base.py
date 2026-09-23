@@ -197,6 +197,13 @@ DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="no-reply@localhost")
 
 # --- Payments (interface exists in Phase 1; adapters/flows land in Phase 8) ---
 PAYMENT_GATEWAY = env.str("PAYMENT_GATEWAY", default="manual")
+MANUAL_PAYMENT_INSTRUCTIONS = env.str(
+    "MANUAL_PAYMENT_INSTRUCTIONS",
+    default=(
+        "Transfer the exact amount to the platform account; then submit the payment reference "
+        "on the order page. An operator confirms receipt before work starts."
+    ),
+)
 
 # --- Feature flags ---
 FEATURE_MANAGED_SERVICE = env.bool("FEATURE_MANAGED_SERVICE", default=True)

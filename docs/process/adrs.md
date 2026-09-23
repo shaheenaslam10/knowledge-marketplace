@@ -15,7 +15,7 @@
 
 ## ADR-0003 — Django Channels + in-memory channel layer (single ASGI process)
 - **Context:** Realtime needed for chat/notifications; must stay free; simplest reliable architecture.
-- **Decision:** Channels 5 on uvicorn; `InMemoryChannelLayer`; MVP runs exactly one ASGI process; WS pushes are refetch hints, never source of truth; Redis channel layer is the documented scale-out (settings-only).
+- **Decision:** Django Channels (4.3.x current) on uvicorn; `InMemoryChannelLayer`; MVP runs exactly one ASGI process; WS pushes are refetch hints, never source of truth; Redis channel layer is the documented scale-out (settings-only). Phase 1 addition: WS handshake origins are validated against `FRONTEND_URL`/`CORS_ALLOWED_ORIGINS`/`CSRF_TRUSTED_ORIGINS` (channels' built-in validator only knows `ALLOWED_HOSTS`, which would break the documented cross-subdomain deployment).
 - **Consequences:** zero cost; single-process constraint recorded in deployment/runbooks.
 
 ## ADR-0004 — JWT in httpOnly cookies (SimpleJWT), email+password first

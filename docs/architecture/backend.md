@@ -29,8 +29,8 @@ backend/
 │   ├── audit/                  # AuditLog + middleware
 │   └── analytics/              # read-only aggregates for admin KPIs (no user data writes)
 ├── manage.py
-├── pyproject.toml
-└── pytest.ini / setup.cfg
+├── pyproject.toml        # deps + ruff + import-linter + pytest config (single source)
+└── docker/               # container entrypoints (dev compose; db-wait/worker wait)
 ```
 
 ## The dependency rule (enforced by import-linter in CI)

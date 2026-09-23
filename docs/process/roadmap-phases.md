@@ -65,3 +65,24 @@ Delivered on top of the plan (all within documented architecture):
 4. Minor: pytest/import-linter config consolidated in `pyproject.toml` (docs said "pytest.ini/setup.cfg").
 
 **Known Phase 1 limitations (by design):** no auth (default Django user; `accounts.User` lands in Phase 2 **before** any real migration), payments = interface only, no domain models/apps yet, email console-only, frontend displays backend status (integration proof) rather than product features.
+
+### Phase 1 — formal completion record (post-approval sync pass)
+
+- **Implementation commit:** `b71aba3` (linear history: Phase 0 `ae11ac7` → foundation `128edfb` → frontend `8573509` → infra/CI `e68e0f3` → docs sync `b71aba3`; docs-sync pass appended on top).
+- **CI:** all four jobs green on the implementation commit — Backend (postgres service: ruff, import-linter, migrations check, pytest+coverage), Frontend (lint/typecheck/unit/build), Docs-sync (env gate), **Compose-smoke** (clean checkout → `docker compose up --build` → healthz/readyz → API root + OpenAPI schema → `worker_smoke` → `seed_demo` → Playwright E2E).
+
+**Acceptance criteria status** (per "Per-phase acceptance criteria — every phase" gates):
+
+| Gate | Status |
+|---|---|
+| Backend `pytest` green + frontend `build` green in CI | ✅ (43 + 10 tests) |
+| `docker compose up` gives a working app | ✅ verified in CI compose-smoke from a clean checkout |
+| README updated (setup, commands, troubleshooting) | ✅ |
+| Docs updated & synchronized | ✅ (this pass re-verified: no stale `django-tasks`/`process_tasks`/`Channels 5` implementation references; commands match code) |
+| Committed & pushed with clear messages | ✅ `b71aba3` |
+| Demo-able via seed data | ✅ `seed_demo` (admin account) |
+| Lint/contract gates (ruff, import-linter, `makemigrations --check`, env-docs gate) | ✅ all green |
+
+**Local verification (this pass, 2026-09-23 — re-run on the pushed tree):** Postgres up ✓ · 43 backend tests ✓ · `makemigrations --check` clean ✓ · fresh-DB `migrate` ✓ · `seed_demo` ✓ · `qcluster` + `worker_smoke` end-to-end ✓ · `/healthz` `{"status":"ok"}` + `/readyz` `{"status":"ready"}` ✓ · gateway resolves from `PAYMENT_GATEWAY` env ✓ · frontend lint/typecheck/10 unit tests/production build ✓.
+
+**Documentation-sync fixes applied in this pass:** ADR-0003 version reference (Channels 4.3.x — lost in a prior conflict resolution), backend layout (`pyproject.toml` single config source + `docker/` entrypoints), docs index layout (actual Dockerfile locations), prod-hardening vars (`SECURE_SSL_REDIRECT`, `SECURE_HSTS_SECONDS`) added to `.env.example` + environments.md, `MANUAL_PAYMENT_INSTRUCTIONS` **wired** into settings (was documented but unread), `EMAIL_BACKEND_MODE` correctly marked as Phase 9-wired (console backend active now).

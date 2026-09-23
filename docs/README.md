@@ -1,7 +1,7 @@
 # Documentation — Hybrid Expert Marketplace
 
 > **Working title:** Hybrid Expert Marketplace (repo: `knowledge-marketplace`)
-> **Docs status:** Phase 0 — approved architecture baseline (v1.0, 2026-09-23)
+> **Docs status:** Phase 1 complete — foundation implemented & verified (CI green). Architecture baseline: Phase 0, amended by Phase 1 findings (ADR-0002).
 > **Rule:** Documentation is a first-class deliverable. Every architectural or business-logic change must be reflected here in the same phase it is made. See [process/development-workflow.md](process/development-workflow.md).
 
 This directory is the single source of truth for the product, workflows, architecture, operations and process of the platform. Another developer must be able to continue this project using only this repository.
@@ -82,19 +82,25 @@ This directory is the single source of truth for the product, workflows, archite
 
 ---
 
-## Repository layout (target)
+## Repository layout (actual)
 
 ```text
 /
-├── frontend/          # Next.js + TypeScript + Tailwind (App Router)
+├── frontend/          # Next.js 15 + TypeScript + Tailwind 4 (App Router, domain-oriented)
+│   ├── src/app/       # route groups: (public) · (auth)*/ (student)*/ (expert)* land per phase
+│   ├── src/features/  # domain feature modules
+│   ├── e2e/           # Playwright smoke
+│   └── Dockerfile     # dev (hot reload) + prod (standalone) targets
 ├── backend/           # Django + DRF modular monolith
-│   ├── config/        # project: settings, urls, asgi/wsgi
-│   └── apps/          # domain modules (see architecture/backend.md)
+│   ├── config/        # settings/{base,dev,test,prod}, urls, api router, asgi (HTTP+WS)
+│   ├── apps/core/     # shared kernel (health, error envelope, money, request-id, seeds)
+│   ├── apps/payments/ # PaymentGateway interface (provider-agnostic seam)
+│   ├── docker/        # container entrypoints
+│   └── Dockerfile     # dev + prod targets
 ├── docs/              # this documentation set
-├── scripts/           # dev/bootstrap/seed helper scripts
+├── scripts/           # run_tests.sh · check_env_docs.py (CI env-docs gate)
 ├── .env.example
-├── docker-compose.yml
-├── Dockerfile.backend
+├── docker-compose.yml # services: db · backend · worker (qcluster) · frontend
 └── README.md
 ```
 

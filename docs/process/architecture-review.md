@@ -42,3 +42,30 @@ Review dimensions: consistency, security, feasibility, cost — plus the brief's
 | 7 | Cost check: no new external services introduced in Phase 1 (all deps are free/open-source; CI on GitHub Actions free tier) | pass | costs.md unchanged |
 
 **Verdict: ready — implementation of Phase 1 proceeded under these resolutions.**
+
+---
+
+# Phase 2 Readiness Review (post-Phase-1, pre-implementation)
+
+> ✅ Completed during the Phase 1 documentation-sync pass (2026-09-23). Scope: verify that nothing in the Phase 1 foundation makes Phase 2 (Authentication & Roles) difficult. **No Phase 2 code written.**
+
+## Verified ready (evidence-based)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | **Custom-user swap safety** — `AUTH_USER_MODEL = "accounts.User"` must precede any migration that references a user | ✅ safe: zero app migrations exist; no direct `django.contrib.auth.models.User` imports anywhere (only `get_user_model()`); django-q/sessions/admin reference the user lazily. **Constraint: the swap lands in the very first Phase 2 commit.** |
+| 2 | Dependencies | `djangorestframework-simplejwt` documented in backend.md's library table; added to `pyproject` in Phase 2's first commit (token-blacklist app brings its own migrations — no conflicts). |
+| 3 | Cookie/CORS topology for cross-port local dev | ✅ verified: `localhost:3000 ↔ localhost:8000` is same-*site* (SameSite=Lax flows; ports don't partition cookies on a host) + `CORS_ALLOW_CREDENTIALS` + explicit origin allowlists — matches the documented JWT-in-httpOnly-cookie design; prod requirement (same registrable domain) unchanged. |
+| 4 | WebSockets auth seam | ✅ `AuthMiddlewareStack` mounted in `config/asgi.py`; Phase 2 adds the JWT scope-auth middleware exactly where realtime.md says. |
+| 5 | Error/throttle/request-id plumbing | ✅ envelope, request-id, `anon`/`user` throttles active — Phase 2 adds the login/token throttle scope on top. |
+| 6 | Email for verification/reset in Phase 2 | ✅ console backend active in dev; plain SMTP possible via settings; Brevo adapter stays Phase 9 as documented. |
+| 7 | Frontend structure for auth surfaces | ✅ route-group layout `(auth)/(student)/(expert)` already planned in frontend.md; only `src/middleware.ts` guard + pages are new. |
+| 8 | Audit middleware (Phase 2 deliverable) | ✅ `audit` app slot reserved by the dependency rules (sidecar service); nothing to refactor. |
+
+## Notes for Phase 2 (no action required now)
+
+- `config/settings/dev.py` disables password validators (seed/demo convenience) — Phase 2 registration must enforce its own minimum rules server-side and not assume validators are on.
+- Optional `ADMIN_IP_ALLOWLIST` (mentioned in authentication.md): decide in Phase 2; if implemented, add to `.env.example` + environments.md per the sync rule.
+- Role model reminder (ADR-0001): single `User` + `ExpertProfile.status` for expert state; staff permissions via Django groups (`support`, `admin`) — no second user table.
+
+**Verdict: Phase 2 can proceed exactly per the existing documentation — no architectural corrections required.**
