@@ -26,6 +26,7 @@ export default async function HomePage() {
         <Spotlight />
         <div className="relative">
           <TextReveal
+            as="h1"
             text="Learn faster with the right expert"
             className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl sm:leading-[1.1]"
           />

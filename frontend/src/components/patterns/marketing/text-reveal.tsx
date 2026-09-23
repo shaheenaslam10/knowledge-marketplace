@@ -8,10 +8,19 @@ import { motion } from "motion/react";
 
 import { DURATIONS, EASING_CINEMATIC } from "@/lib/motion";
 
-export function TextReveal({ text, className }: { text: string; className?: string }) {
+export function TextReveal({
+  text,
+  className,
+  as = "p",
+}: {
+  text: string;
+  className?: string;
+  as?: "h1" | "h2" | "p";
+}) {
   const words = text.split(" ");
+  const Comp = as === "h1" ? motion.h1 : as === "h2" ? motion.h2 : motion.p;
   return (
-    <motion.p
+    <Comp
       className={className}
       initial="hidden"
       animate="visible"
@@ -35,6 +44,6 @@ export function TextReveal({ text, className }: { text: string; className?: stri
           {i < words.length - 1 ? " " : ""}
         </motion.span>
       ))}
-    </motion.p>
+    </Comp>
   );
 }
