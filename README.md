@@ -2,7 +2,7 @@
 
 > Working title. A two-sided platform where students get academic/learning help through an **Open Marketplace** (experts bid, student picks) or a **Managed Service** (the platform triages and assigns), with payments, delivery, reviews and disputes handled end-to-end.
 
-**Status: Phase 1 — Project Foundation complete and running.** The full stack (Next.js + Django + PostgreSQL + database-backed worker) runs locally from a clean checkout and is verified in CI. Next: Phase 2 (Authentication & Roles) per [docs/process/roadmap-phases.md](docs/process/roadmap-phases.md).
+**Status: Phase 2 — Authentication & Roles complete.** Custom email-based user model, JWT-in-httpOnly-cookie auth (register / login / refresh-rotation / logout / verify / password reset & change / deactivate), role & permission foundations (student / verified / staff / support / admin; expert slot reserved), admin user management, and the auth UI foundation run locally and are verified in CI. See [docs/architecture/authentication.md](docs/architecture/authentication.md) and the [phase record](docs/process/roadmap-phases.md).
 
 ---
 
@@ -166,7 +166,7 @@ Environment variables: [`.env.example`](.env.example) + [docs/architecture/envir
 |---|---|---|
 | 0 | Architecture & documentation | ✅ |
 | 1 | Project foundation (scaffolds, compose, CI, env, seeds, worker, OpenAPI, error envelope, gateway seam) | ✅ |
-| 2 | Authentication & roles (custom user, JWT cookies, expert applications) | ⏳ next |
+| 2 | Authentication & roles (custom user, JWT cookies, expert applications) | ✅ |
 | 3–6 | Profiles · requests · open bidding · managed assignment | 📐 planned |
 | 7–8 | Orders & delivery · payments & commissions | 📐 planned |
 | 9–11 | Messaging & notifications · files/reviews/disputes · admin & analytics | 📐 planned |

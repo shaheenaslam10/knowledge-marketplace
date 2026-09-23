@@ -1,31 +1,37 @@
 # API Architecture
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23
+> Status: ✅ Phase 2 (auth & account live) · Last updated: 2026-09-23
 
 ## Conventions
 
 - Base path `/api/v1/` (URL versioning; v2 would be additive-new, not breaking-in-place).
-- Auth: JWT via httpOnly cookies (`see authentication.md`); `Authorization: Bearer` also accepted for scripts/tests.
+- Auth: JWT via httpOnly cookies (`hm_access`/`hm_refresh` — see [authentication](authentication.md)); `Authorization: Bearer` also accepted for scripts/tests. Deny-by-default: every endpoint is `IsAuthenticated` unless it opts into `AllowAny`.
 - IDs: UUIDs in URLs. Pagination: cursor-based (`?cursor=&page_size=`, max 100). Filtering: django-filter query params. Sorting: `?ordering=`.
 - Errors: uniform envelope `{"error": {"code", "message", "details"}}` — codes are stable strings consumed by the frontend (see [backend error handling](backend.md)).
 - Mutating requests require header `X-Requested-With: XMLHttpRequest` (CSRF defense-in-depth) — enforced by middleware for cookie-authed requests.
-- OpenAPI 3 at `/api/schema/` (drf-spectacular) → generates frontend types. **The schema is the contract.**
-- Rate limits (DRF throttle, per-env): anon 30/min, authed 120/min; auth endpoints 10/min; offer/message creation 30/min.
+- OpenAPI 3 at `/api/schema/` (drf-spectacular) → generates frontend types. **The schema is the contract.** Auth endpoints carry request/response schemas; cookie auth is documented as the `cookieAuth` scheme (`hm_access`).
+- Rate limits (DRF throttle, per-env): anon 30/min, authed 120/min; **auth scope 10/min** (`THROTTLE_AUTH`); offer/message creation 30/min.
 - Idempotency: unsafe money-adjacent endpoints accept `Idempotency-Key` header (stored, deduped 24h).
 
 ## Endpoint catalog (MVP)
 
-### Auth & account — `/api/v1/auth`, `/api/v1/me`
+### Auth & account — `/api/v1/auth`, `/api/v1/me` — ✅ **implemented (Phase 2)**
+
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/auth/register` | email+password+name → verification email |
-| POST | `/auth/verify-email` | token |
-| POST | `/auth/token` | login → sets cookies |
-| POST | `/auth/token/refresh` | rotation |
-| POST | `/auth/logout` | blacklists refresh |
-| GET/PATCH | `/me` | profile |
-| GET/PATCH | `/me/student-profile` | |
-| POST | `/auth/password/reset` · `/auth/password/reset/confirm` | email flow |
+| POST | `/auth/register` | email+name+password → account (student role) + verification email + auto-login cookies; enumeration-safe (existing email ⇒ identical 201, owner re-emailed) |
+| POST | `/auth/verify-email` | signed token, 24 h TTL, single-use/idempotent |
+| POST | `/auth/token` | login → sets cookies; generic `401 invalid_credentials`; records `last_login_ip` |
+| POST | `/auth/token/refresh` | rotate + blacklist; reuse ⇒ `401 token_invalid`; inactive user refused |
+| POST | `/auth/logout` | blacklists refresh, clears cookies; idempotent, anonymous-safe |
+| POST | `/auth/resend-verification` | authed; throttled |
+| POST | `/auth/password/reset` | enumeration-safe: identical response always |
+| POST | `/auth/password/reset/confirm` | single-use; blacklists all user tokens |
+| POST | `/auth/password/change` | authed; verifies current password; kills all sessions |
+| GET/PATCH | `/me` | profile + roles dict |
+| POST | `/me/deactivate` | self-service deactivation (immediate: per-request `is_active`) |
+
+Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 
 ### Experts — `/api/v1/experts`
 | Method | Path | Notes |

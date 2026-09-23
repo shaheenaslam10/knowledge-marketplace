@@ -1,10 +1,12 @@
 # User Roles, Permissions & Authorization Matrix
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23
+> Status: ✅ Phase 2 foundation implemented · Last updated: Phase 2
 
 ## Role model
 
 Roles are **not** separate user tables. One `User`, with role state (ADR: single identity keeps auth simple and allows a user to be both student and expert):
+
+**As implemented (Phase 2):** `get_roles(user)` in `apps/accounts.services` derives the canonical role dict — `{student, verified, staff, support, admin, expert}` — where `student` is true for every active account (BR-01), `verified` mirrors `email_verified_at`, `support`/`admin` come from Django groups (+`is_staff`), and `expert` is a stable `False` slot until Phase 3 registers the `ExpertProfile` approval provider. DRF classes shipped: `IsAdmin`, `IsSupport`, `IsExpert`, `IsVerified` (+ global deny-by-default `IsAuthenticated`).
 
 | Role | How acquired | Storage |
 |---|---|---|

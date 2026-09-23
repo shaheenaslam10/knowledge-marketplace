@@ -86,3 +86,36 @@ Delivered on top of the plan (all within documented architecture):
 **Local verification (this pass, 2026-09-23 — re-run on the pushed tree):** Postgres up ✓ · 43 backend tests ✓ · `makemigrations --check` clean ✓ · fresh-DB `migrate` ✓ · `seed_demo` ✓ · `qcluster` + `worker_smoke` end-to-end ✓ · `/healthz` `{"status":"ok"}` + `/readyz` `{"status":"ready"}` ✓ · gateway resolves from `PAYMENT_GATEWAY` env ✓ · frontend lint/typecheck/10 unit tests/production build ✓.
 
 **Documentation-sync fixes applied in this pass:** ADR-0003 version reference (Channels 4.3.x — lost in a prior conflict resolution), backend layout (`pyproject.toml` single config source + `docker/` entrypoints), docs index layout (actual Dockerfile locations), prod-hardening vars (`SECURE_SSL_REDIRECT`, `SECURE_HSTS_SECONDS`) added to `.env.example` + environments.md, `MANUAL_PAYMENT_INSTRUCTIONS` **wired** into settings (was documented but unread), `EMAIL_BACKEND_MODE` correctly marked as Phase 9-wired (console backend active now).
+
+---
+
+## Phase 2 — completion record (Authentication & Roles)
+
+**Status: ✅ complete** (custom user + roles + auth flows + admin management + WS auth compatibility + frontend foundation; all suites green; docs synced; implementation commit(s) listed below, docs-sync pass on top).
+
+### Delivered
+
+| Area | What exists |
+|---|---|
+| User model | `apps.accounts.User` (email login, name, `is_active`, `is_staff`, `email_verified_at`, `timezone`, `locale`, `last_login_ip`, timestamps via shared `TimeStampedModel`) + manager; Argon2id-first hashers; 10-char password floor (validator + serializer); 3-day reset timeout |
+| Auth API | `/api/v1/auth/register`, `/auth/token`, `/auth/token/refresh` (rotate+blacklist), `/auth/logout`, `/auth/verify-email`, `/auth/resend-verification`, `/auth/password/reset(+confirm)`, `/auth/password/change`, `/api/v1/me` GET/PATCH, `/api/v1/me/deactivate` — tokens ONLY in httpOnly `SameSite=Lax` cookies; deny-by-default; `auth` throttle 10/min; enumeration-safe register/reset; per-request `is_active` |
+| Roles | `get_roles` dict (`student` always, `verified`, `staff`, `support`/`admin` via groups+staff, `expert` reserved `False` slot for Phase 3); permission classes `IsAdmin`/`IsSupport`/`IsExpert`/`IsVerified`; extension point: role-provider registry |
+| Realtime | `JWTAuthMiddleware` (cookie→scope user) + explicit origin allowlist; `/ws/whoami/` proof consumer |
+| Tasks | `send_verification_email` / `send_password_reset_email` via django-q2 (console backend in dev; `enqueue_email` seam) |
+| Admin | `ManagedUserAdmin` — search/filter, activate/deactivate/resend-verification actions, safe password form |
+| Seeds | `seed_demo` → `admin@demo.local` / `student@demo.local` / `expert@demo.local` (env-controlled passwords, DEBUG/test-guarded, `--force` override) — moved to `apps.accounts` to keep `core` kernel-clean |
+| Frontend | auth foundation only (per scope): session context + API client wiring, login/register/verify-email/reset-password routes, protected-route middleware foundation, role-aware nav shell, loading/error states, vitest coverage |
+| Quality | 98 backend tests (accounts suites: models / api / permissions-matrix / WS) + full Phase-1 suite; ruff + import-linter (layers corrected: payments < accounts < core); `makemigrations --check`; OpenAPI with `cookieAuth` scheme + typed request/response schemas |
+
+### Deliberate deviations & deferrals (documented in ADR-0004 + authentication.md)
+
+- Refresh-reuse **family revocation** deferred (reuse itself is rejected; per-user all-token kill exists).
+- Per-account exponential login backoff deferred (throttle scope in place).
+- 72-h unverified-account cleanup job deferred.
+- Audit-log sidecar app: schema seam reserved, rows start with admin actions in later phases.
+
+### Implementation commits
+
+See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) docs + env sync, (3) frontend auth foundation; hashes recorded in the final Phase 2 report.
+
+**Known Phase 2 limitations (by design):** expert approval workflow and profile/taxonomy models are Phase 3; no business logic beyond auth; email delivery is console/SMTP settings (Brevo adapter Phase 9); audit rows pending.

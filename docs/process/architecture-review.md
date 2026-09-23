@@ -69,3 +69,26 @@ Review dimensions: consistency, security, feasibility, cost — plus the brief's
 - Role model reminder (ADR-0001): single `User` + `ExpertProfile.status` for expert state; staff permissions via Django groups (`support`, `admin`) — no second user table.
 
 **Verdict: Phase 2 can proceed exactly per the existing documentation — no architectural corrections required.**
+
+---
+
+# Phase 2 Implementation Review (Authentication & Roles)
+
+> ✅ Completed 2026-09-23, before the Phase 2 push. Self-review against the readiness checklist + security focus areas.
+
+| # | Area | Outcome |
+|---|---|---|
+| 1 | Custom user before dependent migrations | ✅ `accounts.User` + `0001_initial` is the first migration touching a user; `AUTH_USER_MODEL` set in base settings; all references via `get_user_model()` |
+| 2 | Token transport | ✅ httpOnly `SameSite=Lax` cookies only (`hm_access`/`hm_refresh`); bodies never carry tokens (asserted by tests); `COOKIE_SECURE` gates `Secure` |
+| 3 | Rotation & invalidation | ✅ rotate+blacklist enabled; reuse → `401 token_invalid`; logout idempotent blacklist; password change/reset/deactivate blacklist all outstanding refreshes |
+| 4 | Inactive/deactivated users | ✅ per-request `is_active` (auth class + refresh view); login refuses with generic invalid-credentials |
+| 5 | Enumeration protection | ✅ register-with-existing-email → generic 201 + owner re-email; reset always identical; login generic `invalid_credentials`; ownership returns 404 policy stands for Phase 3+ selectors |
+| 6 | Brute force | ✅ `auth` throttle 10/min/IP on all sensitive endpoints (`429 throttled` envelope); backoff hardening deferred + documented |
+| 7 | Passwords | ✅ Argon2id-first; 10-char floor (validator + serializer); CommonPassword/similarity/numeric validators in base; test-speed MD5 isolated to test settings with a config contract test |
+| 8 | Authorization | ✅ deny-by-default (`IsAuthenticated` global); role permission classes (`IsAdmin/IsSupport/IsExpert/IsVerified`); probe-urlconf matrix tests incl. admin group vs superuser; WS scope auth → AnonymousUser on bad/inactive |
+| 9 | WS compatibility | ✅ `JWTAuthMiddleware` mounted ahead of origin validation; explicit origin allowlist preserved (http/https twins); `whoami` proof endpoint |
+| 10 | Admin management | ✅ `ManagedUserAdmin`: search/filter, activate/deactivate/resend actions, no hash exposure; `ADMIN_URL` override supported |
+| 11 | Secrets in logs | ✅ log lines carry `user_id` only; no tokens/passwords/cookies logged (code review + explicit logger call sites) |
+| 12 | Dependency/layer rules | ✅ import-linter layers corrected to payments < accounts < core (contracts green); `seed_demo` moved to `apps.accounts` to keep core kernel-clean |
+
+**Verdict: Phase 2 satisfies its acceptance criteria; deviations from the Phase 0 design are recorded in ADR-0004 / authentication.md (family revocation and per-account backoff deferred; both documented, neither weakens security).**

@@ -22,6 +22,13 @@
 - **Context:** Next.js + Django on separate origins/ports; XSS/CSRF concerns; OAuth later.
 - **Decision:** SimpleJWT access 15m + rotating refresh 7d, httpOnly Secure SameSite=Lax cookies; same registrable domain requirement; custom-header CSRF defense; refresh reuse detection revokes family; OAuth behind `accounts.services` seam post-MVP.
 - **Consequences:** no token storage in JS; frontend/API must share a registrable domain (constraint documented for hosting choices).
+- **Implemented (Phase 2) — refinements recorded here, not silently changed:**
+  - Deny-by-default DRF (`IsAuthenticated` global) with explicit `AllowAny` opt-ins; cookie-first authentication with Bearer fallback for scripts.
+  - Per-request `is_active` enforcement (custom `ActiveUserJWTAuthentication` + refresh-view check) — deactivated users lose access immediately, closing the stateless-access window.
+  - Enumeration-safe by construction: register with an existing email returns the same generic 201 and re-sends verification to the owner; password-reset request always answers identically.
+  - Rotation blacklists the used refresh; **reuse returns `401 token_invalid`** (the token is already blacklisted). Whole-*family* revocation on reuse-detection stays a documented future hardening (needs token-family tracking); per-user *all-token* kill exists for password change/reset and deactivation.
+  - Brute-force: `auth` throttle scope (default 10/min/IP) instead of per-account exponential backoff (deferred, documented in authentication.md).
+  - Argon2id-first hashing; 10-char floor enforced both by validator and serializer (test settings swap hashers for speed — a contract test pins the real config).
 
 ## ADR-0005 — PaymentGateway abstraction; Stripe Connect (separate charges & transfers) + manual fallback
 - **Context:** Marketplace money flows need provider escrow semantics (no fake escrow); Stripe unsupported in Pakistan (owner region); experts may be in unsupported countries.

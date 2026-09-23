@@ -94,7 +94,9 @@
 ### Auth (Phase 2)
 | Variable | Example |
 |---|---|
-| `JWT_ACCESS_MINUTES` / `JWT_REFRESH_DAYS` | `15` / `7` |
+| `JWT_ACCESS_MINUTES` / `JWT_REFRESH_DAYS` | `15` / `7` — SimpleJWT lifetimes; rotation + blacklist always on |
+| `COOKIE_SECURE` | `False` locally / `True` in production (HTTPS-only `hm_access`/`hm_refresh` cookies) |
+| `THROTTLE_AUTH` | `10/min` — brute-force guard on register/login/refresh/verify/reset/change (optional override; defaults in settings) |
 
 ### Observability
 | Variable | Example |
@@ -109,7 +111,10 @@
 ### Seed/demo
 | Variable | Example |
 |---|---|
-| `DJANGO_SEED_ADMIN_PASSWORD` | `admin-demo-1234` (local only) |
+| `DJANGO_SEED_ADMIN_PASSWORD` | `admin-demo-1234` (local only — superuser `admin@demo.local`) |
+| `DJANGO_SEED_DEMO_PASSWORD` | `demo-password-1234` (local only — `student@demo.local`, `expert@demo.local`) |
+
+Demo seeding is guarded to DEBUG/test unless `--force`; these defaults are never valid in production.
 
 ### Frontend (`NEXT_PUBLIC_*` are inlined into the browser bundle)
 | Variable | Example |

@@ -52,11 +52,14 @@ frontend/
 2. Phase 1 ships the hand-written envelope-aware `apiFetch` client (`src/lib/api/client.ts`); the generated-typed-client step (`openapi-typescript` → `src/lib/api/schema.d.ts`, `npm run generate:api`) is introduced with the first domain API (Phase 2/3) — there is no endpoint surface worth generating yet.
 3. Frontend **never** hand-writes endpoint types once generation exists — contract drift is caught at CI (schema hash check + typecheck).
 
-## Auth handling
+## Auth handling — ✅ Phase 2 foundation implemented
 
 - JWT lives in **httpOnly cookies set by the backend**; frontend JS never touches tokens.
-- Middleware (`src/middleware.ts`) guards role layouts: unauthenticated → login redirect with `?next=`; wrong-role → 403 page. Real authorization remains server-side; this is UX only.
-- Login/register/verify pages call auth endpoints; global 401 handler clears session state.
+- `SessionProvider` (`src/features/auth/SessionProvider.tsx`) holds client session state (`loading`/`authenticated`/`unauthenticated` from `GET /api/v1/me`) + logout; root-layout scoped so every route group shares it.
+- Middleware (`src/middleware.ts`) guards protected routes by cookie **presence** (no secret at the edge — UX only): anonymous → `/login?next=`; cookie holders are redirected off login/register. Real authorization remains server-side; role-gated route groups arrive with their phases.
+- Auth surfaces live (`src/app/(auth)`): `/login`, `/register`, `/verify-email`, `/reset-password`, `/reset-password/confirm` — loading/error states with the backend's stable error codes mapped to copy (`src/features/auth/errors.ts`); `(protected)/account` proves the guarded layout. API surface: `src/features/auth/api.ts`.
+- `apiFetch` sends `credentials: "include"` and `X-Requested-With` on mutations; on 401 the caller drives UX (sign-in redirect) — no transparent refresh-retry loop (documented decision).
+- Global 401 handling: session context flips to `unauthenticated`, guarded layouts redirect to login.
 
 ## Rendering & SEO
 

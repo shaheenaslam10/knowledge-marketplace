@@ -1,12 +1,21 @@
 # Testing Strategy
 
-> Status: ✅ foundation implemented in Phase 1 · Last updated: Phase 1
+> Status: ✅ foundation implemented in Phase 1 · **Phase 2 auth suites live** · Last updated: Phase 2
 
 ## Principles
 
 - The **service layer** carries the business rules → deepest coverage there (state machines, money math, permissions).
 - Tests are part of the definition of done per phase; CI blocks merge on red.
 - Local dev uses the same Postgres engine as prod (docker) — no sqlite divergence for tests either (transactions per test).
+
+## Phase 2 auth coverage (`apps/accounts/tests`, 98 total backend tests green)
+
+| Suite | Covers |
+|---|---|
+| `test_models.py` | user creation, email normalization, `mark_email_verified`, role slots (incl. stable `expert: False`), manager behaviors, real-config password-hash contract (Argon2-first, never plaintext) |
+| `test_api_auth.py` | register (auto-login, cookie-only tokens, verification email queued), enumeration-safe register + reset, login/generic invalid-creds/`last_login_ip`, refresh rotation + reuse-blacklist + inactive refusal, logout idempotency, verify-email happy/invalid/resend-auth, reset→confirm→session-kill, password change→session-kill, deactivate (login + refresh refused, access dead per-request), `/me` auth + owner-scoped PATCH, error-envelope codes, **`auth` throttle scope** (injected on views: DRF binds `DEFAULT_THROTTLE_CLASSES`/`THROTTLE_RATES` to classes at import time — a documented DRF gotcha; the test patches view + rate table directly) |
+| `test_permissions.py` | role/permission matrix against a probe urlconf with real API + admin mounted: anonymous→401 envelope, authenticated non-staff→403 `permission_denied`, staff/superuser/admin-group/support-group, `IsVerified` |
+| `test_ws_auth.py` + `test_consumers_ws.py` | WS scope auth from the `hm_access` cookie (valid/garbage/inactive → AnonymousUser), origin validation, `/ws/ping/`, `/ws/whoami/` echo — `django_db(transaction=True)` because the ASGI middleware opens its own DB connection |
 
 ## Backend
 
