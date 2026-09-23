@@ -97,11 +97,11 @@ Review dimensions: consistency, security, feasibility, cost — plus the brief's
 
 # Phase 3 Implementation Review
 
-> ✅ Completed before the Phase 3 push. Self-review against the directive + the ADR-0011 clarification.
+> ✅ Completed before the Phase 3 push. Self-review against the directive + the ADR-0012 clarification.
 
 | # | Area | Outcome |
 |---|---|---|
-| 1 | Role-specific onboarding | ✅ student self-serve (`/me/student-profile`, no gate); expert pipeline separate (`draft→submitted→under_review→approved/rejected`, `approved⇄suspended`); **no public admin flow** (provisioning via Django admin/seed only — documented in user-roles.md + ADR-0011) |
+| 1 | Role-specific onboarding | ✅ student self-serve (`/me/student-profile`, no gate); expert pipeline separate (`draft→submitted→under_review→approved/rejected`, `approved⇄suspended`); **no public admin flow** (provisioning via Django admin/seed only — documented in user-roles.md + ADR-0012) |
 | 2 | Distinct artifacts | ✅ User (identity) ≠ ExpertApplication (review artifact) ≠ ExpertProfile (live public object, created at approval) — a registered user never becomes an expert automatically |
 | 3 | Server-side authorization | ✅ application has no id-based lookup at all (owner-scoped by `/me`); credential references validated against the uploader; directory filtering is a service queryset; staff transitions check `is_staff` server-side; frontend guards are UX only |
 | 4 | Credential privacy | ✅ private attachments: owner + staff only, signed 5-min tokens, sniffed content types (HTML-in-disguise rejected), nosniff + Content-Disposition, staff views audited; public-read limited to avatars |
@@ -112,6 +112,6 @@ Review dimensions: consistency, security, feasibility, cost — plus the brief's
 | 9 | Directory safety | ✅ approved+public+active only; suspended experts 404; no email/credentials/notes in public serializers (leak-checked in tests) |
 | 10 | Layering | ✅ import-linter linear layers (seed > payments > experts > accounts > taxonomy > files > audit > core); seed app is the top layer so accounts stays kernel-clean |
 | 11 | Costs/infra | ✅ no new infra: local FileSystemStorage dev strategy, django-q2 emails, PostgreSQL only |
-| 12 | Docs | ✅ ADR-0011; expert-journey state machine; api.md/catalog; files docs; testing.md; README personas; roadmap record |
+| 12 | Docs | ✅ ADR-0012; expert-journey state machine; api.md/catalog; files docs; testing.md; README personas; roadmap record |
 
 **Verdict: Phase 3 satisfies its acceptance criteria; the onboarding clarification is implemented as specified (not retrofitted) and documented as a refinement ADR rather than a silent change.**

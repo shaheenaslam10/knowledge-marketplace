@@ -1,6 +1,6 @@
 # SEO, Responsive, Accessibility & Performance
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23
+> Status: 📐 Phase 0 · visual/performance direction updated Phase 3.5 (design system) · Last updated: Phase 3.5
 
 ## SEO architecture
 
@@ -18,6 +18,10 @@
 Mechanics: `generateMetadata` per route (title templates, descriptions, canonical, OG/Twitter cards with generated OG images for profiles), `sitemap.ts` (static routes + experts + subjects, `Last-Modified` from updated_at), `robots.ts`, 404/410 handling, `hreflang` deferred (single-locale MVP). Performance is an SEO feature: budgets below.
 
 **Content roadmap note (post-MVP):** blog/study-guides CMS is the planned authority play (see mvp-scope) — routes and design reserved.
+
+## Visual & product direction (Phase 3.5)
+
+Positioning: a **premium SaaS/AI-era expert marketplace**, not a tutoring portal. Brand = "precise intelligence": warm-paper neutrals + iris accent + teal flow highlights, Inter typography, dark cinematic marketing sections, motion with purpose. Normative: [../design/design-system.md](../design/design-system.md) (tokens, components, budgets), [motion-system.md](../design/motion-system.md), [component-selection.md](../design/component-selection.md). Performance budgets are consolidated there and enforced in CI with the design-foundation slice of Phase 4.
 
 ## Responsive / mobile requirements
 

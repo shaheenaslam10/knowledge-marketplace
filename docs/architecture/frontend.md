@@ -1,6 +1,6 @@
 # Frontend Architecture — Next.js (domain-oriented)
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23
+> Status: ✅ Phase 1–3 implemented · **Phase 3.5: three-experience structure + design system adopted (ADR-0013/0014)** · Last updated: Phase 3.5
 
 ## Stack
 
@@ -8,13 +8,21 @@
 - Server Components by default; client components only where interactivity demands (forms, chat, real-time bits).
 - State: server state via fetch + React `cache`/router refresh; minimal client state (Zustand for chat/notifications toasts). No global data-fetching framework in MVP.
 
+## Three web experiences (Phase 3.5 refinement)
+
+The single Next.js app now serves **three experiences** — marketing (`(marketing)`, www), the role-aware marketplace app (`(auth)`+`(app)`, app.), and the operations portal (`(portal)`, admin., `/portal/*` in dev) — separated by route groups + experience shells over **one** shared design system and **one** API. Full structure, host mapping and boundaries: [web-experiences.md](web-experiences.md) (ADR-0013).
+
+## Design system & motion (normative docs)
+
+Product-specific design system on Tailwind v4 CSS-first tokens: [../design/design-system.md](../design/design-system.md) · motion profiles per experience: [../design/motion-system.md](../design/motion-system.md) · per-pattern selection record incl. bundle-cost notes: [../design/component-selection.md](../design/component-selection.md). Stack decisions (ADR-0014): shadcn/ui vendored+customized as the component foundation, `motion/react` as the only animation runtime, selective Aceternity patterns for marketing storytelling, SVG/Canvas visuals (no WebGL at launch), Lucide icons. Dependency policy: new frontend deps require a line in component-selection.md.
+
 ## Structure
 
 ```text
 frontend/
 ├── src/
 │   ├── app/
-│   │   ├── (public)/            # SEO surfaces: page.tsx for /, /experts, /experts/[slug],
+│   │   ├── (marketing)/         # renamed from (public) in Phase 4 slice: www surfaces: page.tsx for /, /experts, /experts/[slug],
 │   │   │                        # /subjects/[slug], /how-it-works, /pricing
 │   │   ├── (auth)/              # /login, /register, /verify, /reset-password (minimal layout)
 │   │   ├── (student)/           # /dashboard, /requests/*, /orders/*   (auth-guarded layout)
@@ -58,7 +66,7 @@ frontend/
 - `SessionProvider` (`src/features/auth/SessionProvider.tsx`) holds client session state (`loading`/`authenticated`/`unauthenticated` from `GET /api/v1/me`) + logout; root-layout scoped so every route group shares it.
 - Middleware (`src/middleware.ts`) guards protected routes by cookie **presence** (no secret at the edge — UX only): anonymous → `/login?next=`; cookie holders are redirected off login/register. Real authorization remains server-side; role-gated route groups arrive with their phases.
 - Auth surfaces live (`src/app/(auth)`): `/login`, `/register`, `/verify-email`, `/reset-password`, `/reset-password/confirm` — loading/error states with the backend's stable error codes mapped to copy (`src/features/auth/errors.ts`); `(protected)/account` proves the guarded layout. API surface: `src/features/auth/api.ts`.
-- **Phase 3 role-specific surfaces** (`src/features/experts`, middleware-protected where authed): student onboarding `/onboarding/student` (self-service, taxonomy interest chips), expert pipeline `/expert/apply` (form + credential upload + attestations) and `/expert/application` (lifecycle status incl. reviewer reason), `/expert/profile` (post-approval editing, availability pause, directory opt-out), and the public directory `/experts` + `/experts/[slug]` (approved experts only). Admin management deliberately stays in Django admin — there is no admin UI flow (ADR-0011).
+- **Phase 3 role-specific surfaces** (`src/features/experts`, middleware-protected where authed): student onboarding `/onboarding/student` (self-service, taxonomy interest chips), expert pipeline `/expert/apply` (form + credential upload + attestations) and `/expert/application` (lifecycle status incl. reviewer reason), `/expert/profile` (post-approval editing, availability pause, directory opt-out), and the public directory `/experts` + `/experts/[slug]` (approved experts only). Admin management deliberately stays in Django admin — there is no admin UI flow (ADR-0012).
 - `apiFetch` sends `credentials: "include"` and `X-Requested-With` on mutations; on 401 the caller drives UX (sign-in redirect) — no transparent refresh-retry loop (documented decision).
 - Global 401 handling: session context flips to `unauthenticated`, guarded layouts redirect to login.
 

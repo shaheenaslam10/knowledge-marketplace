@@ -4,7 +4,7 @@
 
 ## 1. Application & approval (BR-03) — ✅ implemented (Phase 3)
 
-Role onboarding is **separate per role** (ADR-0011): students self-serve, experts apply and get reviewed, admins are provisioned only via management. A registered user never becomes an expert automatically.
+Role onboarding is **separate per role** (ADR-0012): students self-serve, experts apply and get reviewed, admins are provisioned only via management. A registered user never becomes an expert automatically.
 
 **Exact state machine** (`ExpertApplication.status`; `not_applied` = no application row):
 

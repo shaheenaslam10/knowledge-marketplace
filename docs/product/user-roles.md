@@ -8,7 +8,7 @@ Roles are **not** separate user tables. One `User`, with role state (ADR: single
 
 **As implemented (Phase 2):** `get_roles(user)` in `apps/accounts.services` derives the canonical role dict — `{student, verified, staff, support, admin, expert}` — where `student` is true for every active account (BR-01), `verified` mirrors `email_verified_at`, `support`/`admin` come from Django groups (+`is_staff`), and `expert` is a stable `False` slot until Phase 3 registers the `ExpertProfile` approval provider. DRF classes shipped: `IsAdmin`, `IsSupport`, `IsExpert`, `IsVerified` (+ global deny-by-default `IsAuthenticated`).
 
-| Role | How acquired (ADR-0011) | Storage |
+| Role | How acquired (ADR-0012) | Storage |
 |---|---|---|
 | **Guest** | unauthenticated | — |
 | **Student** | **self-service**: register → verify email → onboarding (`/me/student-profile`) — **no approval gate** | `User.is_active` + verified email + `StudentProfile` |

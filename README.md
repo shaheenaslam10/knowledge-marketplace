@@ -2,7 +2,7 @@
 
 > Working title. A two-sided platform where students get academic/learning help through an **Open Marketplace** (experts bid, student picks) or a **Managed Service** (the platform triages and assigns), with payments, delivery, reviews and disputes handled end-to-end.
 
-**Status: Phase 3 — Student/Expert Profiles complete.** Profiles, expert application & approval lifecycle, shared taxonomy, secure credential files, and the public expert directory are live. Custom email-based user model, JWT-in-httpOnly-cookie auth (register / login / refresh-rotation / logout / verify / password reset & change / deactivate), role & permission foundations (student / verified / staff / support / admin; expert slot reserved), admin user management, and the auth UI foundation run locally and are verified in CI. See [docs/architecture/authentication.md](docs/architecture/authentication.md) and the [phase record](docs/process/roadmap-phases.md).
+**Status: Phase 3 complete + Phase 3.5 design/product architecture adopted.** Profiles, expert lifecycle, taxonomy, credential files and the public expert directory are live; the product now targets a three-experience structure (marketing / app / portal) with a formal design system (see docs/design/). Custom email-based user model, JWT-in-httpOnly-cookie auth (register / login / refresh-rotation / logout / verify / password reset & change / deactivate), role & permission foundations (student / verified / staff / support / admin; expert slot reserved), admin user management, and the auth UI foundation run locally and are verified in CI. See [docs/architecture/authentication.md](docs/architecture/authentication.md) and the [phase record](docs/process/roadmap-phases.md).
 
 ---
 
@@ -82,7 +82,7 @@ Then open:
 docker compose exec backend python manage.py seed_demo
 ```
 
-Creates eight demo accounts (**never real credentials; dev/test only**, guarded unless `--force`), each expert persona in a different lifecycle state (ADR-0011):
+Creates eight demo accounts (**never real credentials; dev/test only**, guarded unless `--force`), each expert persona in a different lifecycle state (ADR-0012):
 
 | Account | Password env (default) | State |
 |---|---|---|
