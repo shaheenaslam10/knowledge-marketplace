@@ -39,7 +39,8 @@ export async function apiFetch<T>({ path, baseUrl, ...init }: ApiFetchOptions): 
     headers: {
       Accept: "application/json",
       ...(method !== "GET" && method !== "HEAD" ? { "X-Requested-With": "XMLHttpRequest" } : {}),
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      // FormData sets its own multipart boundary — never override it
+      ...(init.body && typeof init.body === "string" ? { "Content-Type": "application/json" } : {}),
       ...init.headers,
     },
   });

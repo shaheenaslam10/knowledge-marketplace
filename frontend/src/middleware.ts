@@ -9,7 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * - Auth-required paths without `hm_access` → /login?next=<original>
  * - Auth pages (login/register) WITH a session cookie → /account
  */
-const PROTECTED_PREFIXES = ["/account"];
+const PROTECTED_PREFIXES = ["/account", "/onboarding", "/expert"];
 const AUTH_PAGES = ["/login", "/register"];
 const ACCESS_COOKIE = "hm_access";
 
@@ -44,5 +44,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/login", "/register"],
+  matcher: ["/account/:path*", "/onboarding/:path*", "/expert/:path*", "/login", "/register"],
 };
