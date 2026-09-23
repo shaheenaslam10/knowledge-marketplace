@@ -14,7 +14,7 @@ replaces the email layer, not the seams). Payment collection stays in Phase 7:
 from __future__ import annotations
 
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from django.db import transaction
@@ -76,11 +76,15 @@ def transition(order: Order, to_status: str, *, actor=None, event_type: str | No
     return order
 
 
-def _notify(order: Order, event: str) -> None:
+def _notify(order: Order, event: str, extra_email: int | None = None) -> None:
     from django_q.tasks import async_task
 
     async_task(
-        "apps.orders.tasks.send_order_event_email", str(order.pk), event, task_name="orders.email"
+        "apps.orders.tasks.send_order_event_email",
+        str(order.pk),
+        event,
+        extra_email=extra_email,
+        task_name="orders.email",
     )
 
 
@@ -366,3 +370,31 @@ def create_order_from_offer(offer) -> Order:
         source=Order.Source.OPEN_BID,
         offer_id=offer.pk,
     )
+
+
+def deadline_reminder(now: datetime | None = None) -> int:
+    """T-24h expert warning (hourly job). Idempotent via the persisted
+    deadline_reminded event; safe to run on every schedule tick."""
+    now = now or timezone.now()
+    horizon = now + timedelta(hours=24)
+    reminded = 0
+    for order in (
+        Order.objects.filter(
+            status__in=[
+                Order.Status.ACTIVE,
+                Order.Status.DELIVERED,
+                Order.Status.REVISION_REQUESTED,
+            ],
+            delivery_due_at__gt=now,
+            delivery_due_at__lte=horizon,
+        )
+        .exclude(events__event_type=OrderEvent.EventType.DEADLINE_REMINDED)
+        .select_related("request")
+        .iterator()
+    ):
+        OrderEvent.objects.create(
+            order=order, event_type=OrderEvent.EventType.DEADLINE_REMINDED, data={}
+        )
+        _notify(order, "deadline_reminder", extra_email=order.expert_id)
+        reminded += 1
+    return reminded

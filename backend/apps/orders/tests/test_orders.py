@@ -306,3 +306,17 @@ def test_order_api_workspace(client, student, admin, active_order, django_user_m
         ).status_code
         == 403
     )
+
+
+def test_deadline_reminder_idempotent(student, active_order):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.orders.tasks import deadline_reminder as reminder_job
+
+    order, _expert = active_order
+    Order.objects.filter(pk=order.pk).update(delivery_due_at=timezone.now() + timedelta(hours=20))
+    assert reminder_job() == 1
+    assert order.events.filter(event_type=OrderEvent.EventType.DEADLINE_REMINDED).exists()
+    assert reminder_job() == 0  # deduped on the second hourly tick

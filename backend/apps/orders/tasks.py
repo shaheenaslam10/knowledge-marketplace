@@ -27,16 +27,46 @@ COPY = {
         "The delivery was approved. Payout is scheduled per the payments terms (Phase 7).",
     ),
     "cancelled": ("Order cancelled", "This order was cancelled. No action is needed."),
+    "deadline_reminder": (
+        "Delivery due within 24 hours",
+        "Heads-up: your delivery is due within 24 hours. Submit it (or propose a new deadline in chat) to stay on track.",
+    ),
 }
 
 
-def send_order_event_email(order_id: str, event: str) -> dict:
+def auto_approve_deliveries() -> int:
+    """BR-24 — approve delivered orders past the 72h auto-approval timer.
+    Schedule: every 15 min (django-q2 Scheduled tasks, ops setup)."""
+    from apps.orders import services
+
+    return services.auto_approve_due()
+
+
+def awaiting_payment_sweeper() -> int:
+    """BR-23 — cancel orders unpaid for more than 72h.
+    Schedule: hourly (django-q2 Scheduled tasks, ops setup)."""
+    from apps.orders import services
+
+    return services.sweep_unpaid()
+
+
+def deadline_reminder() -> int:
+    """T-24h expert warning. Schedule: hourly (django-q2 Scheduled tasks, ops setup)."""
+    from apps.orders import services
+
+    return services.deadline_reminder()
+
+
+def send_order_event_email(order_id: str, event: str, extra_email: int | None = None) -> dict:
     from apps.accounts.models import User
     from apps.orders.models import Order
 
     order = Order.objects.select_related("request").get(pk=order_id)
     subject, body = COPY.get(event, ("Order update", "Please sign in for details."))
-    for user_id in (order.student_id, order.expert_id):
+    recipients = [order.student_id, order.expert_id]
+    if extra_email is not None and extra_email not in recipients:
+        recipients.append(extra_email)
+    for user_id in recipients:
         user = User.objects.filter(pk=user_id).first()
         if user is None:
             continue

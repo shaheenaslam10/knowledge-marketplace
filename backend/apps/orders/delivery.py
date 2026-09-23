@@ -60,6 +60,10 @@ class OrderEvent(TimeStampedModel):
         COMPLETED = "completed", "Order completed"
         CANCELLED = "cancelled", "Order cancelled"
         DISPUTE_OPENED = "dispute_opened", "Dispute opened"
+        # Administrative marker (jobs table, order-lifecycle.md) — dedupes the
+        # hourly T-24h reminder; the workspace timeline renders it as a plain
+        # "deadline reminder sent" row.
+        DEADLINE_REMINDED = "deadline_reminded", "Deadline reminder sent"
 
     id = models.UUIDField(primary_key=True, default=uuid_lib.uuid4, editable=False)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="events")
