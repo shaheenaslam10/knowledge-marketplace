@@ -22,8 +22,8 @@ see ADR-0002 amendment. Revised choice:
 | accounts | send verification/reset emails | on demand (Phase 2) | retries |
 | service_requests | expire stale requests | daily (Phase 4) | BR-08 |
 | bidding | expire stale offers | daily (Phase 5) | BR-15 |
-| assignments | expire invitations/assignments | hourly (Phase 6) | BR-20/21 |
-| orders | auto-approve deliveries, unpaid sweeper, deadline warnings | 15 min/hourly (Phase 6) | BR-24/26 |
+| assignments | expire invitations/assignments | hourly ✅ (Phase 5) | BR-20/21 |
+| orders | auto-approve deliveries (15 min) ✅, unpaid sweeper (hourly) ✅, deadline reminder (hourly) ✅ — Phase 6; overdue flagging ⏳ Phase 9 | BR-23/24/26 |
 | payments | payout sweeper, refund executor, webhook checker | hourly/on demand (Phase 7) | BR-30/31 |
 | notifications | email fan-out, digests, prune | on notify/daily (Phase 8) | |
 | files | retention cleanup | daily (Phase 9) | |

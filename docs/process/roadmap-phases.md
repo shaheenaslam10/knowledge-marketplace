@@ -1,6 +1,6 @@
 # Development Phases, Dependencies & Acceptance Criteria
 
-> Status: **Phase 5 ✅ complete · Next: Phase 6 (Orders & Delivery)** · Last updated: Phase 6 kickoff
+> Status: **Phase 6 ✅ complete · Next: Phase 7 (Payments & Commissions)** · Last updated: Phase 6 completion
 > **Single source of truth.** The table below reflects what the system actually contains after each phase. Renumbered at Phase 5 kickoff (owner direction): the marketplace foundation (requests + open bidding + selection + order creation) shipped together in Phase 4, so the former "Bidding & Selection" phase no longer exists and later phases shifted down one. Per-phase completion records live at the bottom of this file.
 
 ## Phase overview
@@ -201,3 +201,22 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 | Notifications | invitation/assignment/triage-decision emails via django-q2 async_task (hooks for Phase 8); expiry task (`expire_due_assignments`) |
 | Frontend | expert `/assignments` (accept/decline + countdowns), student managed UX, portal triage pointers — design-system components only |
 | Tests | +15 backend (188 total): triage authz, races, eligibility, supersede, transitions, `Order.source`, audit rows, seed idempotency (4 requests incl. managed demo + pending invitation); +3 frontend (40 total) |
+
+## Phase 6 — completion record (Orders & Delivery)
+
+**Status: ✅ complete.** `Order (awaiting_payment) → mark_paid (Phase 7 seam, staff/manual today) → active → delivered ⇄ revision_requested → completed | cancelled` — one state machine, one model, all three sources (BR-22..28).
+
+| Area | What exists |
+|---|---|
+| Lifecycle | `apps/orders/services.py` transition map (409 `invalid_transition` on illegal moves); `select_for_update` row locks + status re-checks; request rides along (`matched→in_progress` on payment, `→completed` on approval, `→cancelled` on cancellation); amounts immutable post-payment |
+| Delivery | `Delivery` rows (revision_number 0=n, UNIQUE per order) with summary (≥20 chars) + `delivery`-purpose files via the existing `apps.files` grant_download (participant-only, private storage) |
+| Revisions | included = 2 open / 3 managed; student-only, required note (≥10); resubmission increments `revision_number`; due date +7d per revision; exhausted → approve/dispute/admin only; auto-approval pauses mid-revision |
+| Completion | student approve · auto-approve (72h, BR-24) · admin force-approve (BR-25); `completed_at`, request → `completed`, payout scheduling is Phase 7 |
+| Cancellation | pre-payment: either party w/ reason; post-payment: support only (BR-26..28 refund paths land in Phase 7) |
+| Auto-approval | `orders.auto_approve_due` idempotent + race-safe (row lock, re-check status/delivery); django-q2 + PostgreSQL ORM broker; schedule creation = ops setup (admin) |
+| Jobs | `auto_approve_deliveries` 15 min · `awaiting_payment_sweeper` (BR-23, 72h unpaid → cancel) hourly · `deadline_reminder` hourly (T-24h expert email, deduped by persisted `deadline_reminded` event) · overdue flagging deferred to Phase 9 |
+| Timeline | append-only `OrderEvent` log (created, payment_confirmed, delivered, revision_requested, redelivered, approved, auto_approved, completed, cancelled, dispute_opened*, deadline_reminded) — the ONLY data the UI timeline renders (*dispute_opened fires in Phase 9) |
+| API | `/api/v1/me/orders` (list/detail/deliveries/approve/request-revision/cancel); non-participants get 403 before any state read |
+| Frontend | `/orders` list (both roles, status filters) + `/orders/[id]` workspace (summary card, 4-step progress rail, delivery thread, timeline, role-gated actions); delivery upload through the existing files API; `/orders` middleware-guarded |
+| Design/motion | design-system tokens/components only; motion = status-badge pop, progress-rail fill, timeline stagger — transform/opacity only, reduced-motion collapses to instant states |
+| Tests | +13 backend (201 total): payment-seam authz, delivery loop with files, revision rules + history, duplicate completion, cancellation paths, auto-approval idempotency + student-race, unpaid sweeper, file access matrix, reminder dedupe, API workspace + stranger lockout; FE lint/typecheck/vitest/build + bundle gates green |

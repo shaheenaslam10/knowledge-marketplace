@@ -1,6 +1,8 @@
 # Order Lifecycle — Delivery, Revisions, Completion, Cancellation
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · Related: [payments](payments.md), [disputes](disputes.md)
+> Status: ✅ **Phase 6 implemented** · Last updated: 2026-09-24 · Related: [payments](payments.md), [disputes](disputes.md)
+>
+> **Implementation deltas (Phase 6):** shipped on the ONE Order model via `orders.services` (the ADR-0015 factory `create_order_for_request` is untouched and still the only creation path). Every transition is server-side — `select_for_update` row locks, illegal transitions raise 409 `invalid_transition`, amounts are immutable after payment. `mark_paid` is the Phase 7 payment seam (staff-only manual confirmation today; no student payment yet). The workspace timeline renders the persisted `OrderEvent` log and nothing else; one administrative event type joins the flow events: `deadline_reminded` (dedupes the T-24h expert email). Jobs: `orders.auto_approve_deliveries` (15 min), `orders.awaiting_payment_sweeper` (hourly) and `orders.deadline_reminder` (hourly) are implemented as idempotent django-q2 tasks — creating the schedule entries is ops setup via the Django admin, same convention as assignments expiry; `orders.auto_cancel_overdue` (BR-26 flagging) is deferred to Phase 9, where disputes/admin journeys own that flow. Deadline *proposal via chat* is a Phase 8 surface; until then only support/admin changes deadlines. API lives at `/api/v1/me/orders` (see [api.md](../architecture/api.md)); the UI is the shared `/orders` list + `/orders/[id]` workspace for both roles and all three sources.
 
 The `Order` is the single contract between student and expert, regardless of match source (`open_bid` | `managed_pool` | `managed_direct`). It snapshots: parties, request reference, scope (title + description ref), agreed amount, commission rate, deadline, revision allowance.
 
@@ -59,12 +61,12 @@ stateDiagram-v2
 
 ## Timers & background jobs (all DB-queue driven)
 
-| Job | Schedule | Effect |
-|---|---|---|
-| `orders.auto_approve_deliveries` | every 15 min | approve delivered orders past 72h |
-| `orders.awaiting_payment_sweeper` | hourly | cancel unpaid >72h |
-| `orders.deadline_reminder` | hourly | T-24h expert warning |
-| `orders.auto_cancel_overdue` | daily | flag overdue >24h grace for admin/student action (BR-26) |
+| Job | Schedule | Effect | Status |
+|---|---|---|---|
+| `orders.auto_approve_deliveries` | every 15 min | approve delivered orders past 72h | ✅ task shipped (Phase 6); schedule = ops setup |
+| `orders.awaiting_payment_sweeper` | hourly | cancel unpaid >72h | ✅ task shipped (Phase 6); schedule = ops setup |
+| `orders.deadline_reminder` | hourly | T-24h expert warning | ✅ task shipped (Phase 6), idempotent via `deadline_reminded` event |
+| `orders.auto_cancel_overdue` | daily | flag overdue >24h grace for admin/student action (BR-26) | ⏳ Phase 9 (disputes/admin tooling) |
 
 ## Concurrency & integrity rules
 

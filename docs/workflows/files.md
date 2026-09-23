@@ -13,6 +13,8 @@
 | `request_brief` | student | 10 MB / file, ≤8 files | pdf, doc/docx, txt, md, png, jpg, zip |
 | `message` | participants | 5 MB | pdf, png, jpg, txt, zip |
 | `delivery` | expert | 50 MB / file, ≤10 | pdf, docx, xlsx, pptx, zip, py, ipynb, txt, md |
+
+> **Phase 6 implementation delta:** the `delivery` and `order_attachment` purposes shipped with a reduced allowlist — pdf/png/jpg/jpeg, ≤25 MB/file (delivered documents + images for review in-browser). Widening to the full matrix above is a Phase 9 files expansion, alongside dispute evidence uploads. Access: `delivery`/`order_attachment` downloads resolve participants through `Delivery → order` / `Order` traversal (uploader/staff or the order's student/expert); strangers get 403/404.
 | `dispute_evidence` | participants | 10 MB | pdf, png, jpg |
 | `credential` | expert applicant | 10 MB, private | pdf, png, jpg |
 | `avatar` | any user | 2 MB, public-read | png, jpg, webp |

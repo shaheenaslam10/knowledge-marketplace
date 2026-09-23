@@ -81,14 +81,14 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 | GET | `/requests/{id}/quote` | student | managed quote view |
 | *(admin triage actions)* | via Django admin → services | admin | approve_pool / assign / reject |
 
-### Orders — `/api/v1/orders`
-| GET | `/orders` | participant | role-scoped (student/expert view params) |
-| GET | `/orders/{id}` | participant/admin | full workspace payload (deliveries, timeline) |
-| POST | `/orders/{id}/deliver` | expert | multipart: summary + files |
-| POST | `/orders/{id}/revisions` | student | request revision (change list required) |
-| POST | `/orders/{id}/approve` | student | complete |
-| POST | `/orders/{id}/cancel` | participant | per BR-26 |
-| POST | `/orders/{id}/extend-deadline` | student | accept expert's proposal |
+### Orders — `/api/v1/me/orders` (Phase 6 implementation)
+| GET | `/me/orders` | participant | cursor-paginated; each row carries `role` (student/expert) + status/source/price |
+| GET | `/me/orders/{id}` | participant | full workspace payload: meta, counterparty, commission split, revisions, timers, `events` timeline, `deliveries` (with files) |
+| POST | `/me/orders/{id}/deliveries` | expert | JSON: summary (≥20 chars) + `attachment_ids` (uploaded via `/files`, purpose `delivery`) |
+| POST | `/me/orders/{id}/request-revision` | student | `{note}` required (≥10 chars); pauses auto-approval, +7d due date |
+| POST | `/me/orders/{id}/approve` | student | completes the order (auto-approval does the same after 72h) |
+| POST | `/me/orders/{id}/cancel` | participant | pre-payment: either party w/ reason; post-payment: support only (BR-26..28) |
+| *(deadline proposal/accept)* | via chat thread | student | Phase 8 (messaging) — `extend-deadline` endpoint lands with it |
 
 ### Payments — `/api/v1/payments`
 | POST | `/orders/{id}/pay` | student | → PaymentIntent client_secret (or manual instructions) |
