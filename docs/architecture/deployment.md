@@ -10,7 +10,7 @@ flowchart LR
     C --> N[Next.js :3000]
     C --> D[Django ASGI :8000<br/>HTTP + WS]
     subgraph VM["Single VM / free-tier host"]
-        C; N; D; W[Worker: process_tasks]
+        C; N; D; W[Worker: qcluster]
         PG[(Postgres 16 container)]
     end
     D --> PG; W --> PG

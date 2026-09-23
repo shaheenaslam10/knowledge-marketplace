@@ -48,9 +48,9 @@ frontend/
 
 ## API client & type safety (keeps coupling low)
 
-1. Backend publishes OpenAPI 3 (`drf-spectacular`) at `/api/schema/`.
-2. `npm run generate:api` runs `openapi-typescript` → `src/lib/api/schema.d.ts`; a thin `apiFetch` wrapper adds credentials, error envelope parsing (`{error:{code,message,details}}`), and 401→refresh→retry.
-3. Frontend **never** hand-writes endpoint types — contract drift is caught at CI (schema hash check + typecheck).
+1. Backend publishes OpenAPI 3 (`drf-spectacular`) at `/api/schema/` — live since Phase 1.
+2. Phase 1 ships the hand-written envelope-aware `apiFetch` client (`src/lib/api/client.ts`); the generated-typed-client step (`openapi-typescript` → `src/lib/api/schema.d.ts`, `npm run generate:api`) is introduced with the first domain API (Phase 2/3) — there is no endpoint surface worth generating yet.
+3. Frontend **never** hand-writes endpoint types once generation exists — contract drift is caught at CI (schema hash check + typecheck).
 
 ## Auth handling
 

@@ -2,7 +2,7 @@
 
 > Working title. A two-sided platform where students get academic/learning help through an **Open Marketplace** (experts bid, student picks) or a **Managed Service** (the platform triages and assigns), with payments, delivery, reviews and disputes handled end-to-end.
 
-**Status: Phase 0 — architecture & documentation complete. Implementation proceeds phase-by-phase (see the roadmap below). Everything documented runs locally from this repository as each phase lands.**
+**Status: Phase 1 — Project Foundation complete and running.** The full stack (Next.js + Django + PostgreSQL + database-backed worker) runs locally from a clean checkout and is verified in CI. Next: Phase 2 (Authentication & Roles) per [docs/process/roadmap-phases.md](docs/process/roadmap-phases.md).
 
 ---
 
@@ -10,12 +10,17 @@
 
 ```text
 /
-├── frontend/     # Next.js + TypeScript + Tailwind (App Router, domain-oriented)
-├── backend/      # Django + DRF modular monolith (config/ + apps/)
-├── docs/         # Product, workflows, architecture, operations, process — START HERE
-├── scripts/      # setup / seed / deploy / restore helpers
-├── .env.example  # every required environment variable, with safe placeholders
-├── docker-compose.yml
+├── frontend/           # Next.js 15 + TypeScript + Tailwind 4 (App Router, domain-oriented)
+│   └── src/app/(public) · src/features · src/components/ui · src/lib · e2e
+├── backend/            # Django 5.2 LTS + DRF modular monolith
+│   ├── config/         # settings/{base,dev,test,prod}, urls, api router, asgi (HTTP+WS)
+│   ├── apps/core/      # shared kernel: health, error envelope, money, request-id, seeds
+│   ├── apps/payments/  # PaymentGateway interface (provider-agnostic seam — ADR-0005)
+│   └── docker/         # container entrypoints (db-wait migrate / worker)
+├── docs/               # Product, workflows, architecture, operations, process — START HERE
+├── scripts/            # run_tests.sh · check_env_docs.py (CI doc-sync gate)
+├── .env.example        # every environment variable, documented
+├── docker-compose.yml  # db + backend + worker + frontend (clean-checkout runnable)
 └── README.md
 ```
 
@@ -24,86 +29,148 @@
 1. **Open Marketplace** — student posts a request → eligible experts submit offers → student accepts one → platform handles payment (commission taken).
 2. **Managed Service** — student submits a request → admin triages → platform publishes it to the expert pool *or* assigns a specific expert → platform manages order, communication, payment, delivery, commission.
 
-Both converge on a single Order lifecycle — see [docs/workflows](docs/README.md#workflows-product-behaviour).
+Both converge on a single Order lifecycle — [docs/workflows](docs/README.md).
 
 ## Tech stack (cost-first: ≈ $0–6/month fixed at MVP scale)
 
 | Layer | Choice |
 |---|---|
-| Frontend | Next.js (App Router) + TypeScript + Tailwind CSS |
-| Backend | Django 5.2 LTS + Django REST Framework, **modular monolith** |
+| Frontend | Next.js 15 (App Router) + TypeScript + Tailwind CSS 4 |
+| Backend | Django 5.2 LTS + DRF, **modular monolith** (import-linter-enforced boundaries) |
 | Database | PostgreSQL 16 (only source of truth) |
-| Background jobs | **django-tasks (database-backed queue — no Redis)** |
-| Realtime | Django Channels / WebSockets, in-memory layer (single ASGI process; Redis = documented upgrade) |
-| Files | Local disk in dev → **Cloudflare R2** in prod (free tier, zero egress), signed access |
-| Payments | **Stripe Connect** (separate charges & transfers) + manual-gateway fallback mode |
-| Email | Brevo free tier behind an adapter (console backend locally) |
+| Background jobs | **django-q2 with the ORM (Postgres) broker — no Redis, no Celery** (ADR-0002) |
+| Realtime | Django Channels foundation on one ASGI process (in-memory layer; Redis = documented scale-out) |
+| Payments | `PaymentGateway` interface + registry (Stripe Connect adapter + manual mode land in Phase 8; never hard-coded) |
+| Files | Local disk in dev → Cloudflare R2 in prod (Phase 10) |
+| Email | console backend now; Brevo/SMTP adapters with notifications (Phase 9) |
 | Deploy | Docker Compose on a single small VM / free-tier host |
 
-Full rationale per choice: [docs/operations/costs.md](docs/operations/costs.md) · ADRs: [docs/process/adrs.md](docs/process/adrs.md)
+Full rationale: [docs/operations/costs.md](docs/operations/costs.md) · ADRs: [docs/process/adrs.md](docs/process/adrs.md)
 
-## Local development (quick start)
+---
 
-Prerequisites: **Docker + Docker Compose** (recommended path), or Python 3.11+ and Node 20+ to run services natively. No paid services are required locally (Stripe test mode / console email).
+## Local development
+
+### Prerequisites
+
+- **Docker + Docker Compose** (recommended path), **or** Python 3.11+/3.12, Node 20+, and a PostgreSQL 16 for the non-Docker path.
+- **No paid services are required locally** (payments use the manual-gateway placeholder; email prints to the console).
+
+### Quick start (Docker — works on a clean checkout)
 
 ```bash
-git clone <this repo> && cd knowledge-marketplace
-cp .env.example .env            # fill values as you like; defaults work for local dev
-docker compose up --build       # starts db + backend + worker + frontend
+git clone https://github.com/shaheenaslam10/knowledge-marketplace.git
+cd knowledge-marketplace
+docker compose up --build          # db + backend (auto-migrates) + worker + frontend
 ```
 
-Then:
+Optional environment overrides: `cp .env.example .env` and edit — compose picks it up automatically (dev defaults are baked in, so this step is optional).
+
+Then open:
+
+| Surface | URL |
+|---|---|
+| Frontend (shows live backend status) | http://localhost:3000 |
+| API root | http://localhost:8000/api/v1/ |
+| OpenAPI schema / Swagger UI | http://localhost:8000/api/schema/ · /api/schema/swagger-ui |
+| Health / readiness probes | http://localhost:8000/healthz · /readyz |
+| Django admin | http://localhost:8000/admin/ |
+
+### Seed / demo data
 
 ```bash
-# in the backend container (or locally with a venv):
-python manage.py migrate        # apply migrations
-python manage.py seed_demo      # demo students/experts/requests/orders (safe, idempotent)
+docker compose exec backend python manage.py seed_demo
 ```
 
-- Frontend: http://localhost:3000 · API: http://localhost:8000/api/v1/ · Django admin: http://localhost:8000/admin/
-- Demo accounts (after seeding): listed in `scripts/seed_demo.py` output / [docs](docs/architecture/testing.md).
+Creates the admin/owner account (**admin** / password from `DJANGO_SEED_ADMIN_PASSWORD`, default `admin-demo-1234`) and prints next steps. Domain demo data (students, experts, requests, orders) is added to this same command in Phases 3+.
+
+### Worker (background jobs)
+
+The `worker` compose service runs **`python manage.py qcluster`** (django-q2, database-backed — no Redis) and starts once the API is ready. Prove the pipeline end-to-end:
+
+```bash
+docker compose exec backend python manage.py worker_smoke --timeout 30
+# → "worker OK: {"echo": "smoke-…", "worker_pid": …}"
+```
 
 ### Running without Docker
 
 ```bash
-# backend
-cd backend && python -m venv .venv && source .venv/bin/activate
-pip install -e .[dev]
-cp ../.env.example ../.env      # adjust DATABASE_URL to your local Postgres
-python manage.py migrate && python manage.py runserver
-python manage.py process_tasks  # background worker (second terminal)
+# 1) PostgreSQL: use your own instance; create an empty database, e.g. `hem`.
+# 2) Backend
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+cp ../.env.example ../.env                 # set DATABASE_URL=postgres://user:pass@localhost:5432/hem
+python manage.py migrate
+python manage.py seed_demo
+uvicorn config.asgi:application --reload   # HTTP + WebSockets (or: python manage.py runserver)
 
-# frontend
-cd frontend && npm install && npm run dev
+# 3) Worker (second terminal)
+cd backend && source .venv/bin/activate
+python manage.py qcluster
+
+# 4) Frontend (third terminal)
+cd frontend
+npm install
+cp .env.example .env.local                 # defaults work for local dev
+npm run dev
 ```
 
-Full instructions, env vars, migrations, seed data, troubleshooting: **[README sections below](#setup-in-detail)** and [docs/architecture/environments.md](docs/architecture/environments.md).
+Environment variables: [`.env.example`](.env.example) + [docs/architecture/environments.md](docs/architecture/environments.md) (CI checks the two stay in sync).
 
-## Testing
+## Commands cheat-sheet
 
-```bash
-cd backend && pytest                    # backend suite (real Postgres)
-cd frontend && npm run lint && npm test # lint + unit
-docker compose -f docker-compose.yml run e2e   # Playwright golden paths (Phase 12+)
-```
+| Task | Command |
+|---|---|
+| Start everything | `docker compose up --build` |
+| Migrations | `docker compose exec backend python manage.py migrate` (auto on backend start) |
+| Make migrations | `docker compose exec backend python manage.py makemigrations` |
+| Seed demo | `docker compose exec backend python manage.py seed_demo` |
+| Worker | compose `worker` service · `python manage.py qcluster` |
+| Worker check | `python manage.py worker_smoke` |
+| Logs | `docker compose logs -f backend` (`worker`, `frontend`, `db`) |
+| Full test suite | `./scripts/run_tests.sh` |
+| Backend tests | `docker compose exec backend pytest --cov=apps` |
+| Frontend tests | `cd frontend && npm run lint && npm run typecheck && npm test` |
+| Lint backend | `docker compose exec backend ruff check . && docker compose exec backend lint-imports` |
+| E2E smoke | `cd frontend && npx playwright install chromium && npm run e2e` (stack must be up) |
+| Reset everything | `docker compose down -v` (destroys local data) |
+
+## Testing & CI
+
+- **Backend:** 43 tests — health/ready probes, OpenAPI contract, uniform error envelope, money math (largest-remainder allocation), payments gateway seam (provider-agnostic protocol + registry), WebSocket consumers through the real ASGI stack, DB-backed task pipeline. Ruff + import-linter dependency contracts + `makemigrations --check`.
+- **Frontend:** vitest unit tests (status card, Button, API client envelope parsing), typecheck against strict TS, ESLint, production build, Playwright smoke.
+- **CI (GitHub Actions):** `backend` (Postgres service), `frontend`, `docs-sync` (env-var doc gate), `compose-smoke` (clean checkout → `docker compose up --build` → health → API schema → worker_smoke → seed → Playwright).
+- Strategy & coverage gates: [docs/architecture/testing.md](docs/architecture/testing.md).
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `backend` container restarts with DB errors | db not healthy yet — entrypoint retries 30×; check `docker compose logs db` |
+| Frontend shows **UNREACHABLE** | backend still booting, or `NEXT_PUBLIC_API_URL`/`SERVER_API_URL` wrong — see environments doc |
+| Port already in use | set `BACKEND_HOST_PORT` / `FRONTEND_HOST_PORT` / `POSTGRES_HOST_PORT` in `.env` |
+| `npm` EACCES inside `frontend/` after running the compose stack (Linux) | the dev container runs as root and writes `frontend/.next` through the bind mount — with the stack stopped: `sudo rm -rf frontend/.next` |
+| Playwright can't download browsers | corporate proxy/CDN issue — `npx playwright install chromium` needs network; CI runs it anyway |
+| `worker_smoke` times out | `worker` service not running — `docker compose ps`, check `docker compose logs worker` |
+| Migrations out of sync | `docker compose exec backend python manage.py makemigrations --check` should be clean in CI; locally run `makemigrations` |
 
 ## Documentation
 
-**[docs/README.md](docs/README.md)** is the index. Start with: product overview → business rules → user journeys → system architecture → roadmap phases. Documentation is a first-class deliverable and is updated in the same phase as any change it describes.
+**[docs/README.md](docs/README.md)** is the index: product → business rules (incl. academic-integrity policy) → journeys → architecture → costs → process. Documentation is a first-class deliverable, updated in the same phase as any change it describes (CI-gated where automatable).
 
 ## Roadmap
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Architecture & documentation | ✅ done |
-| 1 | Project foundation (scaffolds, compose, CI, env, seeds) | ⏳ next |
-| 2–3 | Auth & roles · profiles & expert approval | 📐 planned |
-| 4–6 | Requests · open bidding · managed assignment | 📐 planned |
+| 0 | Architecture & documentation | ✅ |
+| 1 | Project foundation (scaffolds, compose, CI, env, seeds, worker, OpenAPI, error envelope, gateway seam) | ✅ |
+| 2 | Authentication & roles (custom user, JWT cookies, expert applications) | ⏳ next |
+| 3–6 | Profiles · requests · open bidding · managed assignment | 📐 planned |
 | 7–8 | Orders & delivery · payments & commissions | 📐 planned |
 | 9–11 | Messaging & notifications · files/reviews/disputes · admin & analytics | 📐 planned |
 | 12–13 | Security/testing/performance · production deployment | 📐 planned |
-
-Details & acceptance criteria: [docs/process/roadmap-phases.md](docs/process/roadmap-phases.md).
 
 ## License / ownership
 

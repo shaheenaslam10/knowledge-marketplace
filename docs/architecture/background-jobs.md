@@ -1,43 +1,43 @@
 # Background Jobs — Database-Backed Queue (no Redis)
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · ADR-0002
+> Status: ✅ foundation implemented in Phase 1 · Last updated: Phase 1 · ADR-0002 (amended)
 
-## Choice: `django-tasks` (DB-backed)
+## Choice: `django-q2` with the ORM (PostgreSQL) broker
 
-The officially-maintained Django task framework (merged from `django-tasks` under the Django ecosystem umbrella, API aligned with the DEP 0004 "database background tasks" spec). Tasks are rows in Postgres (`django_tasks` tables), executed by worker processes; retries, priorities and states included.
+Phase 0 planned `django-tasks`; the Phase 1 readiness check found the published
+package ships **no database backend or worker** (dummy/immediate backends only) —
+see ADR-0002 amendment. Revised choice:
 
-- Runner: `python manage.py process_tasks` (worker container; concurrency 4 threads).
-- Enqueue: `tasks.enqueue(task_fn, args...)` inside the request transaction where possible (row created atomically with the state change → no lost work).
-- **Recurring/scheduled jobs**: `django-tasks` scheduled tasks (cron-like config in code) drive all sweepers.
-- Alternatives rejected: Celery+Redis (extra infra, heavy for MVP), Huey (needs Redis for prod-grade), django-q2 (DB broker OK but less standard/actively-aligned than django-tasks), cron-only (no retries/visibility).
+- **django-q2 1.11.x, ORM broker** — tasks live in Postgres (`django_q_task` / `django_q_ormq` tables), executed by the `qcluster` worker process. No Redis, no extra services.
+- **Runner:** `python manage.py qcluster` (compose `worker` service; configurable `WORKERS`, `Q_TIMEOUT`, `Q_RETRY`, `Q_MAX_ATTEMPTS` — retry must exceed timeout).
+- **Recurring/scheduled jobs:** django-q2's `Schedule` model (`I`/`H`/`D`/`W` cadence), admin-manageable — drives all sweepers from Phase 5+ (auto-approve, TTL expiries, payout runs). No separate cron needed; a cron container remains the fallback.
+- **Test mode:** `Q_CLUSTER.sync=True` executes tasks inline (`config/settings/test.py`); the *real* worker pipeline is proven by `manage.py worker_smoke` locally and in CI's compose job.
+- **Alternatives rejected:** Celery+Redis (extra infra), Huey (weak Django-ORM story), django-tasks (no DB backend — see above), cron-only (no retries/visibility).
 
-## Job catalog
+## Task catalog (foundation + planned)
 
 | App | Task | Trigger | Notes |
 |---|---|---|---|
-| accounts | send verification/reset emails | on demand | retries 3× backoff |
-| service_requests | expire stale requests | daily | BR-08 |
-| bidding | expire stale offers | daily | BR-15 |
-| assignments | expire invitations/assignments | hourly | BR-20/21 |
-| orders | auto-approve deliveries (72h) | every 15 min | BR-24 |
-| orders | cancel unpaid orders (72h) + reminders (24h) | hourly | |
-| orders | deadline warnings (T-24h) | hourly | |
-| payments | payout sweeper | hourly | BR-30 |
-| payments | webhook non-final PI checker | nightly | reconciliation aid |
-| payments | refund/transfer executor | on demand (dispute/cancel) | |
-| notifications | email fan-out (per notification) | on notify | retries; digest bundler daily |
-| files | retention cleanup (30d/12m rules) | daily | |
-| notifications | notification prune (90d) | weekly | |
-| audit | integrity spot-check (ledger balance check) | daily | charge = commission+credit |
+| core | `smoke_task` (+ `manage.py worker_smoke`) | manual/CI | Phase 1 pipeline proof |
+| accounts | send verification/reset emails | on demand (Phase 2) | retries |
+| service_requests | expire stale requests | daily (Phase 4) | BR-08 |
+| bidding | expire stale offers | daily (Phase 5) | BR-15 |
+| assignments | expire invitations/assignments | hourly (Phase 6) | BR-20/21 |
+| orders | auto-approve deliveries, unpaid sweeper, deadline warnings | 15 min/hourly (Phase 7) | BR-24/26 |
+| payments | payout sweeper, refund executor, webhook checker | hourly/on demand (Phase 8) | BR-30/31 |
+| notifications | email fan-out, digests, prune | on notify/daily (Phase 9) | |
+| files | retention cleanup | daily (Phase 10) | |
+| audit/ledger | nightly ledger balance check | daily (Phase 8) | charge = commission + credit |
 
 ## Design rules
 
-- Tasks are **thin wrappers over app services** (`tasks.py` → `services.py`) — identical business logic as API/admin paths.
-- Idempotency: every task tolerates re-execution (state checks before effects; payment effects guarded by Stripe object ids/ledger dedup).
-- Retry policy: default 3 attempts, exponential backoff; poison tasks end `failed` and appear in the admin task queue view (django-tasks admin integration) — ops sees failures without extra tooling.
-- Observability: task runs logged with structured context; long jobs chunked (e.g., email fan-out batches of 100).
-- Concurrency safety: services use `select_for_update` on contended rows (order accept/complete, invitation first-accept) so thread-parallel workers stay correct.
+- Tasks are **thin wrappers over app services** (`apps/<app>/tasks.py` → `services.py`) — identical business logic as API/admin paths; views/serializers/tasks never contain business rules.
+- Idempotency: every task tolerates re-execution (state checks before effects; money effects guarded by provider refs/ledger dedup).
+- Retry policy: `Q_MAX_ATTEMPTS=3`; failed tasks visible in the django-q2 admin (ops surface without extra tooling).
+- Observability: structured logs carry request/task ids; long jobs chunked (fan-out batches ~100).
+- Concurrency safety: services use `select_for_update` on contended rows (accept/complete/first-accept-wins) — parallel worker processes stay correct.
+- Enqueue inside the request transaction where the task depends on committed state changes.
 
 ## Why not outsource?
 
-At MVP volumes (≤ a few thousand jobs/day) Postgres handles the queue with sub-second latency and gives transactional enqueue for free. Redis/Celery would add a moving part and a cost line to solve a problem we don't have yet — revisit at the triggers in [scalability](scalability.md).
+At MVP volumes (≤ a few thousand jobs/day) Postgres handles the queue with sub-second latency and transactional enqueue for free. Redis/Celery would add a moving part and a cost line to solve a problem we don't have yet — revisit at the triggers in [scalability](scalability.md).

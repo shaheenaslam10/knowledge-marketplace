@@ -7,10 +7,11 @@
 - **Decision:** One Django codebase; business domains = apps with an acyclic dependency graph; all cross-domain writes go through owning app's `services.py` (the future RPC surface); import-linter enforces in CI. `students`/`experts` are role/profiles on `accounts`/`experts` (one identity), `commissions` folded into `payments` (ledger shares one transaction boundary), `admin` is Django admin + `analytics` (owner back office, not a domain).
 - **Consequences:** extraction later = freeze a service interface; slight indirection cost now (service calls instead of model pokes). Accepted.
 
-## ADR-0002 — django-tasks (database-backed queue), no Redis/Celery
+## ADR-0002 — Database-backed task queue, no Redis/Celery
 - **Context:** Brief forbids Redis-for-queues at MVP; needs retries, schedules, visibility.
-- **Decision:** `django-tasks` over Postgres; worker process `process_tasks`; recurring tasks drive sweepers.
-- **Consequences:** transactional enqueue (no lost jobs); Redis (or any broker) only when scale triggers fire; tasks must be idempotent (documented rule).
+- **Decision (Phase 0):** `django-tasks` (DEP-0004 reference) over Postgres.
+- **Amended (Phase 1, readiness check):** the published `django-tasks` package (0.12.0) ships **only dummy/immediate backends — no database backend or worker process** (upstream repo also gone). Technical impossibility vs this ADR. **Revised decision: `django-q2` (1.11.x) with the ORM broker** — pure-Postgres queue, `qcluster` worker, built-in Schedule model (recurring/sweeper jobs) and Django-admin visibility, actively maintained, no Redis. Re-evaluate if/when Django vendors a production database-backed `django.tasks` (LTS line permitting) — the seam is our `apps/*/tasks.py` wrappers, so migration stays local.
+- **Consequences:** worker command is `python manage.py qcluster`; tasks must be idempotent; django-q2 `retry` must exceed `timeout` (enforced by warning in settings); recurring jobs use django-q2 Schedules (admin-manageable) instead of a separate cron.
 
 ## ADR-0003 — Django Channels + in-memory channel layer (single ASGI process)
 - **Context:** Realtime needed for chat/notifications; must stay free; simplest reliable architecture.

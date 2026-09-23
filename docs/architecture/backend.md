@@ -66,7 +66,7 @@ apps/orders/
 │   ├── serializers.py
 │   ├── views.py       # thin: authn/authz → service/selectors
 │   └── permissions.py
-├── tasks.py           # background jobs (django-tasks)
+├── tasks.py           # background jobs (django-q2 wrappers → services)
 ├── admin.py           # customized Django admin (actions call services)
 ├── tests/             # unit (services) + API tests
 └── apps.py
@@ -91,8 +91,8 @@ Rules: views contain no business logic; services are transaction boundaries (`at
 |---|---|
 | Django 5.2 LTS, DRF | core |
 | `psycopg[binary]` | Postgres driver (v3) |
-| `django-tasks` | DB-backed queue (official Django ecosystem package) |
-| `channels` + `uvicorn[standard]` | ASGI + WebSockets |
+| `django-q2` (ORM broker) | DB-backed queue + scheduler; worker `manage.py qcluster` — no Redis (ADR-0002) |
+| `channels` (4.3.x) + `uvicorn[standard]` | ASGI + WebSockets |
 | `djangorestframework-simplejwt` | auth tokens |
 | `django-filter`, `drf-spectacular` | filtering, OpenAPI schema |
 | `django-cors-headers` | CORS allowlist |

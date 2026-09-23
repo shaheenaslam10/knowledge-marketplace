@@ -16,13 +16,13 @@ Deliberate choice: WS transports are **hints to refetch**, never the source of t
 
 ## Stack & topology
 
-- **Django Channels 5** on the same ASGI process as HTTP (uvicorn). Consumers in `messaging/consumers.py` and `notifications/consumers.py`.
+- **Django Channels 4.3.x** on the same ASGI process as HTTP (uvicorn). Consumers in `messaging/consumers.py` and `notifications/consumers.py` (Phase 9). Phase 1 ships the ASGI/routing/auth/origin-validation foundation plus a `PingConsumer` connectivity proof.
 - **Channel layer: `InMemoryChannelLayer`** (MVP). Valid because MVP runs **exactly one ASGI process** (documented constraint in system-architecture + deployment). Groups used: `thread_{id}`, `user_{id}`, `order_{id}`.
 - Scale-out path (no code changes, settings only): swap to `channels_redis.RedisChannelLayer` when a second ASGI process is needed — Redis then enters the stack for this one purpose (see scalability doc triggers). Auth still via cookie on WS handshake.
 
 ## Consumer behavior
 
-- Handshake: session cookie → JWT authenticated in `middleware.py` (ScopeAuthMiddleware); reject unauth with code 4401; role/participant check per group on connect **and** on every receive.
+- Handshake: origin validated against `FRONTEND_URL`/`CORS_ALLOWED_ORIGINS`/`CSRF_TRUSTED_ORIGINS` (Phase 1, `config/asgi.py` — the built-in channels validator only knows `ALLOWED_HOSTS`, which breaks our cross-subdomain design); JWT/session auth middleware lands in Phase 2; role/participant checks per group on connect **and** on every receive. Missing/foreign Origin is rejected.
 - Chat: receive `{"type":"message.send","body":...}` → **calls messaging service** (same validation/persistence as REST) → broadcast `message.new` to thread group + `notify()` fan-out (personal groups + email-if-offline job). No direct ORM writes in consumers.
 - Typing indicator: ephemeral broadcast, never persisted.
 - Heartbeat: server ping 30s; clients reconnect with backoff; read receipts batched.

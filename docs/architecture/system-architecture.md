@@ -20,7 +20,7 @@ flowchart LR
         end
         subgraph BE["Django (modular monolith)"]
             ASGI[ASGI: HTTP + WebSockets<br/>uvicorn + Channels]
-            WKR[Worker: DB-backed task queue<br/>django-tasks]
+            WKR[Worker: DB-backed task queue<br/>django-q2 qcluster]
             ADM[Django Admin back office]
         end
         PG[(PostgreSQL<br/>single source of truth)]
@@ -43,15 +43,15 @@ flowchart LR
     PG -. backups .-> R2
 ```
 
-**Key simplification:** the background worker and the ASGI server are the *same codebase, different process/command*. The channel layer for WebSockets is in-memory within the single ASGI process (MVP runs one ASGI process; scale-out swaps in Redis — one settings change, documented in [realtime.md](realtime.md)). There is **no Redis, no Celery, no Elasticsearch, no third-party realtime service** in the MVP.
+**Key simplification:** the background worker and the ASGI server are the *same codebase, different process/command*. The channel layer for WebSockets is in-memory within the single ASGI process (MVP runs one ASGI process; scale-out swaps in Redis — one settings change, documented in [realtime.md](realtime.md)). There is **no Redis, no Celery, no Elasticsearch, no third-party realtime service** in the MVP. Phase 1 implements this topology as specified (compose services: db, backend, worker/qcluster, frontend).
 
 ## Runtime processes (production)
 
 | Process | Command | Count (MVP) | Notes |
 |---|---|---|---|
 | Web/WS | `uvicorn config.asgi:application` | 1 | must stay 1 until Redis channel layer is enabled |
-| Worker | `python manage.py process_tasks` | 1 (concurrency ~4 threads) | django-tasks DB queue |
-| Scheduler | `python manage.py process_tasks` recurring tasks (built-in) or cron container | 1 | sweepers: auto-approve, TTLs, payouts |
+| Worker | `python manage.py qcluster` | 1 (4 worker processes) | django-q2 ORM broker (Postgres) |
+| Scheduler | django-q2 `Schedule` model (admin-managed) executed by the worker | — | sweepers: auto-approve, TTLs, payouts |
 | Frontend | `next start` (Node) | 1 | SSR + static |
 | Postgres | container/managed | 1 | only real stateful component |
 
@@ -105,8 +105,8 @@ Config differences live **only** in environment variables (12-factor) — see [e
 |---|---|---|
 | Framework | Django 5.2 LTS + DRF | batteries included, admin = free back office |
 | DB | PostgreSQL 16 | single source of truth; FTS + trigrams built in |
-| Queue | django-tasks (DB-backed) | no Redis/Celery infra; official Django-compatible |
-| Realtime | Channels 5 + in-memory layer | free; swap to Redis layer at scale |
+| Queue | django-q2 (ORM broker — Postgres) | no Redis/Celery infra; ADR-0002 |
+| Realtime | Channels 4.3.x + in-memory layer | free; swap to Redis layer at scale |
 | Auth | SimpleJWT (httpOnly cookies) | battle-tested; no sessions table needed |
 | Files | local dev / Cloudflare R2 | R2 free tier 10 GB, zero egress fees vs S3 |
 | Email | Brevo free 300/day | transactional email without server reputation pain |

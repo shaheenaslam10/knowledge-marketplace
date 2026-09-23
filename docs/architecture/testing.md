@@ -1,6 +1,6 @@
 # Testing Strategy
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23
+> Status: ✅ foundation implemented in Phase 1 · Last updated: Phase 1
 
 ## Principles
 
@@ -16,7 +16,7 @@
 | Service/integration | pytest + pytest-django + factory-boy | full flows with real Postgres: request→offer→accept→order→pay(mocked gateway)→deliver→approve→payout; first-accept-wins race; auto-approve timers (freezed time); webhook idempotency |
 | API/authorization | APIClient | per-role matrix tests (guest/student/expert/other-student/admin × sensitive endpoints → expect 401/403/404), envelope shape, pagination, throttling smoke |
 | WebSockets | Channels test communicator | connect auth, participant-only send, broadcast fan-out |
-| Tasks | django-tasks test harness | enqueue-on-state-change, idempotent re-run, retry paths |
+| Tasks | django-q2 `sync=True` mode + `worker_smoke` command | enqueue-on-state-change, idempotent re-run, retry paths |
 | Migrations | CI: `makemigrations --check` | schema drift guard |
 
 Coverage gate: **≥85% on orders/payments/assignments/bidding services**, ≥70% overall (configured in coverage.rc; reported in CI).

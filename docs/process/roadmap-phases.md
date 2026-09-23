@@ -1,14 +1,14 @@
 # Development Phases, Dependencies & Acceptance Criteria
 
-> Status: 📐 Phase 0 (plan) · Last updated: 2026-09-23
+> Status: Phase 1 ✅ complete · Last updated: Phase 1
 > Sequence follows the brief's suggested order (no deviations needed — dependencies confirmed consistent). Each phase: deliverables → acceptance criteria → "runs locally" proof. Doc updates happen **inside** each phase.
 
 ## Phase overview
 
 | Phase | Name | Depends on | Core deliverables |
 |---|---|---|---|
-| 0 | Architecture & Documentation | — | this docs set, ADRs, review |
-| 1 | Project Foundation | 0 | monorepo scaffolds, Docker Compose, CI, `.env.example`, health endpoints, seed script skeleton, lint/test gates |
+| 0 | Architecture & Documentation | — | ✅ this docs set, ADRs, review |
+| 1 | Project Foundation | 0 | ✅ monorepo scaffolds (backend+frontend), Docker Compose, CI, `.env.example`, health endpoints, seed command, lint/test gates, worker pipeline, OpenAPI, error envelope, gateway interface |
 | 2 | Authentication & Roles | 1 | register/verify/login/reset, JWT cookies, role model, admin groups, audit middleware, throttles |
 | 3 | Student/Expert Profiles | 2 | profiles, taxonomy, expert application+approval (admin), files app (credentials, avatars), public expert directory API |
 | 4 | Requests & Open Marketplace | 3 | ServiceRequest CRUD + integrity attestation, visibility, opportunities board, subjects/tags filters, request files |
@@ -40,3 +40,28 @@ Notes on ordering: payments after orders (order must exist to pay for); messagin
 ## Effort shape (relative, not calendar-promising)
 
 Foundation/auth/profiles = groundwork (~25% of effort), marketplace+managed+orders+payments = the product core (~45%), polish surfaces (messaging, files, reviews, disputes, admin) (~20%), hardening+launch (~10%).
+
+---
+
+## Phase 1 — completion record
+
+**Status: ✅ complete** (all acceptance gates: backend tests green, frontend lint/type/unit/build green, compose smoke + worker + seed + e2e verified in CI, docs synced, env-docs CI gate added).
+
+Delivered on top of the plan (all within documented architecture):
+
+| Area | What exists |
+|---|---|
+| Backend | `config/settings/{base,dev,test,prod}`, `config/urls|api|asgi|wsgi|routing`, `apps/core` (request-id middleware + logging filter, `DomainError` + uniform error envelope, DRF exception handler, cursor pagination, money utils with largest-remainder allocation, `healthz`/`readyz` probes + JSON 404 for `/api/*`, `PingConsumer`, `smoke_task`, `seed_demo`, `worker_smoke`), `apps/payments` (`PaymentGateway` protocol + registry + `ManualGateway` placeholder — **provider-agnostic seam only**) |
+| Frontend | `src/app/(public)` layout/home/how-it-works, `src/components/ui` (Button/Card/Badge), `src/features/status` (integration proof card), `src/lib/api` (envelope-aware client), `src/lib/config` (browser vs server API URLs), types, vitest + Playwright setup, robots.ts |
+| Infra | `Dockerfile`s (dev/prod targets, non-root), `docker-compose.yml` (db/backend/worker/frontend; clean-checkout `up --build` with baked dev defaults), root `.env.example` synced to docs (CI-gated) |
+| Quality | ruff + import-linter contracts (core ⇍ domain; core < payments), `makemigrations --check`, pytest (43 tests: health/schema/envelope/money/gateway/consumers/tasks), vitest (10 tests), Playwright smoke, GitHub Actions: backend / frontend / docs-sync / compose-smoke |
+| Realtime | Channels foundation: ASGI ProtocolTypeRouter, auth middleware stack, origin validator (cross-subdomain-aware), `/ws/ping/` proof — no business realtime yet |
+| Tasks | django-q2 ORM broker (ADR-0002 amended — see below), `qcluster` worker service, `worker_smoke` end-to-end proof |
+
+**Readiness-check outcome (docs corrected, per the "only real contradictions" rule):**
+1. **django-tasks had no database backend/worker** (dummy/immediate only, upstream repo gone) → ADR-0002 amended to **django-q2 ORM broker**; all docs referencing `process_tasks` updated to `qcluster`.
+2. **"Channels 5" doesn't exist** (current: 4.3.x) → docs corrected.
+3. **Channels' `AllowedHostsOriginValidator` rejects foreign/missing Origin and only knows `ALLOWED_HOSTS`** — would break the documented cross-subdomain deploy → explicit origin allowlist from `FRONTEND_URL`/`CORS_ALLOWED_ORIGINS`/`CSRF_TRUSTED_ORIGINS`.
+4. Minor: pytest/import-linter config consolidated in `pyproject.toml` (docs said "pytest.ini/setup.cfg").
+
+**Known Phase 1 limitations (by design):** no auth (default Django user; `accounts.User` lands in Phase 2 **before** any real migration), payments = interface only, no domain models/apps yet, email console-only, frontend displays backend status (integration proof) rather than product features.
