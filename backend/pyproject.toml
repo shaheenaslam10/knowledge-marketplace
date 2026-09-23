@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hem-backend"
+version = "0.1.0"
+description = "Hybrid Expert Marketplace — Django backend (modular monolith)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+dependencies = [
+    "Django==5.2.17",
+    "djangorestframework==3.18.1",
+    "django-filter==26.1",
+    "drf-spectacular==0.30.0",
+    "django-cors-headers==4.9.0",
+    "channels==4.3.2",
+    "daphne==4.2.3",
+    "uvicorn[standard]==0.53.0",
+    "psycopg[binary]==3.3.6",
+    "django-environ==0.14.0",
+    "python-json-logger==4.2.0",
+    "django-q2==1.11.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-django==4.14.0",
+    "pytest-cov==7.1.0",
+    "ruff==0.16.8",
+    "import-linter==2.15",
+]
+
+[tool.setuptools.packages.find]
+include = ["apps*", "config*"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py"]
+addopts = "-q"
+testpaths = ["apps"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ", "SIM", "RUF"]
+ignore = [
+    "E501", # line length handled by formatter
+    "RUF012", # mutable class attrs are idiomatic in Django
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/*" = ["SIM117"]
+"config/settings/**" = ["F403", "F405", "RUF005", "RUF012"] # Django settings star-import convention
+"config/asgi.py" = ["F403", "F405"]
+"config/wsgi.py" = ["F403", "F405"]
+
+[tool.importlinter]
+root_packages = ["apps", "config"]
+
+[[tool.importlinter.contracts]]
+name = "Core is the shared kernel: it imports no other domain app"
+type = "forbidden"
+source_modules = ["apps.core"]
+forbidden_modules = ["apps.payments"]
+
+[[tool.importlinter.contracts]]
+name = "Domain layers may depend downward only (core < payments)"
+type = "layers"
+layers = ["apps.core", "apps.payments"]
