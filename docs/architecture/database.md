@@ -64,6 +64,10 @@ erDiagram
 - **PoolInvitation**: request FK; expert FK; `status` (`pending|accepted|declined|expired`); `responded_at`. Unique(request, expert).
 - **DirectAssignment**: request FK; expert FK (no FK→experts? it's downward? assignments is *above* orders but lateral to experts — FK allowed: assignments→experts is lateral; rule says no upward imports — lateral domain-to-domain references go through services; store `expert_id` UUID + denormalized name for audit, decision ADR-0001); `amount`, `currency`, `deadline`, `scope_note`, `status` (`pending|accepted|declined|expired|superseded`), `expires_at`, `responded_at`, `decided_by_admin` FK.
 
+### assignments (Phase 5 implementation notes)
+- Implemented as documented, plus: UUID pks (both models); `PoolInvitation.expected_amount` (expert's advisory expectation — never the booked price); `DirectAssignment.expert` is a real user FK **plus** `expert_name` snapshot for admin listings; unique(request, expert) holds for invitations.
+- Both artifacts converge through `orders.services.create_order_for_request` (the ADR-0015 factory) with `source=managed_pool|managed_direct`; managed commission (20%) snaps via `payments.config.rate_for_source`.
+
 ### orders
 - **Order**: `number` unique sequence; request FK; student FK; `expert_id` UUID + expert snapshot fields (name, slug) for audit; `source` (`open_bid|managed_pool|managed_direct`); `offer_id` UUID nullable; `amount`, `currency`; `commission_rate` numeric(5,4) snapshot; `commission_amount`, `expert_amount` (computed at creation, stored); `status` (state machine); `deadline`; `revisions_allowed`, `revisions_used`; `accepted_at`,`paid_at`,`delivered_at`,`completed_at`,`cancelled_at`; `cancelled_by` FK nullable; `cancellation_reason`; `auto_approve_at`; `delivery_due_at`.
 - **Delivery**: order FK; `revision_number` int; `summary`; `status` (`submitted|approved|revision_requested`); `approved_at`; `approval_source` (`student|auto|admin`).

@@ -1,6 +1,8 @@
 # Managed Service — Routing & Assignment Workflow
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23
+> Status: ✅ Phase 5 implemented (triage, pool, direct, convergence into Order) · Last updated: Phase 5
+>
+> Implementation deltas: on a pool acceptance the other pending invitations auto-decline ("Another expert was assigned"); the expert may attach an **advisory** `expected_amount` (the order always books the platform quote — BR-22); reassignment supersedes a pending direct assignment (`superseded`) while the request returns to the owner; expiry (48h pool / 24h direct) runs via `assignments.expire_due_assignments` on django-q2 (hourly schedule is ops setup); triage surfaces are Django admin actions/forms (ADR-0010) — Service requests → approve-for-pool, Pool invitations → re-broadcast, Direct assignments → create/supersede.
 
 Managed mode differs only in the **match** step: the platform (admin) takes routing responsibility. Everything after `Order` created is identical to the open flow ([order-lifecycle](order-lifecycle.md)).
 

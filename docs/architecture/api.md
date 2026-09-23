@@ -142,6 +142,17 @@ Other purposes (`request_brief`, `message`, `delivery`, `dispute_evidence`) land
 | POST | `/me/requests/{id}/offers/{offer_id}/accept` | **transactional selection** → offer accepted, siblings declined, request `matched`, Order `awaiting_payment` |
 | POST | `/me/requests/{id}/offers/{offer_id}/decline` | owner declines pending offer (optional reason) |
 
+### Managed assignments — ✅ **implemented (Phase 5)**
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/me/pool-invitations` | expert's invitations: request summary, platform-set quote, budget reference, TTL |
+| POST | `/me/pool-invitations/{id}/accept` | first-accept wins (row-locked); optional advisory `expected_amount`; creates the Order (`managed_pool`) at the quote |
+| POST | `/me/pool-invitations/{id}/decline` | optional reason |
+| GET | `/me/assignments` | expert's direct assignments: proposed price/scope/deadline, TTL |
+| POST | `/me/assignments/{id}/accept` | creates the Order (`managed_direct`) at the proposed price |
+| POST | `/me/assignments/{id}/decline` | optional reason → back with the owner (BR-21) |
+Owner triage (approve pool / assign direct / supersede / reject / set quote) is **Django admin only** (ADR-0010) — no public API surface by design; every action is staff-guarded and audited server-side.
+
 ### Health & ops
 | GET | `/healthz` (app+db), `/readyz` (migrations applied) | public | for load balancers/uptime |
 

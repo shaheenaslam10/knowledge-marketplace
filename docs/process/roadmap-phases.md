@@ -13,7 +13,7 @@
 | 3 | Student/Expert Profiles | 2 | ✅ profiles, taxonomy, expert application+approval (admin), files app (credentials, avatars), public expert directory API |
 | 3.5 | Design & Product Architecture | 3 | ✅ three-experience structure (ADR-0013), design system + motion + component selection (ADR-0014) |
 | 4 | Marketplace + Open Bidding + Selection | 3.5 | ✅ design foundation in code (tokens, customized kit, motion, three shells); ServiceRequest lifecycle + integrity attestation, visibility rules, opportunities feed, offers (blind, editable pending), **transactional selection** → Order (`awaiting_payment`, commission snapshot); request files (`request_brief`); `bundle:check` budget gate |
-| 5 | Managed Service + Owner Assignment | 4 | owner triage (approve/reject), pool invitations (first-accept wins), direct assignments, quote/price guidance, expert accept/decline, **convergence into the same Order** (`source=managed_pool|managed_direct`) |
+| 5 | Managed Service + Owner Assignment | 4 | ✅ owner triage (approve/reject), pool invitations (first-accept wins), direct assignments, quote/price guidance, expert accept/decline, **convergence into the same Order** (`source=managed_pool|managed_direct`) |
 | 6 | Orders & Delivery | 5 | delivery/revision/approve/auto-approve/cancel flows, order workspaces (FE), timers, order timeline |
 | 7 | Payments & Commissions | 6 | Stripe Connect adapter (+manual), PaymentIntent flow, webhooks+idempotency, ledger, refunds, payout sweeper, earnings UI |
 | 8 | Messaging & Notifications | 5 | threads+WS realtime, read receipts, notification center+preferences+digests, realtime toasts |
@@ -182,3 +182,22 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 | Tests | +32 backend (173 total): lifecycle, visibility, IDOR, blind bidding, selection guards (double-select, withdrawn offer, suspended expert), brief access matrix, seed idempotency (9 users/6 applications/2 requests/2 offers) |
 
 **Deliberate scope decisions:** payments/order transitions, messaging, managed ops, marketing pages (beyond shared hero components) all untouched — next phases per the revised sequence.
+
+
+---
+
+## Phase 5 — completion record (Managed Service + Owner Assignment)
+
+**Status: ✅ complete.** `Student submits managed request → owner triage (Django admin) → pool or direct routing → expert accepts → unified Order (`awaiting_payment`).`
+
+| Area | What exists |
+|---|---|
+| Student | managed option on the request form; publish = submit for triage (`in_review`, BR-19); status copy + owner-handling explanation; quote visible before any charge (BR-22) |
+| Owner triage | Django admin: approve-for-pool action (subject-matched eligible experts or a hand-picked pool), direct-assignment form, supersede action, reject-with-reason, quote/notes editing — all staff-guarded, service-routed, audited |
+| Pool | `PoolInvitation` (48h TTL): first-accept-wins under row locks → siblings auto-declined → Order (`managed_pool`) at the platform quote; advisory `expected_amount`; re-broadcast action |
+| Direct | `DirectAssignment` (24h TTL): accept → Order (`managed_direct`) at the proposed price; decline/supersede → back to owner for reassignment (BR-21) |
+| Convergence | single `create_order_for_request` factory (ADR-0015 seam); commission by source (open 15% / managed 20%) snapshotted; **no second order model** |
+| Safety | staff guards on every triage service; suspended/paused experts cannot be assigned or respond; double-accept/double-match impossible (locks + `request_closed`); students cannot write routing fields (`WRITABLE_FIELDS` allowlist, tested) |
+| Notifications | invitation/assignment/triage-decision emails via django-q2 async_task (hooks for Phase 8); expiry task (`expire_due_assignments`) |
+| Frontend | expert `/assignments` (accept/decline + countdowns), student managed UX, portal triage pointers — design-system components only |
+| Tests | +15 backend (188 total): triage authz, races, eligibility, supersede, transitions, `Order.source`, audit rows, seed idempotency (4 requests incl. managed demo + pending invitation); +3 frontend (40 total) |
