@@ -355,6 +355,50 @@ class Command(BaseCommand):
             )
             del draft_req  # stays a draft on purpose (demo of the editable state)
 
+        # --- managed-service demo (Phase 5) --------------------------------
+        from apps.assignments import services as assignment_services
+
+        if not ServiceRequest.objects.filter(title__startswith="Managed:").exists():
+            managed_open = request_services.create_request(
+                student_user,
+                payload={
+                    "category": "mentorship",
+                    "title": "Managed: find me a Python mentor",
+                    "description": "I would like the platform to pick the right mentor for a "
+                    "10-week guided plan; budget is flexible within the range.",
+                    "subject": subject,
+                    "budget_min": 4000,
+                    "budget_max": 14000,
+                },
+            )
+            managed_open.mode = managed_open.Mode.MANAGED
+            managed_open.save(update_fields=["mode"])
+            request_services.publish(
+                student_user, managed_open, attested=True
+            )  # -> in_review (triage demo)
+
+            pooled = request_services.create_request(
+                student_user,
+                payload={
+                    "category": "problem_walkthrough",
+                    "title": "Managed: weekly problem walkthroughs",
+                    "description": "Platform-routed help with weekly exercises; owner-approved quote.",
+                    "subject": subj_stats or subject,
+                    "budget_min": 5000,
+                    "budget_max": 12000,
+                },
+            )
+            pooled.mode = pooled.Mode.MANAGED
+            pooled.save(update_fields=["mode"])
+            request_services.publish(student_user, pooled, attested=True)
+            if ayra_application.status == ExpertApplication.Status.APPROVED:
+                assignment_services.approve_pool(
+                    admin,
+                    pooled,
+                    expert_ids=[ayra.pk],
+                    quote_amount=8500,
+                )  # Ayra receives a pending pool invitation (accept/decline demo)
+
         # expert @demo.local keeps the expert role even though "student@" etc.
         # exist — sanity: directory should contain Ayra only (Zoya suspended).
         from apps.experts.services import directory_queryset

@@ -1,4 +1,4 @@
-"""ServiceRequest admin — lifecycle is service-driven; admin observes + cancels."""
+"""ServiceRequest admin — lifecycle is service-driven; admin triages (Phase 5)."""
 
 from django.contrib import admin
 

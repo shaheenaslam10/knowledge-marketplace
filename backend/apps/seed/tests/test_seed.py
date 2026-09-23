@@ -55,13 +55,21 @@ def test_seed_is_idempotent(seeded, django_user_model):
     assert ExpertApplication.objects.count() == 6
     assert [p.slug for p in directory_queryset()] == ["ayra-k"]  # feed-only expert stays out
 
+    from apps.assignments.models import PoolInvitation
     from apps.bidding.models import Offer
     from apps.service_requests.models import ServiceRequest
 
     assert (
-        ServiceRequest.objects.filter(student__email="student@demo.local").count() == 2
-    )  # open + draft
+        ServiceRequest.objects.filter(student__email="student@demo.local").count() == 4
+    )  # open + draft + 2 managed
     assert Offer.objects.count() == 2  # Ayra + Hina on the open request
+    assert (
+        ServiceRequest.objects.filter(mode="managed", status="in_review").count() == 1
+    )  # triage demo
+    assert (
+        PoolInvitation.objects.filter(expert__email="expert@demo.local", status="pending").count()
+        == 1
+    )
 
 
 def test_seed_refuses_outside_dev_test(monkeypatch, settings):

@@ -80,6 +80,7 @@ type = "layers"
 layers = [
     "apps.seed",
     "apps.bidding",
+    "apps.assignments",
     "apps.orders",
     "apps.payments",
     "apps.service_requests",

@@ -26,6 +26,23 @@ from apps.service_requests.models import ServiceRequest
 REQUEST_TTL_DAYS = 30  # BR-08 (PlatformConfig replaces module constants in the payments phase)
 INTEGRITY_POLICY_VERSION = "2026-09"
 
+# The ONLY fields a student can write (mass-assignment defense: quote_amount,
+# reviewer, status, mode-after-create etc. are owner/system territory).
+WRITABLE_FIELDS = frozenset(
+    {
+        "category",
+        "title",
+        "description",
+        "subject",
+        "pricing_type",
+        "budget_min",
+        "budget_max",
+        "currency",
+        "deadline",
+        "preferred_schedule",
+    }
+)
+
 TRANSITIONS: dict[tuple[str, str], str] = {
     ("draft", "open"): "publish",
     ("draft", "cancelled"): "cancel",
@@ -33,6 +50,15 @@ TRANSITIONS: dict[tuple[str, str], str] = {
     ("open", "cancelled"): "cancel",
     ("open", "expired"): "expire",
     ("expired", "open"): "reopen",
+    # managed-service path (docs/workflows/managed-service.md)
+    ("draft", "in_review"): "submit_managed",
+    ("in_review", "pooled"): "approve_pool",
+    ("in_review", "rejected"): "reject_managed",
+    ("in_review", "matched"): "assign_direct",
+    ("in_review", "cancelled"): "cancel",
+    ("pooled", "matched"): "assign_pool",
+    ("pooled", "rejected"): "reject_managed",
+    ("pooled", "cancelled"): "cancel",
     ("matched", "in_progress"): "order_paid",
     ("matched", "cancelled"): "cancel",
     ("in_progress", "completed"): "order_completed",
@@ -120,6 +146,7 @@ def create_request(
     student, *, payload: dict[str, Any], skill_ids=None, attachment_ids=None
 ) -> ServiceRequest:
     """Always creates a DRAFT; publication is an explicit, attested step (BR-10)."""
+    payload = {k: v for k, v in payload.items() if k in WRITABLE_FIELDS}
     _clean_budget(payload)
     _clean_deadline(payload)
     _clean_taxonomy(payload, skill_ids)
@@ -138,6 +165,7 @@ def update_draft(
         raise PermissionDeniedError("You can only edit your own requests.")
     if request.status != ServiceRequest.Status.DRAFT:
         raise DomainError("Only draft requests can be edited.", code="request_locked")
+    payload = {k: v for k, v in payload.items() if k in WRITABLE_FIELDS}
     _clean_budget(payload)
     _clean_deadline(payload)
     _clean_taxonomy(payload, skill_ids)
@@ -171,6 +199,13 @@ def publish(owner, request: ServiceRequest, *, attested: bool) -> ServiceRequest
         )
     request.integrity_attested_at = timezone.now()
     request.integrity_policy_version = INTEGRITY_POLICY_VERSION
+    if request.mode == ServiceRequest.Mode.MANAGED:
+        # Managed: "publish" = submit for owner triage (BR-19). No expert sees it
+        # until the owner routes it; no TTL (the 24h triage SLA is operational).
+        request.save(
+            update_fields=["integrity_attested_at", "integrity_policy_version", "updated_at"]
+        )
+        return transition(request, ServiceRequest.Status.IN_REVIEW, actor=owner)
     request.expires_at = timezone.now() + timedelta(days=REQUEST_TTL_DAYS)
     request.save(
         update_fields=[
