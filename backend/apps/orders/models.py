@@ -70,6 +70,7 @@ class Order(TimeStampedModel):
     cancellation_reason = models.CharField(max_length=200, blank=True)
     auto_approve_at = models.DateTimeField(null=True, blank=True)
     delivery_due_at = models.DateTimeField(null=True, blank=True)
+    attachments = models.ManyToManyField("files.Attachment", related_name="orders", blank=True)
 
     class Meta:
         indexes = [
@@ -84,3 +85,8 @@ class Order(TimeStampedModel):
 
 def _next_number() -> str:
     return f"ORD-{timezone.now():%Y%m%d}-{uuid.uuid4().hex[:6].upper()}"
+
+
+# Delivery + OrderEvent live in delivery.py (imported here so app loading,
+# migrations and `from apps.orders.models import X` all see them).
+from apps.orders.delivery import Delivery, OrderEvent  # noqa: E402,F401

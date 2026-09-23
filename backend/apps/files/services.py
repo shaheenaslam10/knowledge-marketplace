@@ -64,6 +64,26 @@ PURPOSE_RULES: dict[str, PurposeRule] = {
         ),
         access=Attachment.Access.PRIVATE,  # participants granted via grant_download (Phase 4)
     ),
+    Attachment.Purpose.DELIVERY: PurposeRule(
+        max_bytes=25 * MB,
+        extensions=frozenset({"pdf", "png", "jpg", "jpeg"}),
+        magic=(
+            (b"%PDF", "application/pdf"),
+            (b"\x89PNG\r\n\x1a\n", "image/png"),
+            (b"\xff\xd8\xff", "image/jpeg"),
+        ),
+        access=Attachment.Access.PRIVATE,  # order participants only (Phase 6)
+    ),
+    Attachment.Purpose.ORDER_ATTACHMENT: PurposeRule(
+        max_bytes=25 * MB,
+        extensions=frozenset({"pdf", "png", "jpg", "jpeg"}),
+        magic=(
+            (b"%PDF", "application/pdf"),
+            (b"\x89PNG\r\n\x1a\n", "image/png"),
+            (b"\xff\xd8\xff", "image/jpeg"),
+        ),
+        access=Attachment.Access.PRIVATE,
+    ),
     Attachment.Purpose.AVATAR: PurposeRule(
         max_bytes=2 * MB,
         extensions=frozenset({"png", "jpg", "jpeg", "webp"}),
@@ -176,6 +196,17 @@ def grant_download(user, attachment: Attachment) -> bool:
         return attachment.service_requests.filter(
             offers__expert_id=user.pk, offers__status="accepted"
         ).exists()
+    # Order files (Phase 6): participants are the order's student + expert
+    # (ORM traversal only — the files sidecar never imports domain apps).
+    if attachment.purpose in (Attachment.Purpose.DELIVERY, Attachment.Purpose.ORDER_ATTACHMENT):
+        if attachment.deliveries.filter(order__expert_id=user.pk).exists():
+            return True
+        if attachment.deliveries.filter(order__student_id=user.pk).exists():
+            return True
+        if attachment.orders.filter(expert_id=user.pk).exists():
+            return True
+        if attachment.orders.filter(student_id=user.pk).exists():
+            return True
     return False
 
 

@@ -33,6 +33,8 @@ class Attachment(TimeStampedModel):
         CREDENTIAL = "credential", "Credential (expert application)"
         AVATAR = "avatar", "Avatar"
         REQUEST_BRIEF = "request_brief", "Request brief attachment"
+        DELIVERY = "delivery", "Order delivery file"
+        ORDER_ATTACHMENT = "order_attachment", "Order scope attachment"
 
     class Access(models.TextChoices):
         """`private` = uploader + authorized parties only (grant_download gates
