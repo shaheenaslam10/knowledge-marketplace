@@ -1,6 +1,6 @@
 # Testing Strategy
 
-> Status: ✅ foundation implemented in Phase 1 · **Phase 2 auth suites live** · Last updated: Phase 2
+> Status: ✅ Phase 1–3 suites live (141 backend tests) · Last updated: Phase 3
 
 ## Principles
 
@@ -16,6 +16,18 @@
 | `test_api_auth.py` | register (auto-login, cookie-only tokens, verification email queued), enumeration-safe register + reset, login/generic invalid-creds/`last_login_ip`, refresh rotation + reuse-blacklist + inactive refusal, logout idempotency, verify-email happy/invalid/resend-auth, reset→confirm→session-kill, password change→session-kill, deactivate (login + refresh refused, access dead per-request), `/me` auth + owner-scoped PATCH, error-envelope codes, **`auth` throttle scope** (injected on views: DRF binds `DEFAULT_THROTTLE_CLASSES`/`THROTTLE_RATES` to classes at import time — a documented DRF gotcha; the test patches view + rate table directly) |
 | `test_permissions.py` | role/permission matrix against a probe urlconf with real API + admin mounted: anonymous→401 envelope, authenticated non-staff→403 `permission_denied`, staff/superuser/admin-group/support-group, `IsVerified` |
 | `test_ws_auth.py` + `test_consumers_ws.py` | WS scope auth from the `hm_access` cookie (valid/garbage/inactive → AnonymousUser), origin validation, `/ws/ping/`, `/ws/whoami/` echo — `django_db(transaction=True)` because the ASGI middleware opens its own DB connection |
+
+**Phase 3 additions (43 tests):**
+
+| Suite | Covers |
+|---|---|
+| `experts/test_services.py` | full lifecycle state machine (apply→submit→review→approve/reject→suspend→reinstate, resubmission counts), invalid-transition refusals, staff-only transitions, attestation + credential + verified-email submit gates, slug uniqueness, role wiring (`expert: true` iff approved; stale-relation cache caught by tests — role check is a query) |
+| `experts/test_api.py` | directory visibility (approved+public+active only; suspended → 404; opt-out), q/rating/subject filters, pagination, private-field leak checks, application ownership (`/me/expert-application` has no id lookup at all), locked edits under review, rejection reason visibility, credential ownership validation, envelope codes |
+| `files/test_files.py` | per-purpose allowlists, size caps, magic-byte sniffing (HTML-in-disguise rejected), sha256 dedupe, access matrix (anon/stranger/uploader/staff), signed-token tamper/expiry, audited staff credential views, avatar public streaming with nosniff |
+| `taxonomy/test_taxonomy.py` | idempotent terms, per-kind unique slugs + collision suffixes, category-parent constraints, public list API filters |
+| `audit/test_audit.py` | actor/object/request-id capture, null-actor system events, append-only semantics |
+| `accounts/test_student_profile.py` | self-service upsert onboarding, unknown-interest validation, anonymous 401s |
+| `seed/test_seed.py` | all personas (approved/submitted/under_review/rejected/suspended/not-applied), idempotent double-run, dev/test guard |
 
 ## Backend
 

@@ -7,7 +7,7 @@
 
 - **BR-01** One human = one account. Duplicate/multiple accounts are grounds for suspension. Email must be verified before posting requests, sending offers, or messaging.
 - **BR-02** Minimum age 16 (with guardian consent statement at signup); experts must be 18+.
-- **BR-03** Any registered user may act as a **student**. Acting as an **expert** requires an approved expert application (profile, credentials, short screening). Application states: `pending → approved | rejected | suspended`. See [workflows/expert-journey.md](../workflows/expert-journey.md).
+- **BR-03** Any registered user may act as a **student** (self-service onboarding — no approval gate). Acting as an **expert** requires an approved expert application (profile, ≥1 credential, 18+ + integrity attestations, admin screening). Application states: `draft → submitted → under_review → approved | rejected` (resubmittable) `; approved ⇄ suspended` — BR-03's original `pending` == `submitted`. See [workflows/expert-journey.md](../workflows/expert-journey.md).
 - **BR-04** Experts set their own subjects/skills and can pause availability. Suspended/expert-status-revoked users keep student access but lose expert surfaces.
 - **BR-05** Admins are provisioned manually (Django `createsuperuser` / admin) — never via public signup. Support staff get a limited-permission staff group.
 

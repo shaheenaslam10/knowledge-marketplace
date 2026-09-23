@@ -1,6 +1,6 @@
 # File Storage Architecture
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · ADR-0006 · Related: [workflows/files](../workflows/files.md)
+> Status: ✅ foundation implemented in Phase 3 (local storage + signed streaming; R2 adapter Phase 10) · Last updated: Phase 3 · ADR-0006 · Related: [workflows/files](../workflows/files.md)
 
 ## Storage abstraction
 

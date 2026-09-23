@@ -10,7 +10,7 @@
 | 0 | Architecture & Documentation | — | ✅ this docs set, ADRs, review |
 | 1 | Project Foundation | 0 | ✅ monorepo scaffolds (backend+frontend), Docker Compose, CI, `.env.example`, health endpoints, seed command, lint/test gates, worker pipeline, OpenAPI, error envelope, gateway interface |
 | 2 | Authentication & Roles | 1 | register/verify/login/reset, JWT cookies, role model, admin groups, audit middleware, throttles |
-| 3 | Student/Expert Profiles | 2 | profiles, taxonomy, expert application+approval (admin), files app (credentials, avatars), public expert directory API |
+| 3 | Student/Expert Profiles | 2 | ✅ profiles, taxonomy, expert application+approval (admin), files app (credentials, avatars), public expert directory API |
 | 4 | Requests & Open Marketplace | 3 | ServiceRequest CRUD + integrity attestation, visibility, opportunities board, subjects/tags filters, request files |
 | 5 | Bidding & Selection | 4 | offers lifecycle, accept→order creation (orders app core state machine + services), notifications MVP (in-app+email) |
 | 6 | Managed Service & Owner Assignment | 4 | triage actions, pool invitations, direct assignments, quote/price guidance |
@@ -119,3 +119,25 @@ Delivered on top of the plan (all within documented architecture):
 See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) docs + env sync, (3) frontend auth foundation; hashes recorded in the final Phase 2 report.
 
 **Known Phase 2 limitations (by design):** expert approval workflow and profile/taxonomy models are Phase 3; no business logic beyond auth; email delivery is console/SMTP settings (Brevo adapter Phase 9); audit rows pending.
+
+
+---
+
+## Phase 3 — completion record (Student/Expert Profiles)
+
+**Status: ✅ complete** (profiles, expert lifecycle, taxonomy, files foundation, public directory, role-specific onboarding per ADR-0011; suites green; docs synced).
+
+| Area | What exists |
+|---|---|
+| Taxonomy | `TaxonomyTerm` (category/subject/skill/tag, optional category parent, per-kind unique slugs), admin CRUD, public `GET /taxonomy/terms`, seeded demo tree |
+| Student | `StudentProfile` (display name, bio, taxonomy interests) — self-service `GET/PATCH /me/student-profile`, no approval gate |
+| Expert lifecycle | `ExpertApplication` (draft→submitted→under_review→approved/rejected, resubmittable; approved⇄suspended) — service-layer state machine, audited, emailed (django-q2); reviewer/reason/timestamps |
+| Expert profile | `ExpertProfile` created at approval (slug, headline/bio/expertise, experience, qualifications, languages, availability available/paused, timezone, visibility opt-out, rating placeholders) |
+| Roles | `expert` role = approved application (query-based check — immune to relation caching); suspension drops the role, keeps student |
+| Files | `Attachment` sidecar: credential (private, pdf/png/jpg ≤10MB) + avatar (public, ≤2MB) purposes; extension allowlist + magic-byte sniffing; sha256 dedupe; `grant_download` single gate; 5-min signed streaming URLs; staff credential views audited |
+| Directory | `GET /experts` + `/experts/{slug}`: approved+public+active only, q/subject/skill/rating filters, cursor pagination, zero private fields |
+| Audit | `AuditEvent` sidecar (append-only, read-only admin) — all expert transitions + staff credential views |
+| Seed | `apps.seed.seed_demo`: 8 personas across every lifecycle state + taxonomy tree + demo credentials; idempotent; dev/test-guarded |
+| Frontend | `/experts`, `/experts/[slug]`, `/onboarding/student`, `/expert/apply`, `/expert/application`, `/expert/profile` (+ account widgets); middleware guards extended |
+
+**Deliberate scope decisions:** no request/offer/order logic (Phase 4+); avatars have no upload UI yet (API ready); admin reviews via Django admin actions (no custom dashboard); R2 adapter deferred to Phase 10 per plan.

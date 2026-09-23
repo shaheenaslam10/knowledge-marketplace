@@ -8,14 +8,15 @@ Roles are **not** separate user tables. One `User`, with role state (ADR: single
 
 **As implemented (Phase 2):** `get_roles(user)` in `apps/accounts.services` derives the canonical role dict — `{student, verified, staff, support, admin, expert}` — where `student` is true for every active account (BR-01), `verified` mirrors `email_verified_at`, `support`/`admin` come from Django groups (+`is_staff`), and `expert` is a stable `False` slot until Phase 3 registers the `ExpertProfile` approval provider. DRF classes shipped: `IsAdmin`, `IsSupport`, `IsExpert`, `IsVerified` (+ global deny-by-default `IsAuthenticated`).
 
-| Role | How acquired | Storage |
+| Role | How acquired (ADR-0011) | Storage |
 |---|---|---|
 | **Guest** | unauthenticated | — |
-| **Student** | automatic at signup (after email verification) | `User.is_active` + verified email |
-| **Expert candidate** | submits expert application | `ExpertProfile.status = pending` |
-| **Expert** | admin approves application | `ExpertProfile.status = approved` (and `suspended` state) |
+| **Student** | **self-service**: register → verify email → onboarding (`/me/student-profile`) — **no approval gate** | `User.is_active` + verified email + `StudentProfile` |
+| **Expert candidate** | separate application flow: `/expert/apply` (form + ≥1 credential + attestations) | `ExpertApplication.status = draft/submitted/under_review` |
+| **Expert** | admin approves the application | `ExpertApplication.status = approved` + live `ExpertProfile` (public) |
+| **Suspended expert** | admin suspension | `ExpertApplication.status = suspended` — student access kept (BR-04) |
 | **Support/Moderator** | manual staff provisioning | `User.is_staff` + Django group `support` |
-| **Admin/Owner** | manual provisioning | `User.is_staff` + `is_superuser` (or group `admin`) |
+| **Admin/Owner** | **provisioned by an authorized admin/owner only** (Django admin / `createsuperuser` / seed) — **no public apply-as-admin flow exists** | `User.is_staff` + `is_superuser` (or group `admin`) |
 | **System** | background jobs / webhooks | `actor = null` in audit log |
 
 A user can simultaneously be a student and an approved expert; the UI switches context by role.

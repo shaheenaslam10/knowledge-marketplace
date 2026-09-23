@@ -15,7 +15,7 @@ backend/
 │   ├── core/                   # shared kernel: base models, money utils, health, PlatformConfig
 │   ├── accounts/               # User, StudentProfile, registration/auth, role state
 │   ├── experts/                # ExpertProfile, application/approval, availability, earnings view
-│   ├── taxonomy/               # Subject, Skill
+│   ├── taxonomy/               # TaxonomyTerm (category/subject/skill/tag) — shared reference data
 │   ├── service_requests/       # ServiceRequest + visibility
 │   ├── bidding/                # Offer
 │   ├── assignments/            # PoolInvitation, DirectAssignment
@@ -27,7 +27,8 @@ backend/
 │   ├── reviews/                # Review + aggregates
 │   ├── disputes/               # Dispute + resolution execution hooks
 │   ├── audit/                  # AuditLog + middleware
-│   └── analytics/              # read-only aggregates for admin KPIs (no user data writes)
+│   ├── analytics/              # read-only aggregates for admin KPIs (no user data writes)
+│   └── seed/                   # top layer: seed_demo (accounts cannot import domain apps)
 ├── manage.py
 ├── pyproject.toml        # deps + ruff + import-linter + pytest config (single source)
 └── docker/               # container entrypoints (dev compose; db-wait/worker wait)
@@ -36,7 +37,7 @@ backend/
 ## The dependency rule (enforced by import-linter in CI)
 
 ```text
-core ← accounts ← experts ← taxonomy?
+core ← accounts ← experts (also → taxonomy/files/audit sidecars) · seed on top
              ↓
    service_requests ← bidding / assignments
              ↓

@@ -1,19 +1,38 @@
 # Expert (Tutor) Journey
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · Related: [open-marketplace](open-marketplace.md), [managed-service](managed-service.md), [order-lifecycle](order-lifecycle.md)
+> Status: ✅ Phase 3 implemented (application, approval, directory) · Last updated: Phase 3 · Related: [open-marketplace](open-marketplace.md), [managed-service](managed-service.md), [order-lifecycle](order-lifecycle.md)
 
-## 1. Application & approval (BR-03)
+## 1. Application & approval (BR-03) — ✅ implemented (Phase 3)
 
-1. Any logged-in user applies at `/expert/onboarding`:
-   - Professional headline, bio, years of experience
-   - Subjects + skills (from taxonomy; request new subject via form)
-   - Credentials: education, certifications, links (portfolio/LinkedIn)
-   - Verification document upload (ID / degree — private, admin-only access)
-   - Preferred availability & timezone
-   - Acceptance of Expert Guidelines (**teacher, not ghostwriter** — integrity policy explicit) + payout country notice
-2. Status `pending`; email confirmation. Application is editable while pending.
-3. Admin reviews (see [admin-journey](admin-journey.md)): approve / reject with reason (emailed). Typical SLA 48h.
-4. `approved` → expert surfaces unlock. `suspended` (later, for violations) hides all expert surfaces but preserves order obligations.
+Role onboarding is **separate per role** (ADR-0011): students self-serve, experts apply and get reviewed, admins are provisioned only via management. A registered user never becomes an expert automatically.
+
+**Exact state machine** (`ExpertApplication.status`; `not_applied` = no application row):
+
+```text
+not_applied ──apply──► draft ──submit──► submitted ──start_review──► under_review
+                          ▲                                    │            │
+                          └────── resubmit ── rejected ◄──reject─┘            approve
+                                                                       │            │
+                                                            (edit + resubmit)   approved ⇄ suspended
+```
+
+| Transition | Actor | Rules |
+|---|---|---|
+| apply (create) | user | one application per user; starts as `draft` |
+| edit | user | allowed in `draft` / `submitted` / `rejected`; **locked** in `under_review`+ |
+| submit | user | requires verified email, 18+ attestation, integrity acknowledgment, complete profile, **≥1 credential file**; `rejected → submitted` increments `resubmission_count` |
+| start_review | staff | `submitted → under_review` (audited) |
+| approve | staff | `under_review → approved`; creates/activates the **ExpertProfile** (public object), registers the `expert` role, audited + emailed |
+| reject | staff | `under_review → rejected` with mandatory reason (emailed, shown to applicant) |
+| suspend | staff | `approved → suspended` — hidden from directory, `expert` role off, **student access kept** (BR-04); audited |
+| reinstate | staff | `suspended → approved` (audited) |
+
+Model separation: **User** (identity) → **ExpertApplication** (review artifact: content, credentials, state, reviewer/timestamps) → **ExpertProfile** (live public profile, exists only after approval; suspension hides it without deleting).
+
+1. Application content: professional/display name, headline, bio/expertise description, expertise summary, years of experience, qualifications, languages, timezone, availability note, subjects + skills (from the shared taxonomy), credentials (private files, reviewer-only).
+2. Attestations at submit: **18+ (BR-02)** and the integrity acknowledgment — *"You are a teacher, not a ghostwriter"* (BR-14, academic-integrity boundary).
+3. Admin reviews via Django admin actions (`start_review` / `approve` / `reject` / `suspend` / `reinstate`) — every action calls the service layer, writes an audit row, and emails the applicant. Typical SLA 48h.
+4. `approved` → expert surfaces unlock (role dict `expert: true`, directory listing). `suspended` hides all expert surfaces but preserves the account and future order obligations (BR-04).
 
 ## 2. Finding work
 

@@ -18,6 +18,11 @@
 - **Decision:** Django Channels (4.3.x current) on uvicorn; `InMemoryChannelLayer`; MVP runs exactly one ASGI process; WS pushes are refetch hints, never source of truth; Redis channel layer is the documented scale-out (settings-only). Phase 1 addition: WS handshake origins are validated against `FRONTEND_URL`/`CORS_ALLOWED_ORIGINS`/`CSRF_TRUSTED_ORIGINS` (channels' built-in validator only knows `ALLOWED_HOSTS`, which would break the documented cross-subdomain deployment).
 - **Consequences:** zero cost; single-process constraint recorded in deployment/runbooks.
 
+## ADR-0011 — Role-specific onboarding on one shared User (Phase 3 refinement)
+- **Context:** One `User` (ADR-0001) serves three roles, but the three roles need different onboarding: students self-serve, experts require credential review, admins must never self-enroll. Product decision (owner clarification, Phase 3).
+- **Decision:** Keep the single `accounts.User` (no role user tables). Separate the domain artifacts: `accounts.StudentProfile` (self-service onboarding, no approval), `experts.ExpertApplication` (the review artifact carrying the lifecycle state, credentials, reviewer bookkeeping) and `experts.ExpertProfile` (the live public profile, created only at approval). Lifecycle: `not_applied → draft → submitted → under_review → approved/rejected` (rejected resubmittable) `; approved ⇄ suspended`. Admin/Owner accounts are provisioned exclusively via Django admin/management (`createsuperuser`, seed) — there is no public "apply as admin" flow. Staff transitions are service-layer state-machine moves with audit rows + decision emails.
+- **Consequences:** registration stays simple; the review workflow can evolve (SLAs, re-reviews) without touching auth; the application is an immutable-ish review record while the profile evolves freely; `expert` role derives from application status (one source of truth for role, directory, and eligibility).
+
 ## ADR-0004 — JWT in httpOnly cookies (SimpleJWT), email+password first
 - **Context:** Next.js + Django on separate origins/ports; XSS/CSRF concerns; OAuth later.
 - **Decision:** SimpleJWT access 15m + rotating refresh 7d, httpOnly Secure SameSite=Lax cookies; same registrable domain requirement; custom-header CSRF defense; refresh reuse detection revokes family; OAuth behind `accounts.services` seam post-MVP.

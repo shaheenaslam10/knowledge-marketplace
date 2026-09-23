@@ -92,3 +92,26 @@ Review dimensions: consistency, security, feasibility, cost — plus the brief's
 | 12 | Dependency/layer rules | ✅ import-linter layers corrected to payments < accounts < core (contracts green); `seed_demo` moved to `apps.accounts` to keep core kernel-clean |
 
 **Verdict: Phase 2 satisfies its acceptance criteria; deviations from the Phase 0 design are recorded in ADR-0004 / authentication.md (family revocation and per-account backoff deferred; both documented, neither weakens security).**
+
+---
+
+# Phase 3 Implementation Review
+
+> ✅ Completed before the Phase 3 push. Self-review against the directive + the ADR-0011 clarification.
+
+| # | Area | Outcome |
+|---|---|---|
+| 1 | Role-specific onboarding | ✅ student self-serve (`/me/student-profile`, no gate); expert pipeline separate (`draft→submitted→under_review→approved/rejected`, `approved⇄suspended`); **no public admin flow** (provisioning via Django admin/seed only — documented in user-roles.md + ADR-0011) |
+| 2 | Distinct artifacts | ✅ User (identity) ≠ ExpertApplication (review artifact) ≠ ExpertProfile (live public object, created at approval) — a registered user never becomes an expert automatically |
+| 3 | Server-side authorization | ✅ application has no id-based lookup at all (owner-scoped by `/me`); credential references validated against the uploader; directory filtering is a service queryset; staff transitions check `is_staff` server-side; frontend guards are UX only |
+| 4 | Credential privacy | ✅ private attachments: owner + staff only, signed 5-min tokens, sniffed content types (HTML-in-disguise rejected), nosniff + Content-Disposition, staff views audited; public-read limited to avatars |
+| 5 | State machine integrity | ✅ declarative transition table; invalid moves raise `invalid_transition`; edits locked from `under_review`; rejection requires a reason; tests cover the full matrix |
+| 6 | Academic-integrity boundary | ✅ integrity attestation required at submit ("teacher, not ghostwriter", BR-14); profile copy written accordingly; no capability designed around submitting work as another's own |
+| 7 | Audit | ✅ append-only `AuditEvent` sidecar (read-only admin); every staff transition + staff credential view recorded with actor/request-id |
+| 8 | Taxonomy dedup | ✅ single shared `TaxonomyTerm` table for subjects/skills/categories/tags; student interests, expert applications/profiles, and (future) requests all reference it |
+| 9 | Directory safety | ✅ approved+public+active only; suspended experts 404; no email/credentials/notes in public serializers (leak-checked in tests) |
+| 10 | Layering | ✅ import-linter linear layers (seed > payments > experts > accounts > taxonomy > files > audit > core); seed app is the top layer so accounts stays kernel-clean |
+| 11 | Costs/infra | ✅ no new infra: local FileSystemStorage dev strategy, django-q2 emails, PostgreSQL only |
+| 12 | Docs | ✅ ADR-0011; expert-journey state machine; api.md/catalog; files docs; testing.md; README personas; roadmap record |
+
+**Verdict: Phase 3 satisfies its acceptance criteria; the onboarding clarification is implemented as specified (not retrofitted) and documented as a refinement ADR rather than a silent change.**

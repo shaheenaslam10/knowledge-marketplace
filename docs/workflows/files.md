@@ -1,6 +1,6 @@
 # File Uploads & Secure File Access
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · Related: [files-storage](../architecture/files-storage.md), [security](../architecture/security.md)
+> Status: ✅ Phase 3 foundation implemented (`credential` + `avatar` purposes, sniffing, dedupe, signed streaming, audited staff access) · Last updated: Phase 3 · Related: [files-storage](../architecture/files-storage.md), [security](../architecture/security.md)
 
 ## Model
 

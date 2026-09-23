@@ -30,7 +30,7 @@ Roles are **state, not rows**: every account can be a student (BR-01); staff rol
 
 - `student` — always true (BR-01); `verified` — `email_verified_at` set; `staff` — `is_staff`;
 - `support` / `admin` — Django groups (`support`, `admin`) or superuser; `admin` also requires `is_staff`|superuser;
-- `expert` — **stable `false` slot until Phase 3 registers the expert role provider** (approval workflow); the registry is the extension point for Support/Moderator/Finance/Operations.
+- `expert` — ✅ registered in Phase 3: `true` iff the user's `ExpertApplication.status == approved` (suspension flips it off; BR-04). The registry stays the extension point for future roles.
 
 DRF permission classes (`apps.accounts.permissions`): `IsAdmin`, `IsSupport`, `IsExpert`, `IsVerified`. Global default is **deny-by-default** (`DEFAULT_PERMISSION_CLASSES = IsAuthenticated`); endpoints opt into `AllowAny` explicitly. Object-level scoping (404-not-403 ownership) is the standing rule for every domain selector from Phase 3 on; `/api/v1/me` is inherently owner-scoped.
 

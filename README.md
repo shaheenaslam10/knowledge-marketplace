@@ -2,7 +2,7 @@
 
 > Working title. A two-sided platform where students get academic/learning help through an **Open Marketplace** (experts bid, student picks) or a **Managed Service** (the platform triages and assigns), with payments, delivery, reviews and disputes handled end-to-end.
 
-**Status: Phase 2 — Authentication & Roles complete.** Custom email-based user model, JWT-in-httpOnly-cookie auth (register / login / refresh-rotation / logout / verify / password reset & change / deactivate), role & permission foundations (student / verified / staff / support / admin; expert slot reserved), admin user management, and the auth UI foundation run locally and are verified in CI. See [docs/architecture/authentication.md](docs/architecture/authentication.md) and the [phase record](docs/process/roadmap-phases.md).
+**Status: Phase 3 — Student/Expert Profiles complete.** Profiles, expert application & approval lifecycle, shared taxonomy, secure credential files, and the public expert directory are live. Custom email-based user model, JWT-in-httpOnly-cookie auth (register / login / refresh-rotation / logout / verify / password reset & change / deactivate), role & permission foundations (student / verified / staff / support / admin; expert slot reserved), admin user management, and the auth UI foundation run locally and are verified in CI. See [docs/architecture/authentication.md](docs/architecture/authentication.md) and the [phase record](docs/process/roadmap-phases.md).
 
 ---
 
@@ -82,7 +82,20 @@ Then open:
 docker compose exec backend python manage.py seed_demo
 ```
 
-Creates the admin/owner account (**admin** / password from `DJANGO_SEED_ADMIN_PASSWORD`, default `admin-demo-1234`) and prints next steps. Domain demo data (students, experts, requests, orders) is added to this same command in Phases 3+.
+Creates eight demo accounts (**never real credentials; dev/test only**, guarded unless `--force`), each expert persona in a different lifecycle state (ADR-0011):
+
+| Account | Password env (default) | State |
+|---|---|---|
+| `admin@demo.local` | `DJANGO_SEED_ADMIN_PASSWORD` (`admin-demo-1234`) | superuser → `/admin/` (admins are provisioned, never self-enrolled) |
+| `student@demo.local` | `DJANGO_SEED_DEMO_PASSWORD` (`demo-password-1234`) | student with completed onboarding |
+| `expert@demo.local` | same demo password | **approved** expert — visible in `/experts` |
+| `expert.applicant@demo.local` | same | application **submitted** (awaiting review) |
+| `expert.review@demo.local` | same | application **under review** |
+| `expert.rejected@demo.local` | same | **rejected** (with reviewer reason; resubmittable) |
+| `expert.suspended@demo.local` | same | **suspended** expert (hidden from directory, student access kept) |
+| `noapply@demo.local` | same | never applied (`not_applied`) |
+
+Also seeds the demo taxonomy tree (categories → subjects, skills) and private demo credential files. Request/order demo data arrives in Phases 4+.
 
 ### Worker (background jobs)
 

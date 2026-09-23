@@ -1,6 +1,6 @@
 # API Architecture
 
-> Status: ✅ Phase 2 (auth & account live) · Last updated: 2026-09-23
+> Status: ✅ Phase 3 (auth, profiles, experts, taxonomy, files) · Last updated: Phase 3
 
 ## Conventions
 
@@ -33,16 +33,21 @@
 
 Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 
-### Experts — `/api/v1/experts`
+### Experts — `/api/v1/experts` — ✅ **application/directory implemented (Phase 3)**
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/experts` | public directory: filters (subject, rating_min, price, q), pagination |
-| GET | `/experts/{slug}` | public profile + published reviews (paginated sub-resource `/reviews`) |
-| POST | `/experts/apply` | submit application (multipart: profile + credential file) |
-| GET/PATCH | `/me/expert-profile` | own profile/availability |
-| GET | `/me/earnings` | ledger-derived per-order earnings + payout status |
-| GET | `/me/payouts` | payout history |
-| GET | `/public/stats` | homepage counters (experts, orders, subjects) |
+| GET | `/experts` | ✅ public directory: approved + public + active experts only; `q` search, `subject`/`skill` slug filters, `rating_min`; cursor pagination. No private fields ever |
+| GET | `/experts/{slug}` | ✅ public profile (same visibility rules; suspended/opted-out → 404). Reviews sub-resource arrives Phase 10 |
+| GET | `/experts/apply-info` | ✅ public requirements + taxonomy reference for the apply form |
+| GET | `/me/expert-application` | ✅ own application + lifecycle status (`not_applied` when none) |
+| POST | `/me/expert-application` | ✅ create application (draft) |
+| PATCH | `/me/expert-application` | ✅ partial edit — draft/submitted/rejected only (locked under review) |
+| POST | `/me/expert-application/submit` | ✅ validates attestations + ≥1 credential + verified email → `submitted` |
+| GET/PATCH | `/me/expert-profile` | ✅ own expert profile / availability + visibility (approval required) |
+| POST | `/experts/apply` | superseded by the `/me/expert-application` trio (draft → edit → submit) |
+| GET | `/me/earnings` | ledger-derived earnings + payout status (Phase 8) |
+| GET | `/me/payouts` | payout history (Phase 8) |
+| GET | `/public/stats` | homepage counters (later phase) |
 
 ### Taxonomy — `/api/v1/taxonomy`
 | GET | `/subjects` (tree), `/skills?q=` | public |
@@ -102,16 +107,25 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 ### Notifications — `/api/v1/notifications`
 | GET | `/notifications` · POST `/{id}/read` · POST `/read-all` · GET/PATCH `/me/notification-preferences` | |
 
-### Files — `/api/v1/files`
-| POST | `/files` | authed | multipart upload (purpose + context ids validated) |
-| GET | `/files/{id}/download-url` | authorized | → presigned (R2) or signed stream URL |
-| GET | `/files/{id}/download?token=` | signed token | local/dev streaming |
+### Files — `/api/v1/files` — ✅ **foundation implemented (Phase 3)**
+| POST | `/files` | ✅ authed | multipart upload; purposes `credential` (pdf/png/jpg ≤10 MB, private) + `avatar` (png/jpg/webp ≤2 MB, public); content sniffing, sha256 dedupe |
+| GET | `/files/{id}` | ✅ uploader/staff | metadata |
+| GET | `/files/{id}/download-url` | ✅ authorized | 5-min signed token (R2 presigned arrives with the Phase 10 adapter); staff views of private credentials are audited |
+| GET | `/files/{id}/download?token=` | ✅ signed token / public | local streaming; `Content-Disposition` + `nosniff` |
+Other purposes (`request_brief`, `message`, `delivery`, `dispute_evidence`) land with their phases.
 
 ### Reviews & disputes — `/api/v1/reviews`, `/api/v1/disputes`
 | POST | `/orders/{id}/review` | student | once, completed |
 | POST | `/reviews/{id}/reply` · `/reviews/{id}/report` | | |
 | POST | `/orders/{id}/dispute` | participant | opens dispute |
 | GET | `/disputes/{id}` + `/disputes/{id}/messages` · POST message | participants/admin | |
+
+### Taxonomy — `/api/v1/taxonomy` — ✅ **implemented (Phase 3)**
+| GET | `/taxonomy/terms` | public | shared reference data; `kind`, `parent`, `q` filters. Curated via Django admin; seeded demo tree |
+
+### Student profile — ✅ **implemented (Phase 3)**
+| GET | `/me/student-profile` | authed | `{"profile": null}` until onboarding (self-service — never approval-gated) |
+| PATCH | `/me/student-profile` | authed | idempotent create/update; display name, bio, interest ids (taxonomy subject/skill) |
 
 ### Health & ops
 | GET | `/healthz` (app+db), `/readyz` (migrations applied) | public | for load balancers/uptime |
