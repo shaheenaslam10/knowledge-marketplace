@@ -6,6 +6,7 @@ Canonical variable list: /.env.example and docs/architecture/environments.md
 (CI checks that the two stay in sync — scripts/check_env_docs.py).
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -46,12 +47,38 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "channels",
     "django_q",  # database-backed task queue (ORM broker) + scheduler admin
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # refresh rotation + logout invalidation
 ]
 LOCAL_APPS = [
     "apps.core",
+    "apps.accounts",  # Phase 2: custom user, auth, roles
     "apps.payments",  # Phase 1: gateway interface only
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+# Custom user (ADR-0001): email-based, single identity, roles as state.
+AUTH_USER_MODEL = "accounts.User"
+
+# Argon2id first (docs/architecture/security.md); others for legacy fallback only.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+]
+
+# --- JWT sessions (ADR-0004 / docs/architecture/authentication.md) ---
+# Tokens travel ONLY in httpOnly cookies (hm_access / hm_refresh) set by the
+# auth views; the browser never sees them in JS-readable storage.
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env.int("JWT_ACCESS_MINUTES", default=15)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env.int("JWT_REFRESH_DAYS", default=7)),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
 
 # --- Middleware ---
 MIDDLEWARE = [
@@ -116,10 +143,16 @@ STORAGES = {
 ADMIN_URL = env.str("ADMIN_URL", default="admin/")
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 10},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+# Password reset links stay valid for 3 days (docs/architecture/authentication.md).
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3
+
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_HTTPONLY = True
@@ -139,9 +172,13 @@ CSRF_TRUSTED_ORIGINS = [
 
 # --- DRF ---
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny"
-    ],  # Phase 2 tightens per-endpoint
+    # Deny-by-default: endpoints opt into AllowAny explicitly (docs/product/user-roles.md).
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    # Cookie-first for the browser; Bearer still accepted (scripts/tests).
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "apps.accounts.authentication.CookieJWTAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.drf_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.DefaultCursorPagination",
@@ -149,10 +186,12 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",  # applies where a view sets throttle_scope (auth)
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": env.str("THROTTLE_ANON", default="30/min"),
         "user": env.str("THROTTLE_USER", default="120/min"),
+        "auth": env.str("THROTTLE_AUTH", default="10/min"),  # login/register/reset/refresh guard
     },
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": [

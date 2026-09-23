@@ -31,5 +31,16 @@ class PingConsumer(WebsocketConsumer):
             return
         if payload.get("type") == "ping":
             self.send(text_data=json.dumps({"type": "pong"}))
+        elif payload.get("type") == "whoami":
+            user = self.scope.get("user")
+            self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "whoami",
+                        "authenticated": bool(user is not None and user.is_authenticated),
+                        "user_id": getattr(user, "id", None),
+                    }
+                )
+            )
         else:
             self.send(text_data=json.dumps({"type": "error", "code": "unsupported_type"}))

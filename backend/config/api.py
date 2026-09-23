@@ -6,16 +6,19 @@ v1 is the first and only version. Rules (docs/architecture/api.md):
 """
 
 from django.conf import settings
-from django.urls import path
+from django.urls import include, path
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.api import views
 from apps.core.middleware import get_request_id
 
 
 class ApiRootView(APIView):
     """Directory of the current API version (also a smoke-check surface)."""
 
+    permission_classes = [AllowAny]  # public index; everything else defaults to IsAuthenticated
     schema_exclude = True  # noise in the schema; the real contract is the endpoints
 
     def get(self, request, *args, **kwargs):
@@ -33,5 +36,10 @@ class ApiRootView(APIView):
         )
 
 
-urlpatterns = [path("", ApiRootView.as_view(), name="api-root")]
+urlpatterns = [
+    path("", ApiRootView.as_view(), name="api-root"),
+    path("auth/", include("apps.accounts.api.urls")),
+    path("me", views.MeView.as_view(), name="me"),  # no include: avoids APPEND_SLASH on /me
+    path("me/deactivate", views.DeactivateView.as_view(), name="me-deactivate"),
+]
 urls_v1 = urlpatterns

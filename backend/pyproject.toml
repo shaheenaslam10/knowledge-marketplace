@@ -12,6 +12,8 @@ license = { text = "Proprietary" }
 dependencies = [
     "Django==5.2.17",
     "djangorestframework==3.18.1",
+    "djangorestframework-simplejwt==5.5.1",
+    "argon2-cffi==25.1.0",
     "django-filter==26.1",
     "drf-spectacular==0.30.0",
     "django-cors-headers==4.9.0",
@@ -67,9 +69,11 @@ root_packages = ["apps", "config"]
 name = "Core is the shared kernel: it imports no other domain app"
 type = "forbidden"
 source_modules = ["apps.core"]
-forbidden_modules = ["apps.payments"]
+forbidden_modules = ["apps.accounts", "apps.payments"]
 
 [[tool.importlinter.contracts]]
-name = "Domain layers may depend downward only (core < payments)"
+name = "Domain layers may depend downward only (payments < accounts < core)"
 type = "layers"
-layers = ["apps.core", "apps.payments"]
+# import-linter layers are listed highest-first: payments may import accounts+core,
+# accounts may import core, core imports neither.
+layers = ["apps.payments", "apps.accounts", "apps.core"]

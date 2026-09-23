@@ -1,0 +1,23 @@
+from django.urls import path
+
+from apps.accounts.api import views
+
+urlpatterns = [
+    path("register", views.RegisterView.as_view(), name="auth-register"),
+    path("verify-email", views.VerifyEmailView.as_view(), name="auth-verify-email"),
+    path(
+        "resend-verification",
+        views.ResendVerificationView.as_view(),
+        name="auth-resend-verification",
+    ),
+    path("token", views.LoginView.as_view(), name="auth-token"),
+    path("token/refresh", views.RefreshView.as_view(), name="auth-token-refresh"),
+    path("logout", views.LogoutView.as_view(), name="auth-logout"),
+    path("password/reset", views.PasswordResetRequestView.as_view(), name="auth-password-reset"),
+    path(
+        "password/reset/confirm",
+        views.PasswordResetConfirmView.as_view(),
+        name="auth-password-reset-confirm",
+    ),
+    path("password/change", views.PasswordChangeView.as_view(), name="auth-password-change"),
+]
