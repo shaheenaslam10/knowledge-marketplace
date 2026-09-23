@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveRoute } from "./middleware";
 
 describe("phase 4 prefixes", () => {
-  it.each(["/requests", "/opportunities", "/offers", "/portal"])("guards %s", (path) => {
+  it.each(["/requests", "/opportunities", "/offers", "/assignments", "/portal"])("guards %s", (path) => {
     expect(resolveRoute(path, false)).toBe("/login");
     expect(resolveRoute(path, true)).toBeNull();
   });

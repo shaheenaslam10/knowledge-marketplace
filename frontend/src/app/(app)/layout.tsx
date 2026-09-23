@@ -50,6 +50,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/requests", label: "My requests", show: true },
     { href: "/opportunities", label: "Opportunities", show: Boolean(user?.roles?.expert) },
     { href: "/offers", label: "My offers", show: Boolean(user?.roles?.expert) },
+    { href: "/assignments", label: "Assignments", show: Boolean(user?.roles?.expert) },
     { href: "/expert/profile", label: "Expert profile", show: Boolean(user?.roles?.expert) },
     { href: "/account", label: "Account", show: true },
   ].filter((item) => item.show);

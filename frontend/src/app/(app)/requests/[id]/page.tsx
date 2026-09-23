@@ -93,6 +93,17 @@ export default function RequestDetailPage() {
         </div>
       </div>
 
+      {request.mode === "managed" && request.student_view && (
+        <Card className="border-primary/30 bg-primary-soft/40">
+          <p className="text-sm">
+            <span className="font-semibold">Managed service.</span>{" "}
+            {request.status === "in_review" && "Our team is reviewing your request — typically within 24 hours. You will see the agreed price here before anything is charged."}
+            {request.status === "pooled" && "Approved — we are matching you with a suitable expert from our vetted pool."}
+            {request.status === "matched" && "An expert accepted your managed request — the order and payment step is next."}
+          </p>
+        </Card>
+      )}
+
       <Card>
         <p className="whitespace-pre-wrap text-sm">{request.description}</p>
         {request.attachments.length > 0 && (

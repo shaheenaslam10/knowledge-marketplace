@@ -10,13 +10,20 @@ export default function PortalHome() {
       <Card>
         <h1 className="text-lg font-semibold">Operations portal — scaffold</h1>
         <p className="mt-2 text-sm text-muted">
-          Operational screens (expert approvals, orders, finance, moderation) arrive with the
-          admin-operations phase. Until then, day-to-day operations run in{" "}
+          Operational screens arrive with the admin-operations phase. Day-to-day operations run in{" "}
           <a className="text-primary underline" href="/admin/">
             Django admin
           </a>
           . Server-side staff authorization is enforced by the API; this surface is scaffolding.
         </p>
+        <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-muted">
+          <li>
+            Managed triage → <a className="text-primary underline" href="/admin/service_requests/servicerequest/">Service requests</a>{" "}
+            (approve for pool), <a className="text-primary underline" href="/admin/assignments/directassignment/">direct assignments</a>,{" "}
+            <a className="text-primary underline" href="/admin/assignments/poolinvitation/">pool invitations</a>
+          </li>
+          <li>Expert approvals → Django admin → Expert applications</li>
+        </ul>
       </Card>
     </div>
   );

@@ -50,6 +50,7 @@ export interface ServiceRequest {
 }
 
 export interface RequestWritePayload {
+  mode?: "open" | "managed";
   category: string;
   title: string;
   description: string;

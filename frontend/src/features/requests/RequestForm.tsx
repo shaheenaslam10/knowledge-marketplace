@@ -16,6 +16,7 @@ import { requestsApi, taxonomyApi } from "./api";
 import { REQUEST_CATEGORIES, type ServiceRequest, type TaxonomyRef } from "./types";
 
 interface FormState {
+  mode: "open" | "managed";
   category: string;
   title: string;
   description: string;
@@ -32,6 +33,7 @@ export function RequestForm({ existing }: { existing?: ServiceRequest }) {
   const [subjects, setSubjects] = useState<TaxonomyRef[]>([]);
   const [skills, setSkills] = useState<TaxonomyRef[]>([]);
   const [form, setForm] = useState<FormState>({
+    mode: existing?.mode ?? "open",
     category: existing?.category ?? "tutoring",
     title: existing?.title ?? "",
     description: existing?.description ?? "",
@@ -63,6 +65,7 @@ export function RequestForm({ existing }: { existing?: ServiceRequest }) {
         attachmentIds.push(uploaded.id);
       }
       const payload = {
+        mode: form.mode,
         category: form.category,
         title: form.title,
         description: form.description,
@@ -91,6 +94,28 @@ export function RequestForm({ existing }: { existing?: ServiceRequest }) {
   return (
     <Card className="mx-auto max-w-2xl">
       <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+        <fieldset className="grid gap-3 sm:grid-cols-2">
+          <legend className="mb-1.5 text-sm font-medium">How do you want to find your expert?</legend>
+          {([
+            { value: "open", title: "Open marketplace", body: "Approved experts browse your request and send competing offers. You pick the winner." },
+            { value: "managed", title: "Managed service", body: "Our team reviews your request, sets a fair quote and assigns the right expert for you." },
+          ] as const).map((option) => (
+            <label
+              key={option.value}
+              className={`cursor-pointer rounded-lg border p-4 text-left transition-colors ${form.mode === option.value ? "border-primary bg-primary-soft" : "border-border hover:bg-surface-2"}`}
+            >
+              <input
+                type="radio"
+                name="mode"
+                className="sr-only"
+                checked={form.mode === option.value}
+                onChange={() => set({ mode: option.value })}
+              />
+              <span className="block text-sm font-semibold">{option.title}</span>
+              <span className="mt-1 block text-xs text-muted">{option.body}</span>
+            </label>
+          ))}
+        </fieldset>
         <div>
           <Label htmlFor="title">Title</Label>
           <Input id="title" value={form.title} maxLength={120} onChange={(e) => set({ title: e.target.value })} placeholder="Weekly calculus coaching" required />
@@ -188,15 +213,16 @@ export function RequestForm({ existing }: { existing?: ServiceRequest }) {
 
         <div className="flex flex-wrap gap-2">
           <Button type="button" disabled={busy} onClick={() => submit(true)}>
-            {busy ? "Saving…" : existing ? "Save & publish" : "Publish request"}
+            {busy ? "Saving…" : form.mode === "managed" ? "Submit for review" : existing ? "Save & publish" : "Publish request"}
           </Button>
           <Button type="button" variant="secondary" disabled={busy} onClick={() => submit(false)}>
             Save as draft
           </Button>
         </div>
         <p className="text-xs text-muted">
-          Publishing requires agreeing to the academic-integrity policy: experts coach and give feedback —
-          they never complete graded work for you.
+          {form.mode === "managed"
+            ? "Our team typically triages managed requests within 24 hours. You will see the agreed price on the request page before anything is charged."
+            : "Publishing requires agreeing to the academic-integrity policy: experts coach and give feedback — they never complete graded work for you."}
         </p>
       </form>
     </Card>

@@ -9,7 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * - Auth-required paths without `hm_access` → /login?next=<original>
  * - Auth pages (login/register) WITH a session cookie → /account
  */
-const PROTECTED_PREFIXES = ["/account", "/onboarding", "/expert", "/requests", "/opportunities", "/offers", "/portal", "/settings"];
+const PROTECTED_PREFIXES = ["/account", "/onboarding", "/expert", "/requests", "/opportunities", "/offers", "/assignments", "/portal"];
 const AUTH_PAGES = ["/login", "/register"];
 const ACCESS_COOKIE = "hm_access";
 
