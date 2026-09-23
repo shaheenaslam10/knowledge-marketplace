@@ -11,6 +11,7 @@
 | 1 | Project Foundation | 0 | ✅ monorepo scaffolds (backend+frontend), Docker Compose, CI, `.env.example`, health endpoints, seed command, lint/test gates, worker pipeline, OpenAPI, error envelope, gateway interface |
 | 2 | Authentication & Roles | 1 | register/verify/login/reset, JWT cookies, role model, admin groups, audit middleware, throttles |
 | 3 | Student/Expert Profiles | 2 | ✅ profiles, taxonomy, expert application+approval (admin), files app (credentials, avatars), public expert directory API |
+| 3.5 | Design & experience architecture (docs) | 3 | ✅ three-experience structure (ADR-0013), design system + motion + component selection (ADR-0014); implementation = design-foundation slice of Phase 4 |
 | 4 | Requests & Open Marketplace | 3 | ServiceRequest CRUD + integrity attestation, visibility, opportunities board, subjects/tags filters, request files |
 | 5 | Bidding & Selection | 4 | offers lifecycle, accept→order creation (orders app core state machine + services), notifications MVP (in-app+email) |
 | 6 | Managed Service & Owner Assignment | 4 | triage actions, pool invitations, direct assignments, quote/price guidance |
@@ -24,9 +25,12 @@
 
 Notes on ordering: payments after orders (order must exist to pay for); messaging at 9 (marketplace usable without realtime chat); files core lands in 3 (credentials) with delivery-file extensions in 7/10.
 
+**Revised sequence (Phase 3.5 refinement, owner direction):** design architecture ✅ → design system ✅ (docs; implementation = Phase 4 slice) → **marketplace domain → marketplace UX → managed-service UX → payments → communication → admin operations → final visual/performance polish.** The marketplace foundation stays the next functional phase; **no major user-facing marketplace screens are built before the design-system foundation exists in code** (tokens, shadcn base kit, Motion runtime, three experience shells — the design-foundation slice opens Phase 4 and can proceed in parallel with backend domain work). Marketing-site content depth grows with the marketplace-UX and polish phases; the operations portal ships as scaffolding until the admin-operations phase (Django admin remains the ops tool, ADR-0010).
+
 ## Per-phase acceptance criteria (summary — detailed gates)
 
 - **Every phase:** backend `pytest` green + frontend `build` green in CI; `docker compose up` gives a working app; README updated; docs updated; committed & pushed with clear message; demo-able via seed data.
+- **Phase 4+ (design gate, from 3.5):** new user-facing screens consume the design-system tokens/primitives (no ad-hoc styling systems), vendored patterns are recorded in component-selection.md, and CI bundle checks stay within design-system.md §Performance.
 - **P2:** matrix tests for roles on existing endpoints; audit rows on admin actions.
 - **P5:** open-flow E2E locally: post→offer→accept→order(awaiting_payment) with Stripe test-mode charge (gateway adapter stubbed money-safe) OR manual mode.
 - **P6:** managed-flow E2E: submit→triage(approve pool / direct assign)→accept→order.
@@ -125,7 +129,7 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 
 ## Phase 3 — completion record (Student/Expert Profiles)
 
-**Status: ✅ complete** (profiles, expert lifecycle, taxonomy, files foundation, public directory, role-specific onboarding per ADR-0011; suites green; docs synced).
+**Status: ✅ complete** (profiles, expert lifecycle, taxonomy, files foundation, public directory, role-specific onboarding per ADR-0012; suites green; docs synced).
 
 | Area | What exists |
 |---|---|
@@ -141,3 +145,19 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 | Frontend | `/experts`, `/experts/[slug]`, `/onboarding/student`, `/expert/apply`, `/expert/application`, `/expert/profile` (+ account widgets); middleware guards extended |
 
 **Deliberate scope decisions:** no request/offer/order logic (Phase 4+); avatars have no upload UI yet (API ready); admin reviews via Django admin actions (no custom dashboard); R2 adapter deferred to Phase 10 per plan.
+
+---
+
+## Phase 3.5 — completion record (design & product architecture refinement)
+
+**Status: ✅ complete (documentation)** — committed and pushed **before any Phase 4 implementation**, per the owner's direction. No Phase 3 work was redone; no Phase 4 code started.
+
+| Deliverable | Where |
+|---|---|
+| Three-experience product architecture (marketing / app / portal; one repo, one app, one API) | [architecture/web-experiences.md](../architecture/web-experiences.md) + ADR-0013 |
+| Design system (personality, tokens incl. iris/teal palette, typography, spacing/radius/shadows, per-experience surfaces, component inventory & states, icons/illustration style, responsive + a11y rules, performance budgets) | [design/design-system.md](../design/design-system.md) + ADR-0014 |
+| Motion system (duration/easing tokens, per-experience profiles, reduced-motion, mobile reductions, performance constraints) | [design/motion-system.md](../design/motion-system.md) |
+| Component/pattern selection (shadcn base kit, curated Aceternity patterns, bespoke matching-network & steppers, rejected patterns, deferred decisions, installation policy) | [design/component-selection.md](../design/component-selection.md) |
+| Roadmap revision (sequence + Phase 4 design gate + bundle checks) | this file |
+
+**Housekeeping in the same change:** Phase 3's onboarding ADR renumbered **ADR-0011 → ADR-0012** (ADR-0011 was already taken by the Phase 0 Brevo email adapter) — all 16 references updated across docs and code comments; no behavior changed.

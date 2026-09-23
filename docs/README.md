@@ -55,6 +55,7 @@ This directory is the single source of truth for the product, workflows, archite
 - [architecture/system-architecture.md](architecture/system-architecture.md) — high-level system, modular monolith principle
 - [architecture/backend.md](architecture/backend.md) — Django app boundaries, responsibilities, dependency rules
 - [architecture/frontend.md](architecture/frontend.md) — Next.js domain-oriented structure
+- [architecture/web-experiences.md](architecture/web-experiences.md) — three web experiences (marketing / app / portal), one product (ADR-0013)
 - [architecture/database.md](architecture/database.md) — entity model, ERD, state enums, indexes, retention
 - [architecture/api.md](architecture/api.md) — API conventions + full endpoint catalog
 - [architecture/authentication.md](architecture/authentication.md) — authN/authZ design
@@ -69,6 +70,11 @@ This directory is the single source of truth for the product, workflows, archite
 - [architecture/backup-recovery.md](architecture/backup-recovery.md) — backups, restore runbook
 - [architecture/scalability.md](architecture/scalability.md) — scale triggers and upgrade path
 - [architecture/seo-ux.md](architecture/seo-ux.md) — SEO, responsive, accessibility, performance
+
+### Design
+- [design/design-system.md](design/design-system.md) — tokens, typography, components, responsiveness, a11y, performance budgets
+- [design/motion-system.md](design/motion-system.md) — durations, easings, per-experience motion profiles, reduced-motion
+- [design/component-selection.md](design/component-selection.md) — selected sources & patterns (shadcn/ui, Aceternity, Motion) with adaptations + costs
 
 ### Operations
 - [operations/costs.md](operations/costs.md) — cost of every service, free-tier alternatives, migration paths
