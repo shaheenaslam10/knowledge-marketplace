@@ -1,6 +1,6 @@
 # Development Phases, Dependencies & Acceptance Criteria
 
-> Status: **Phase 4 ✅ complete · Next: Phase 5 (Managed Service + Owner Assignment)** · Last updated: Phase 5 kickoff
+> Status: **Phase 5 ✅ complete · Next: Phase 6 (Orders & Delivery)** · Last updated: Phase 6 kickoff
 > **Single source of truth.** The table below reflects what the system actually contains after each phase. Renumbered at Phase 5 kickoff (owner direction): the marketplace foundation (requests + open bidding + selection + order creation) shipped together in Phase 4, so the former "Bidding & Selection" phase no longer exists and later phases shifted down one. Per-phase completion records live at the bottom of this file.
 
 ## Phase overview

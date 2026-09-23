@@ -2,7 +2,7 @@
 
 > Working title. A two-sided platform where students get academic/learning help through an **Open Marketplace** (experts bid, student picks) or a **Managed Service** (the platform triages and assigns), with payments, delivery, reviews and disputes handled end-to-end.
 
-**Status: Phase 5 — Managed Service + Owner Assignment complete.** On top of the open marketplace (requests → offers → selection), the owner now triages managed requests in Django admin: pool invitations (first-accept wins) and direct assignments both converge into the same order pipeline. Students post requests, eligible experts offer, students select an expert (race-safe → order in `awaiting_payment`); the three-experience design system (marketing / app / portal) is implemented in code. Profiles, expert lifecycle, taxonomy, credential files and the public expert directory are live; the product now targets a three-experience structure (marketing / app / portal) with a formal design system (see docs/design/). Custom email-based user model, JWT-in-httpOnly-cookie auth (register / login / refresh-rotation / logout / verify / password reset & change / deactivate), role & permission foundations (student / verified / staff / support / admin; expert slot reserved), admin user management, and the auth UI foundation run locally and are verified in CI. See [docs/architecture/authentication.md](docs/architecture/authentication.md) and the [phase record](docs/process/roadmap-phases.md).
+**Status: Phase 5 ✅ complete — next: Phase 6 (Orders & Delivery).** Live today: the full acquisition funnels (student self-service onboarding; expert application → owner approval), the **open marketplace** (student posts a request → eligible experts offer → student selects, race-safe → order in `awaiting_payment`), and the **managed service** (owner triage in Django admin → pool invitations with first-accept-wins, or direct assignments → same order pipeline). Everything rests on the shared foundations: custom email user model + JWT-in-httpOnly-cookie auth, one three-experience Next.js app (marketing / app / portal) with the formal design system, taxonomy, secure files, audit, django-q2 worker. See [docs/process/roadmap-phases.md](docs/process/roadmap-phases.md).
 
 ---
 
@@ -180,10 +180,17 @@ Environment variables: [`.env.example`](.env.example) + [docs/architecture/envir
 | 0 | Architecture & documentation | ✅ |
 | 1 | Project foundation (scaffolds, compose, CI, env, seeds, worker, OpenAPI, error envelope, gateway seam) | ✅ |
 | 2 | Authentication & roles (custom user, JWT cookies, expert applications) | ✅ |
-| 3–6 | Profiles · requests · open bidding · managed assignment | 📐 planned |
-| 7–8 | Orders & delivery · payments & commissions | 📐 planned |
-| 9–11 | Messaging & notifications · files/reviews/disputes · admin & analytics | 📐 planned |
-| 12–13 | Security/testing/performance · production deployment | 📐 planned |
+| 3 | Student/expert profiles · taxonomy · credential files · public directory | ✅ |
+| 3.5 | Design & product architecture (three experiences, design system, motion) | ✅ |
+| 4 | Marketplace + open bidding + selection (+ design foundation in code) | ✅ |
+| 5 | Managed service + owner assignment (pool / direct → same Order) | ✅ |
+| 6 | Orders & delivery (lifecycle, revisions, auto-approval, order workspace) | ▶ next |
+| 7 | Payments & commissions (Stripe/manual, ledger, refunds, payouts) | 📐 planned |
+| 8 | Messaging & notifications | 📐 planned |
+| 9 | Files, reviews & disputes (R2 adapter) | 📐 planned |
+| 10 | Admin & analytics (portal surfaces) | 📐 planned |
+| 11 | Security, testing & performance | 📐 planned |
+| 12 | Production deployment | 📐 planned |
 
 ## License / ownership
 
