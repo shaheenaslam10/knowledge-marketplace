@@ -18,7 +18,7 @@
 | 7 | Payments & Commissions | 6 | provider-agnostic `PaymentGateway` — **ManualGateway active** (dev/test + operator-confirmed fallback, simulated signed webhooks); **StripeGateway = registered non-functional seam, no SDK/credentials**; idempotent confirm path, ledger, refunds, payout sweeper, earnings UI |
 | 8 | Messaging & Notifications | 5 | ✅ threads+WS realtime (optimistic send, offline REST fallback), read receipts, notification center + preferences, realtime toasts, email funnel, unsubscribe, prune; digest deferred (see record) |
 | 9 | Files, Reviews & Disputes | 6,7 | ✅ R2 storage adapter + presigned downloads, retention job; review flows + BR-39 weighted aggregates; dispute lifecycle + resolution reusing Phase 7 money services; moderation hooks (report + grounds-gated view); overdue flagging + deadline proposals |
-| 10 | Admin & Analytics | 5–9 | admin dashboards/KPIs, moderation queues, audit viewer, config UI, reconciliation views, seed polish |
+| 10 | Admin & Analytics | 5–9 | `(portal)` operations surfaces: KPI dashboard (server-side Postgres aggregation, date ranges), moderation report queue (review/dismiss/hide, audited), dispute queue (read/triage; resolution stays in Django admin), audit viewer, PlatformConfig singleton + audited config UI, read-only financial reconciliation, users/experts operational views, seed polish; charts via dependency-free SVG micro-visualizations (bundle-budget decision) |
 | 11 | Security, Testing & Performance | all | authorization matrix test suite, CSP/headers, dependency audit, E2E pack, perf budgets, checklist gate |
 | 12 | Production Deployment | 11 | staging→prod deploy, backups+restore drill, monitoring, legal pages, launch checklist |
 

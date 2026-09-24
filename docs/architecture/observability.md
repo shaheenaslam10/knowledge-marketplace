@@ -32,3 +32,35 @@
 | Money sanity | daily ledger balance-check task (charge = commission + credit) | email to admin |
 
 Deliberately absent in MVP: APM tracing, metrics stacks (Prometheus/Grafana), pagerduty — documented upgrade path in costs; structured logs + Sentry cover diagnosis at this scale.
+
+
+---
+
+## Phase 10 — Operations portal & KPI dictionary (docs-first)
+
+The portal serves the same signals as this document: structured logs stay in stdout, audit rows stay append-only, and the ops surfaces are **read-only aggregations + service-backed moderation/config actions**. `manage.py ops_report` remains the CLI path.
+
+### KPI dictionary (every metric names its source; ranges evaluated server-side in UTC, `[from, to)`)
+
+| Group | Metric | Definition (exact source) |
+|---|---|---|
+| Marketplace | `total_requests` | count `service_requests.ServiceRequest` created in range |
+| Marketplace | `open_requests` | status `open` at query time |
+| Marketplace | `matched_requests` | status `matched` at query time (plus `in_progress` if the order started) |
+| Marketplace | `completed_orders` / `cancelled_orders` / `active_orders` | `orders.Order` by status; created_at in range for the first two, current-state for the third |
+| Marketplace | `request_to_match_rate` | matched+in_progress+completed-order requests / total requests (created_at in range) |
+| Financial | `gmv_minor` | `payments.Payment` `amount_minor` where status `succeeded\|refunded\|partially_refunded` and paid_at in range (= money charged) |
+| Financial | `commission_minor` | `payments.LedgerEntry` entry_type `commission`, created_at in range |
+| Financial | `expert_payable_minor` | current `expert_credit` balance minus scheduled/in-transit payouts (ledger-source, query-time) |
+| Financial | `refunds_minor` | `payments.Refund` rows (any status) processed in range |
+| Financial | `payouts` | `payments.Payout` counts by status (query-time) |
+| Financial | `take_rate` | commission_minor / gmv_minor (realized, in-range) |
+| Quality | `avg_rating` / `review_count` | `reviews.Review` published, created_at in range (plain in-range average; profile aggregates use BR-39 weighting separately) |
+| Quality | `dispute_count` / `dispute_rate` | `disputes.Dispute` created in range; rate = disputes / completed orders in range |
+| Quality | `dispute_outcomes` | resolved disputes in range grouped by `outcome` |
+| Quality | `revision_rate` | deliveries with `revision_number > 0` / deliveries in range |
+| Communication | `message_count` | `messaging.Message` created in range (excluding hidden) |
+| Communication | `report_count` | `messaging.MessageReport` created in range (+ open count at query time) |
+| Communication | `notification_delivery` | `notifications.Notification` pushed_at/emailed_at counts in range (delivery/failure = persisted guards only) |
+
+Trend series: daily `orders`, `gmv_minor`, `disputes` for the selected range (single grouped query per series).
