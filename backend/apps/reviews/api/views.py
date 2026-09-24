@@ -21,9 +21,27 @@ def _get_review(review_id: str) -> Review:
 
 
 class OrderReviewView(APIView):
-    """POST /api/v1/me/orders/{id}/review — student submits (BR-37)."""
+    """POST /api/v1/me/orders/{id}/review — student submits (BR-37).
+    GET — the order's review for participants (workspace embed, 404 if none)."""
 
     permission_classes = [IsAuthenticated]
+
+    def _participant_order(self, request, order_id: str) -> Order | None:
+        order = Order.objects.filter(pk=order_id).first()
+        if order is None:
+            return None
+        if request.user.id != order.student_id and request.user.id != order.expert_id:
+            return None
+        return order
+
+    def get(self, request, order_id: str):
+        order = self._participant_order(request, order_id)
+        if order is None:
+            raise NotFoundError("Order not found.")
+        review = Review.objects.filter(order=order).select_related("order").first()
+        if review is None:
+            raise NotFoundError("No review on this order yet.")
+        return Response(review_payload(review))
 
     def post(self, request, order_id: str):
         order = Order.objects.filter(pk=order_id).first()
@@ -99,3 +117,18 @@ class ExpertPublicReviewsView(APIView):
                 "results": [review_payload(r) for r in reviews],
             }
         )
+
+
+class MyReceivedReviewsView(APIView):
+    """GET /api/v1/me/reviews — the signed-in expert's published reviews
+    (newest first) for the expert-side "Received reviews" panel."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reviews = (
+            Review.objects.filter(expert=request.user, status=Review.Status.PUBLISHED)
+            .select_related("order")
+            .order_by("-created_at")
+        )
+        return Response({"results": [review_payload(r) for r in reviews]})

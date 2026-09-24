@@ -288,3 +288,60 @@ def _admin(django_user_model):
     return django_user_model.objects.get_or_create(
         email="rev-admin@demo.local", defaults={"is_staff": True, "name": "RA"}
     )[0]
+
+
+class TestPhase9FeEndpoints:
+    """GET /me/orders/{id}/review (workspace embed) + GET /me/reviews (expert panel)."""
+
+    def test_order_review_get_participant_and_404(
+        self, client, users, completed_order, django_user_model
+    ):
+        student, expert = users
+        api_login(client, student)
+        # no review yet → 404
+        response = client.get(f"/api/v1/me/orders/{completed_order.pk}/review")
+        assert response.status_code == 404
+        review = reviews.submit_review(
+            completed_order, actor=student, rating=5, body="Structured, patient, and effective."
+        )
+        response = client.get(f"/api/v1/me/orders/{completed_order.pk}/review")
+        assert response.status_code == 200 and response.json()["id"] == str(review.pk)
+
+        # stranger → 404 (order not visible)
+        api_login(
+            client,
+            django_user_model.objects.create_user(
+                email="rev-x9@demo.local", password=PASSWORD, name="X"
+            ),
+        )
+        assert client.get(f"/api/v1/me/orders/{completed_order.pk}/review").status_code == 404
+
+        # expert participant reads the same review (to reply)
+        api_login(client, expert)
+        assert client.get(f"/api/v1/me/orders/{completed_order.pk}/review").status_code == 200
+
+    def test_received_reviews_lists_published_for_expert_only(
+        self, client, users, completed_order, django_user_model
+    ):
+        student, expert = users
+        reviews.submit_review(
+            completed_order, actor=student, rating=4, body="Clear explanations every session."
+        )
+        api_login(client, expert)
+        body = client.get("/api/v1/me/reviews").json()
+        assert body["results"][0]["rating"] == 4 and body["results"][0]["expert_reply"] == ""
+        # a hidden review disappears from the expert panel
+        reviews.set_hidden(
+            Review.objects.get(order=completed_order), actor=None if False else expert, hidden=True
+        ) if False else None
+        from django.contrib.auth import get_user_model
+
+        admin = get_user_model().objects.create_user(
+            email="rev-admin9@demo.local", password=PASSWORD, name="A", is_staff=True
+        )
+        reviews.set_hidden(Review.objects.get(order=completed_order), actor=admin, hidden=True)
+        body = client.get("/api/v1/me/reviews").json()
+        assert body["results"] == []
+        # students don't get a received-reviews feed
+        api_login(client, student)
+        assert client.get("/api/v1/me/reviews").json()["results"] == []

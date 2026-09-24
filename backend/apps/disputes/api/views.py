@@ -45,9 +45,19 @@ def _dispute_payload(dispute: Dispute, *, include_evidence: bool = True) -> dict
 
 
 class OrderDisputeView(APIView):
-    """POST /api/v1/me/orders/{id}/dispute — participant opens (BR-40)."""
+    """POST /api/v1/me/orders/{id}/dispute — participant opens (BR-40).
+    GET — the order's dispute for participants (workspace embed, 404 if none)."""
 
     permission_classes = [IsAuthenticated]
+
+    def get(self, request, order_id: str):
+        order = Order.objects.filter(pk=order_id).first()
+        if order is None or request.user.id not in (order.student_id, order.expert_id):
+            raise NotFoundError("Order not found.")
+        dispute = Dispute.objects.filter(order=order).select_related("order").first()
+        if dispute is None:
+            raise NotFoundError("No dispute on this order.")
+        return Response(_dispute_payload(dispute))
 
     def post(self, request, order_id: str):
         order = Order.objects.filter(pk=order_id).first()

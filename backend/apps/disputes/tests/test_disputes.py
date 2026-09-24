@@ -495,3 +495,30 @@ def _sum(field):
     from django.db.models import Sum
 
     return Sum(field)
+
+
+class TestOrderDisputeGetEmbed:
+    """GET /me/orders/{id}/dispute — participant workspace embed (404 semantics)."""
+
+    def test_get_embed_participant_404_and_stranger(self, django_user_model):
+        order, student, _expert = _order(django_user_model)
+        from django.test import Client
+
+        from apps.experts.tests.test_api import api_login
+
+        api_login(client := Client(), student)
+        assert client.get(f"/api/v1/me/orders/{order.pk}/dispute").status_code == 404
+        dispute = disputes.open_dispute(
+            order,
+            actor=student,
+            reason="quality_below_expectations",
+            description="The delivered work misses two of the three agreed sections.",
+        )
+        response = client.get(f"/api/v1/me/orders/{order.pk}/dispute")
+        assert response.status_code == 200 and response.json()["id"] == str(dispute.pk)
+        # stranger gets the order-not-found mask
+        stranger = django_user_model.objects.create_user(
+            email="dsp-x1@demo.local", password=PASSWORD, name="X"
+        )
+        api_login(client, stranger)
+        assert client.get(f"/api/v1/me/orders/{order.pk}/dispute").status_code == 404
