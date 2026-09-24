@@ -37,7 +37,7 @@ Do not start:       Phase 11 (security/hardening), Phase 12 (production deployme
 | Next phase | **Phase 10 — Admin & Analytics** (scope below) |
 | Branch | `arena/01a0cd90-knowledge-marketplace` (all work happens here) |
 | Latest commit | Phase 9 completion commit (roadmap record + this handoff); feature chain `fd90947` (backend core) → `b8323d4` (backend embeds/received-reviews) → `07e8d04` (FE) → `8b19135` (docs sync) |
-| Latest verified CI | run **`35993731005`** — ✓ 4/4 on `fd90947` (Backend · Frontend · Docs-sync · Compose smoke, 2026-09-24); CI on the completion commit verified on push |
+| Latest verified CI | run **`36007194246`** — ✓ 4/4 on `f0bff4b` (Phase 9 completion commit: Backend · Frontend · Docs-sync · Compose smoke, 2026-09-24) |
 | Working tree | Clean & synced with origin at the completion commit; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
 | Test baseline | backend pytest **326 passed** (reviews 15, disputes 22, files+R2 17, messaging 27 incl. moderation-grounds); frontend lint/typecheck/vitest **58**/build/bundle-budgets green; ruff+format clean; import-linter 2 kept/0 broken; `makemigrations --check` clean; env-docs gate green |
 | Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 9 record has the as-built details + deferred list) |
@@ -115,7 +115,7 @@ Authoritative details live in `docs/architecture/*` — this is the map only.
 **Starting point (what exists).**
 - Moderation data is live: `MessageReport` (one open per message+reporter; `open|reviewed|dismissed`, `reviewed_by/at`), BR-35 `admin_view_thread` grounds-gated + audited, `MessageReportAdmin` read-only, dispute admin with service-backed resolve. The **queue UI + review workflow** is the Phase 10 gap.
 - `AuditLog` is append-only and admin-read-only; Phase 10 adds the audit viewer/filtering surface.
-- `PlatformConfig` singleton (core) already backs commission rates/TTLs/quotas — config UI edits it service-side.
+- **PlatformConfig does not exist yet** (commission rates are module constants in `apps/payments/config.py` — database.md always planned the singleton). Phase 10 task 4 = introduce `core.PlatformConfig` + service-backed config UI; money code keeps constants as defaults so BR-17/18 stay intact.
 - Payments admin is read-only + `payments.ledger_check` nightly job + WebhookEvent replay from admin — reconciliation views build on these.
 - Frontend `(portal)` route group + shell exists (ADR-0013); ESLint experience boundaries hold.
 - Analytics inputs: Order/Payment/Refund/Payout rows, Review aggregates, Dispute outcomes, notification funnel — all append-only/audit-backed.

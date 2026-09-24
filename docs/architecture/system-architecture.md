@@ -27,7 +27,7 @@ flowchart LR
         DISK[(Local volume: uploads in dev)]
     end
     subgraph Externals
-        STRIPE[Stripe Connect<br/>charges+transfers+KYC]
+        STRIPE[Stripe Connect<br/>seam — not active<br/>(ManualGateway active)]
         R2[Cloudflare R2<br/>private object storage]
         MAIL[Email API<br/>Brevo/SMTP]
     end
@@ -111,7 +111,7 @@ Config differences live **only** in environment variables (12-factor) — see [e
 | Files | local dev / Cloudflare R2 | R2 free tier 10 GB, zero egress fees vs S3 |
 | Email | Brevo free 300/day | transactional email without server reputation pain |
 | Frontend | Next.js 15+ (App Router) + TS + Tailwind | SSR for SEO + typed API client |
-| Payments | Stripe Connect | marketplace payments w/o fixed cost |
+| Payments | Stripe Connect (seam; **ManualGateway active** until owner verification) | marketplace payments w/o fixed cost |
 | Deploy | single small VM w/ Docker Compose (or Fly.io/Railway free-ish tiers) | one box, one compose file |
 | Monitoring | structured logs + Sentry free tier (optional) | no paid APM |
 
