@@ -88,16 +88,7 @@ def unhide_messages(modeladmin, request, queryset):
 MessageAdmin.actions = ["hide_messages", "unhide_messages"]
 
 
-@admin.action(description="Dismiss selected reports (audited)")
-def dismiss_reports(modeladmin, request, queryset):
-    from apps.core.exceptions import DomainError
-    from apps.portal.services.moderation import ReportAction, review_report
-
-    for report in queryset.filter(status=MessageReport.Status.OPEN):
-        try:
-            review_report(report, actor=request.user, action=ReportAction.DISMISS)
-        except DomainError:
-            continue  # raced closed — idempotent sweep
-
-
-MessageReportAdmin.actions = ["dismiss_reports"]
+# NOTE: report review/dismiss deliberately does NOT live here. The portal owns
+# that flow (apps.portal.services.moderation — audited dismiss/confirm-hide);
+# letting Django admin actions import the portal layer would invert the
+# app-layering contract (import-linter). Admin keeps read-only report rows.

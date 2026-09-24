@@ -60,8 +60,8 @@ def test_seed_is_idempotent(seeded, django_user_model):
     from apps.service_requests.models import ServiceRequest
 
     assert (
-        ServiceRequest.objects.filter(student__email="student@demo.local").count() == 4
-    )  # open + draft + 2 managed
+        ServiceRequest.objects.filter(student__email="student@demo.local").count() == 7
+    )  # open + draft + 2 managed + 3 portal funnel (completed, disputed, refunded)
     assert Offer.objects.count() == 2  # Ayra + Hina on the open request
     assert (
         ServiceRequest.objects.filter(mode="managed", status="in_review").count() == 1
