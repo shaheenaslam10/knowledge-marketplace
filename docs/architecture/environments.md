@@ -17,7 +17,7 @@
 | DB | docker postgres:16 | services postgres:16 | managed (Neon free) | managed (Neon) or VM container |
 | Files | local disk (`MEDIA_ROOT`) | local disk | R2 staging bucket | R2 prod bucket |
 | Email | console | locmem (tests) | Brevo test/sandbox | Brevo/SMTP |
-| Payments | `PAYMENT_GATEWAY=manual` (interface only in Phase 1) | FakeGateway/manual | Stripe test (Phase 7) | Stripe live or manual |
+| Payments | `PAYMENT_GATEWAY=manual` (full lifecycle simulation) | manual | Stripe test (when credentials exist) | Stripe live or manual |
 | Realtime | in-memory channel layer (1 ASGI proc) | in-memory | in-memory (1 proc) | in-memory (1 proc) → Redis later |
 
 ## Environment variables (canonical — mirrored in `/.env.example`)
@@ -64,8 +64,9 @@
 ### Payments
 | Variable | Example |
 |---|---|
-| `PAYMENT_GATEWAY` | `manual` \| `stripe` (adapter registry; Phase 7 registers stripe) |
+| `PAYMENT_GATEWAY` | `manual` \| `stripe` (adapter registry; `stripe` is registered but requires credentials + verification) |
 | `MANUAL_PAYMENT_INSTRUCTIONS` | text shown to students in manual mode (**wired — read by the gateway**) |
+| `MANUAL_WEBHOOK_SECRET` | HMAC secret for simulated manual-gateway webhook signatures (dev/test; default is dev-only) |
 | `STRIPE_SECRET_KEY` | `sk_…` (Phase 7) |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` (Phase 7) |
 | `STRIPE_API_COUNTRY` | `US` (Phase 7) |
