@@ -2,6 +2,9 @@
 
 > Working title. A two-sided platform where students get academic/learning help through an **Open Marketplace** (experts bid, student picks) or a **Managed Service** (the platform triages and assigns), with payments, delivery, reviews and disputes handled end-to-end.
 
+> **Project continuation / next steps — START HERE:** [`docs/process/PROJECT-HANDOFF.md`](docs/process/PROJECT-HANDOFF.md)
+> (current state, completed phases, architecture snapshot, locked decisions, and the exact next-phase plan — maintained after every phase)
+
 **Status: Phase 7 ✅ complete — next: Phase 8 (Messaging & Notifications).** Live today: the full acquisition funnels (student self-service onboarding; expert application → owner approval), the **open marketplace** (student posts a request → eligible experts offer → student selects, race-safe), the **managed service** (owner triage in Django admin → pool invitations with first-accept-wins, or direct assignments), and the **order workspace** (`/orders` — delivery, revisions, approvals with 72h auto-approval, cancellations, persisted event timeline; one pipeline for all three sources), plus **payments & commissions** (provider-agnostic gateway with a fully-functional manual/dev mode — pay → confirm → ledger → payout → refund; Stripe is a prepared, non-required seam). Everything rests on the shared foundations: custom email user model + JWT-in-httpOnly-cookie auth, one three-experience Next.js app (marketing / app / portal) with the formal design system, taxonomy, secure files, audit, django-q2 worker. See [docs/process/roadmap-phases.md](docs/process/roadmap-phases.md).
 
 ---
@@ -15,7 +18,7 @@
 ├── backend/            # Django 5.2 LTS + DRF modular monolith
 │   ├── config/         # settings/{base,dev,test,prod}, urls, api router, asgi (HTTP+WS)
 │   ├── apps/core/      # shared kernel: health, error envelope, money, request-id, seeds
-│   ├── apps/payments/  # PaymentGateway interface (provider-agnostic seam — ADR-0005)
+│   ├── apps/payments/  # provider-agnostic payment domain (gateway seam, ledger, webhooks — ADR-0005)
 │   └── docker/         # container entrypoints (db-wait migrate / worker)
 ├── docs/               # Product, workflows, architecture, operations, process — START HERE
 ├── scripts/            # run_tests.sh · check_env_docs.py (CI doc-sync gate)
@@ -40,9 +43,9 @@ Both converge on a single Order lifecycle — [docs/workflows](docs/README.md).
 | Database | PostgreSQL 16 (only source of truth) |
 | Background jobs | **django-q2 with the ORM (Postgres) broker — no Redis, no Celery** (ADR-0002) |
 | Realtime | Django Channels foundation on one ASGI process (in-memory layer; Redis = documented scale-out) |
-| Payments | `PaymentGateway` interface + registry (Stripe Connect adapter + manual mode land in Phase 8; never hard-coded) |
-| Files | Local disk in dev → Cloudflare R2 in prod (Phase 10) |
-| Email | console backend now; Brevo/SMTP adapters with notifications (Phase 9) |
+| Payments | `PaymentGateway` interface + registry — **domain shipped in Phase 7** (ManualGateway active for dev/test + operator-confirmed rails; Stripe is a prepared non-functional seam until credentials + jurisdiction verification; never hard-coded) |
+| Files | Local disk in dev → Cloudflare R2 in prod (R2 presigned downloads land in Phase 9) |
+| Email | console backend now; Brevo/SMTP adapters with the notification system (Phase 8) |
 | Deploy | Docker Compose on a single small VM / free-tier host |
 
 Full rationale: [docs/operations/costs.md](docs/operations/costs.md) · ADRs: [docs/process/adrs.md](docs/process/adrs.md)

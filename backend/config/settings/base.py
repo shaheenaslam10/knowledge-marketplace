@@ -243,7 +243,7 @@ Q_CLUSTER = {
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="no-reply@localhost")
 
-# --- Payments (interface exists in Phase 1; adapters/flows land in Phase 8) ---
+# --- Payments (ADR-0005: interface Phase 1, domain shipped Phase 7 — see apps/payments + docs/workflows/payments.md) ---
 PAYMENT_GATEWAY = env.str("PAYMENT_GATEWAY", default="manual")
 MANUAL_PAYMENT_INSTRUCTIONS = env.str(
     "MANUAL_PAYMENT_INSTRUCTIONS",

@@ -1,7 +1,7 @@
 """WebSocket foundation.
 
 Phase 1 ships only the connectivity/plumbing proof (`PingConsumer`). Real
-consumers (messaging, notifications) land in Phase 9 per docs/architecture/realtime.md
+consumers (messaging, notifications) land in Phase 8 per docs/architecture/realtime.md
 and follow the same rules: authenticate on connect, authorize per group,
 delegate all business logic to service layers — never write ORM state here.
 """
