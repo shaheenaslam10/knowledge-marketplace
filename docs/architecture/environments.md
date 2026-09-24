@@ -1,6 +1,6 @@
 # Environments & Configuration
 
-> Status: ✅ implemented in Phase 1 · Last updated: Phase 1
+> Status: ✅ implemented (Phase 1; Phase 9 R2 file-storage vars) · Last updated: Phase 9
 > **Sync rule:** every name in `/.env.example` must appear here — CI enforces it (`scripts/check_env_docs.py`). Add new variables to both in the same commit.
 
 ## Settings strategy
@@ -91,7 +91,9 @@
 |---|---|
 | `FILE_STORAGE` | `local` \| `r2` |
 | `MEDIA_ROOT` | `./var/media` |
-| `R2_BUCKET` / `R2_ACCOUNT_ID` / `R2_ACCESS_KEY` / `R2_SECRET_KEY` / `R2_REGION` | R2 mode (Phase 9) |
+| `R2_BUCKET` / `R2_ACCOUNT_ID` / `R2_ACCESS_KEY` / `R2_SECRET_KEY` / `R2_REGION` | R2 mode (implemented Phase 9) |
+| `R2_ENDPOINT_URL` | optional endpoint override (defaults to `https://{account}.r2.cloudflarestorage.com`) |
+| `R2_PRESIGN_TTL_SECONDS` | presigned GET lifetime, default `300` (60–3600) |
 
 ### Auth (Phase 2)
 | Variable | Example |

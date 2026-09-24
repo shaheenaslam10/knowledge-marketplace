@@ -9,7 +9,8 @@
 ## Eligibility & lifecycle (implemented)
 
 - Submit: `POST /api/v1/me/orders/{id}/review` — requester must be the order's student, order `completed`, no existing review (BR-37). Rating required; sub-scores optional; body required.
-- Edit: author may edit rating/sub-scores/body **until the expert replies** (`review_already_answered` after); edits stamp `edited_at`.
+- Edit: `PATCH /api/v1/me/reviews/{review_id}` — author may edit rating/sub-scores/body **until the expert replies** (`review_already_answered` after); edits stamp `edited_at`. As-built note: review/order ids in routes are **integer pks** (matching the orders API), not UUIDs.
+- Received (expert): `GET /api/v1/me/reviews` — the signed-in expert's **published** reviews (newest first, full payload incl. `expert_reply`) for the expert-side "Received reviews" panel; reply via `POST /api/v1/reviews/{review_id}/reply`.
 - Reply: `POST /api/v1/reviews/{id}/reply` — only the reviewed expert, exactly **one** reply (`duplicate_reply` guard), includes optional private `rating_of_student`; immutable afterwards.
 - Hide/unhide (moderation, BR-38 escalation): Django admin action via service (`hide_review`/`unhide_review`, audited); hidden reviews stop counting toward aggregates and disappear from public surfaces.
 

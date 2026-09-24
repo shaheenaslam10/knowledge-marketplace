@@ -1,6 +1,6 @@
 # API Architecture
 
-> Status: ✅ through Phase 8 (auth, profiles, experts, taxonomy, files, requests, offers, managed, orders, payments, messaging, notifications) · Last updated: Phase 8 completion
+> Status: ✅ through Phase 9 (auth, profiles, experts, taxonomy, files, requests, offers, managed, orders, payments, messaging, notifications, reviews, disputes) · Last updated: Phase 9 completion
 
 ## Conventions
 
@@ -102,13 +102,14 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 
 ### Messaging — `/api/v1/me/threads` + WS — ✅ **implemented (Phase 8)**
 | GET | `/me/threads` | ✅ participant | inbox cards (counterpart, preview, per-thread unread, read-only flag) |
-| POST | `/me/threads/open` | ✅ participant | `{context_type, order_id \| request_id}` → lazy create-or-fetch thread id |
+| POST | `/me/threads/open` | ✅ participant | `{context_type, order_id \| request_id}` → lazy create-or-fetch thread id (`context_type:"dispute"` since Phase 9) |
 | GET | `/me/threads/{id}` | ✅ participant | full history; **marks the thread read** |
 | POST | `/me/threads/{id}/messages` | ✅ participant | `{body, attachment_id?}` — REST send / offline fallback |
 | POST | `/me/threads/{id}/read` | ✅ participant | read receipt (watermark) |
+| POST | `/me/messages/{id}/report` | ✅ participant | `{reason, details?}` — BR-34 report (Phase 9); one open report per message+reporter (idempotent) |
 | WS | `/ws/threads/{id}/` | ✅ participant | realtime `message.send`/`typing`/`read`; broadcasts `message.new`; close 4401 unauth / 4403 non-participant |
 
-*Chat-based deadline proposal (`extend-deadline`) was dropped from the Phase 8 scope during implementation — it is backlog, tracked with the Phase 9 disputes/moderation wave.*
+*Deadline changes run through the order workspace services (`orders.propose_deadline` / `respond_deadline_proposal`, Phase 9) — no in-chat proposal card (documented non-goal; see messaging.md).*
 
 ### Notifications — `/api/v1/me/notifications` — ✅ **implemented (Phase 8)**
 | GET | `/me/notifications` | ✅ authed | latest 50 + unread count |
@@ -121,15 +122,25 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 ### Files — `/api/v1/files` — ✅ **foundation implemented (Phase 3)**
 | POST | `/files` | ✅ authed | multipart upload; purposes `credential` (pdf/png/jpg ≤10 MB, private) + `avatar` (png/jpg/webp ≤2 MB, public); content sniffing, sha256 dedupe |
 | GET | `/files/{id}` | ✅ uploader/staff | metadata |
-| GET | `/files/{id}/download-url` | ✅ authorized | 5-min signed token (R2 presigned arrives with the Phase 9 adapter); staff views of private credentials are audited |
+| GET | `/files/{id}/download-url` | ✅ authorized | 5-min signed token locally; **5-min presigned GET when `FILE_STORAGE=r2`** (Phase 9 — grant_download stays the only gate); staff views of private credentials are audited |
 | GET | `/files/{id}/download?token=` | ✅ signed token / public | local streaming; `Content-Disposition` + `nosniff` |
-Other purposes: `request_brief` (Phase 4), `message` (Phase 8 — 5 MB pdf/png/jpg/jpeg/txt, thread-participant download authorization), `delivery` (Phase 6) are live; `dispute_evidence` lands Phase 9.
+Other purposes: `request_brief` (Phase 4), `message` (Phase 8 — 5 MB pdf/png/jpg/jpeg/txt, thread-participant download authorization), `delivery`/`order_attachment` (Phase 6, reduced allowlist), `dispute_evidence` (Phase 9 — 10 MB pdf/png/jpg/jpeg; only the dispute participants via `Dispute → order` traversal) are live. Retention: `files.retention_cleanup` q2 job purges expired briefs (30d) and ended-order files (12m, `legal_hold` respected).
 
-### Reviews & disputes — `/api/v1/reviews`, `/api/v1/disputes`
-| POST | `/orders/{id}/review` | student | once, completed |
-| POST | `/reviews/{id}/reply` · `/reviews/{id}/report` | | |
-| POST | `/orders/{id}/dispute` | participant | opens dispute |
-| GET | `/disputes/{id}` + `/disputes/{id}/messages` · POST message | participants/admin | |
+### Reviews — `/api/v1/…` — ✅ **implemented (Phase 9, BR-37..39)**
+| POST | `/me/orders/{id}/review` | ✅ order student | once per completed order; rating 1–5 + optional sub-scores + body ≥20 chars |
+| GET | `/me/orders/{id}/review` | ✅ participants | workspace embed; 404 until reviewed |
+| PATCH | `/me/reviews/{review_id}` | ✅ author | edit until the expert replies (`review_already_answered`) |
+| POST | `/reviews/{review_id}/reply` | ✅ reviewed expert | exactly one reply (+ private `rating_of_student`); immutable |
+| GET | `/me/reviews` | ✅ expert | own published reviews (expert dashboard panel) |
+| GET | `/experts/{slug}/reviews` | 🌐 public | published reviews + BR-39 weighted aggregate (`rating_avg`, `rating_count`) |
+
+### Disputes — `/api/v1/…` — ✅ **implemented (Phase 9, BR-40/41)**
+| POST | `/me/orders/{id}/dispute` | ✅ participant | open within the BR-40 window; `duplicate_dispute` guard; freezes the payout |
+| GET | `/me/orders/{id}/dispute` | ✅ participants | workspace embed; 404 when none |
+| GET | `/me/disputes/{dispute_id}` | ✅ participants/staff | status, outcome, resolution notes, evidence, thread id |
+| POST | `/me/disputes/{dispute_id}/evidence` | ✅ participants | link own `dispute_evidence` uploads; rejected once closed |
+
+*Dispute messaging rides the existing threads (`context_type="dispute"`); resolution is admin-only via Django admin service actions (Phase 10 adds the moderation/analytics portal on top).*
 
 ### Taxonomy — `/api/v1/taxonomy` — ✅ **implemented (Phase 3)**
 | GET | `/taxonomy/terms` | public | shared reference data; `kind`, `parent`, `q` filters. Curated via Django admin; seeded demo tree |

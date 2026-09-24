@@ -1,6 +1,6 @@
 # Messaging / Chat
 
-> Status: ✅ Phase 8 · Last updated: Phase 8 completion · Related: [realtime](../architecture/realtime.md), [security](../architecture/security.md), [files](files.md)
+> Status: ✅ Phase 8 + Phase 9 moderation/dispute context · Last updated: Phase 9 · Related: [realtime](../architecture/realtime.md), [security](../architecture/security.md), [files](files.md), [disputes](disputes.md)
 
 ## Model (implemented — `apps/messaging`)
 
@@ -33,6 +33,7 @@
 | GET | `/api/v1/me/threads/{id}` | thread + full message history; **marks the thread read** |
 | POST | `/api/v1/me/threads/{id}/messages` | `{body, attachment_id?}` — REST send/fallback |
 | POST | `/api/v1/me/threads/{id}/read` | explicit read receipt |
+| POST | `/api/v1/me/messages/{id}/report` | `{reason, details?}` — BR-34 report button (Phase 9) |
 
 ## Realtime behavior (see [realtime](../architecture/realtime.md) for infra)
 
@@ -42,11 +43,13 @@
 - Read receipts: opening the thread (REST GET) marks read; the WS `read` action covers live sessions. UI batches are naturally debounced by the refetch cycle.
 - WS is a **refetch hint, never the source of truth** — the thread page re-fetches via REST on socket (re)connect, window focus, and `online` events; Postgres + REST responses are always authoritative.
 
-## Moderation (BR-34/35)
+## Moderation (BR-34/35 — implemented Phase 9)
 
-- `admin_view_thread(thread, admin)` is staff-only and writes an audit row (`messaging.thread_viewed`). Django admin exposes threads/messages read-only, with `is_hidden` the only toggle.
-- Deferred to Phase 9 (disputes/moderation wave): per-message report button and the on-platform policy banner in the thread UI; dispute-context threads (`context_type="dispute"` is reserved in the schema).
+- **Report a message:** any thread participant calls `POST /api/v1/me/messages/{id}/report` (`{reason: off_platform|abuse|integrity|spam|other, details?}`) → `MessageReport` (one **open** report per message+reporter; re-reporting while open is idempotent). Audited (`messaging.message_reported`). Staff see reports in Django admin (read-only); closing a report is a staff action (Phase 10 adds the queue UI).
+- **Grounds-gated admin thread view:** `admin_view_thread(thread, admin)` is staff-only and now **requires moderation grounds** — an open dispute on the thread's order (via `Order.has_open_dispute`) or an open report inside the thread. Without grounds it raises `no_moderation_grounds`; with grounds it writes an audit row (`moderation-inspection`). Django admin exposes threads/messages read-only, with `is_hidden` the only toggle.
+- **Dispute-context threads (Phase 9):** opening a dispute creates/reuses the order thread with `context_type="dispute"` (label "Dispute — Order N"; participants derived from the order). It stays writable while the dispute is open and becomes read-only at resolution; the WS + REST-fallback transport is inherited unchanged.
+- **Policy banner (BR-34):** the thread UI shows the on-platform-communication notice (keep conversation and payments on-platform; off-platform deals are bannable). *FE surface pending — see Phase 9 FE tasks.*
 
 ## Non-goals (MVP)
 
-Group chats beyond the two parties, voice/video, E2E encryption (platform moderation access is a deliberate product requirement, audited), message search (Postgres FTS on messages is trivial to add later), chat-based deadline proposal (removed from the Phase 8 scope during implementation; tracked as backlog with the disputes/moderation work).
+Group chats beyond the two parties, voice/video, E2E encryption (platform moderation access is a deliberate product requirement, audited), message search (Postgres FTS on messages is trivial to add later). Chat-based deadline extension: the **service exists** (Phase 9 `orders.propose_deadline`/`respond_deadline_proposal`, used by the order workspace); a dedicated in-chat proposal card remains backlog (decision recorded in the Phase 9 handoff).

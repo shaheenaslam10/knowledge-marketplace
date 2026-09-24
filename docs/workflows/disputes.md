@@ -44,12 +44,12 @@ open ──(admin takes case)──► under_review ──(admin decision execut
 | `split` | `payments.issue_refund` (student share); remainder to expert credit | `completed` |
 | `no_fault_close` | no money movement; freeze lifted | back to the stored prior status |
 
-Every outcome: ledger entries via the refund/payout services, both parties notified (funnel: `dispute_resolved`), audit log with rationale. A scheduled-but-unpaid payout on a fully-refunded order is marked failed (`dispute_refund` reason). Integrity-flagged reasons additionally note moderation routing (queue = Phase 10).
+Every outcome: ledger entries via the refund/payout services, both parties notified (funnel: `dispute_resolved`), audit log with rationale. A scheduled-but-unpaid payout on a fully-refunded order is marked failed via `payments.mark_payout_failed` (reason "Order refunded by dispute resolution"); on `refund_student_partial`/`split` the still-unsettled payout is **adjusted** to the remaining expert credit (audited `payout.adjusted_dispute` — a pre-settlement correction; ledger rows are never touched directly). Integrity-flagged reasons additionally note moderation routing (queue = Phase 10).
 
 ## Surfaces
 
-- Student/expert: dispute panel on the order workspace (open, status, evidence, resolution notes) + the **dispute thread** (messaging context `dispute`, same WS + REST fallback architecture; participants = the order's student + expert).
-- Admin: Django admin actions — take case, await response, resume review, resolve (outcome + notes + amounts), close; audited thread view (`messaging.admin_view_thread`, BR-35) is unlocked by an open dispute on the related order or an open message report.
+- Student/expert REST: `POST /api/v1/me/orders/{order_id}/dispute` (open; `duplicate_dispute` guard), `GET /api/v1/me/disputes/{dispute_id}` (participant-only; UUID pk), `POST /api/v1/me/disputes/{dispute_id}/evidence` (links own `dispute_evidence` uploads; rejected once the dispute is closed). As-built (FE integration): the **order detail** payload embeds the viewer-scoped `dispute` object (or `null`) next to `review`, so the order workspace renders dispute/review state in a single fetch. FE dispute panel on the order workspace + the **dispute thread** (messaging context `dispute`, same WS + REST fallback architecture; participants = the order's student + expert).
+- Admin: Django admin (no custom portal until Phase 10) — bulk actions take case / await response / resume review / close; the change form has a service-backed **Resolve** action (`_resolve`: outcome select + optional `refund_amount_minor` + notes ≥ 20 chars) executing `disputes.resolve`; add/delete disabled, fields read-only; audited thread view (`messaging.admin_view_thread`, BR-35) is unlocked by an open dispute on the related order or an open message report.
 
 ## Retention / fraud guidance
 
