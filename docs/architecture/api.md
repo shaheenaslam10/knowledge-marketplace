@@ -140,6 +140,15 @@ Other purposes: `request_brief` (Phase 4), `message` (Phase 8 — 5 MB pdf/png/j
 | GET | `/me/disputes/{dispute_id}` | ✅ participants/staff | status, outcome, resolution notes, evidence, thread id |
 | POST | `/me/disputes/{dispute_id}/evidence` | ✅ participants | link own `dispute_evidence` uploads; rejected once closed |
 
+### Operations portal — `/api/v1/ops/*` — ✅ **implemented (Phase 10, staff-only)**
+| GET | `/ops/kpis?range=today\|7d\|30d\|custom&from&to` | support/admin | KPI dashboard (server-side aggregation; definitions: observability.md §KPI dictionary) |
+| GET | `/ops/reports?status&reason` · POST `/ops/reports/{id}/review` | support/admin | moderation queue; review = `dismiss\|confirm_hide` (audited, idempotent `report_not_open`) |
+| GET | `/ops/disputes?status` | support/admin | triage queue; resolution = Django admin service action (deep-link) |
+| GET | `/ops/audit?actor_id&action&object_type&object_id&from&to` | support/admin | audit viewer (append-only; no write methods) |
+| GET/PUT | `/ops/config` | read support/admin · write **admin** | PlatformConfig; whitelisted fields, bounds-checked, audited before/after |
+| GET | `/ops/reconciliation` | support/admin | read-only consistency checks (ledger identity, refund/payout parity, coverage, webhooks) |
+| GET | `/ops/users?role&q` | support/admin | users/experts operational overview (read-only) |
+
 *Dispute messaging rides the existing threads (`context_type="dispute"`); resolution is admin-only via Django admin service actions (Phase 10 adds the moderation/analytics portal on top).*
 
 ### Taxonomy — `/api/v1/taxonomy` — ✅ **implemented (Phase 3)**

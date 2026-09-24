@@ -36,9 +36,9 @@ Deliberately absent in MVP: APM tracing, metrics stacks (Prometheus/Grafana), pa
 
 ---
 
-## Phase 10 — Operations portal & KPI dictionary (docs-first)
+## Phase 10 — Operations portal & KPI dictionary (implemented)
 
-The portal serves the same signals as this document: structured logs stay in stdout, audit rows stay append-only, and the ops surfaces are **read-only aggregations + service-backed moderation/config actions**. `manage.py ops_report` remains the CLI path.
+The portal serves the same signals as this document: structured logs stay in stdout, audit rows stay append-only, and the ops surfaces are **read-only aggregations + service-backed moderation/config actions**. `manage.py ops_report` remains the CLI path. Live surfaces: `/portal` (dashboard, ranges today/7d/30d/custom — UTC, `[from,to)`), `/portal/moderation`, `/portal/disputes`, `/portal/finance` (reconciliation), `/portal/audit`, `/portal/users`, `/portal/config`; API under `/api/v1/ops/*` (staff-only).
 
 ### KPI dictionary (every metric names its source; ranges evaluated server-side in UTC, `[from, to)`)
 

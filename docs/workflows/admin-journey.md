@@ -1,6 +1,6 @@
 # Admin / Owner Journey
 
-> Status: 🚧 Phase 10 (portal surfaces) · Last updated: Phase 10 kickoff · Related: [user-roles](../product/user-roles.md), [observability](../architecture/observability.md)
+> Status: ✅ Phase 10 implemented · Last updated: Phase 10 completion · Related: [user-roles](../product/user-roles.md), [observability](../architecture/observability.md)
 
 The admin back office is **Django Admin, customized** for MVP (ADR-0010): fast to build, free, permissioned, and already audited via `LogEntry`. Custom admin views are added only where workflows need more than CRUD. A dedicated admin SPA is explicitly post-MVP.
 
@@ -66,6 +66,8 @@ The portal upgrades exactly the workflows that benefit from a purpose-built surf
 | Users/experts operational view (status, counts, links) | `/portal/users` | cross-object overview; edits stay in Django admin |
 | Platform configuration | `/portal/config` | `core.PlatformConfig` singleton (introduced this phase — database.md planned it); service-validated, before/after audited, admin-only |
 | Expert applications triage, managed-request triage, order force-actions, dispute **resolution** | **Django admin** (deep links) | already excellent permissioned CRUD+actions; duplication has no UX payoff (ADR-0010) |
+
+**As-built (Phase 10 implementation):** every portal surface reads `/api/v1/ops/*` (staff-gated server-side: reads + moderation = `support|admin`, config writes = `admin` only). Moderation actions run `portal.services.moderation.review_report` → messaging's audited `set_message_hidden` (idempotent; closed reports raise `report_not_open`). Disputes are read-only here — the resolve button deep-links the Django admin change form that executes the Phase 9 service path. Reconciliation reuses `payments.ledger_check` semantics read-only; **no repair buttons** (fixes = existing Django-admin service actions). Config edits run `portal.services.config_editor.update_config` (whitelisted fields, bounds-checked, `platform.config_updated` audit row with before/after; `default_currency` immutable — ledger contract).
 
 **Decisions recorded (Phase 10 kickoff):**
 - `/portal/analytics` and `/portal/orders` from web-experiences.md are **consolidated**: analytics = `/portal` dashboard; order oversight deep-links to Django admin (documented in web-experiences.md).
