@@ -10,7 +10,7 @@
 
 ```text
 Current phase:      Phase 7 — Payments & Commissions ✅ COMPLETE
-Latest commit:      08b7c40 (docs: Phase 7 sync) — branch arena/01a0cd90-knowledge-marketplace
+Latest commit:      f844575 (docs: permanent handoff system) — branch arena/01a0cd90-knowledge-marketplace
 Next phase:         Phase 8 — Messaging & Notifications  (see "NEXT PHASE" below)
 Read first:         docs/process/roadmap-phases.md (Phase 8 row + Phase 5–7 records),
                     docs/workflows/messaging.md, docs/workflows/notifications.md,
