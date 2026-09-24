@@ -1,9 +1,23 @@
 /** Orders API client (browser) + delivery upload helper. */
 import { apiFetch } from "@/lib/api/client";
 
-import type { DeliveryRecord, OrderDetail, OrderListItem } from "./types";
+import type { DeliveryRecord, OrderDetail, OrderListItem, PaymentInfo } from "./types";
 
 export const ordersApi = {
+  pay: (id: string) =>
+    apiFetch<{ status: string; payment: PaymentInfo | null }>({
+      path: `/api/v1/me/orders/${id}/pay`,
+      method: "POST",
+      body: "{}",
+      headers: { "Content-Type": "application/json" },
+    }),
+  confirmPayment: (id: string) =>
+    apiFetch<{ status: string; payment: PaymentInfo | null }>({
+      path: `/api/v1/me/orders/${id}/payment/confirm`,
+      method: "POST",
+      body: "{}",
+      headers: { "Content-Type": "application/json" },
+    }),
   list: () => apiFetch<{ results: OrderListItem[] }>({ path: "/api/v1/me/orders" }),
   detail: (id: string) => apiFetch<OrderDetail>({ path: `/api/v1/me/orders/${id}` }),
   deliver: (id: string, summary: string, attachmentIds: string[]) =>

@@ -35,7 +35,11 @@ export function OrderWorkspaceClient() {
     if (!orderId) return;
     setBusy(true);
     try {
-      if (key === "deliver" && typeof payload === "object" && payload !== null) {
+      if (key === "pay") {
+        await ordersApi.pay(orderId);
+      } else if (key === "confirm-payment") {
+        await ordersApi.confirmPayment(orderId);
+      } else if (key === "deliver" && typeof payload === "object" && payload !== null) {
         const { summary, ids } = payload as { summary: string; ids: string[] };
         await ordersApi.deliver(orderId, summary, ids);
       } else if (key === "approve") {

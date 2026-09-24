@@ -39,6 +39,32 @@ export interface OrderEventRecord {
   data: Record<string, unknown>;
 }
 
+export interface PaymentInfo {
+  id: string;
+  gateway: string;
+  status: "pending" | "requires_action" | "processing" | "succeeded" | "failed" | "canceled" | "refunded" | "partially_refunded";
+  amount_minor: number;
+  amount_display: number;
+  currency: string;
+  refunded_display: number;
+  failure_reason: string;
+  paid_at: string | null;
+  simulated: boolean;
+  instructions?: string;
+  dev_self_confirm?: boolean;
+}
+
+export const PAYMENT_STATUS_COPY: Record<PaymentInfo["status"], string> = {
+  pending: "Awaiting payment",
+  requires_action: "Action required",
+  processing: "Processing",
+  succeeded: "Paid",
+  failed: "Payment failed — retry available",
+  canceled: "Payment canceled",
+  refunded: "Refunded",
+  partially_refunded: "Partially refunded",
+};
+
 export interface OrderDetail extends OrderListItem {
   request_id: string;
   request_category: string;
@@ -58,6 +84,7 @@ export interface OrderDetail extends OrderListItem {
   cancellation_reason: string;
   events: OrderEventRecord[];
   deliveries: DeliveryRecord[];
+  payment: PaymentInfo | null;
 }
 
 export const ORDER_STATUS_TONE: Record<OrderStatus, "neutral" | "info" | "success" | "warning" | "danger"> = {
@@ -90,7 +117,7 @@ export const SOURCE_COPY: Record<OrderSource, string> = {
 export function workspaceActions(order: Pick<OrderDetail, "status" | "role" | "revisions_used" | "revisions_allowed">) {
   const actions: { key: string; label: string; tone?: "primary" | "secondary" | "ghost" }[] = [];
   if (order.status === "awaiting_payment") {
-    actions.push({ key: "await-payment", label: "Payment arrives in Phase 7 — support can confirm manual payment", tone: "ghost" });
+    actions.push({ key: "pay", label: "Pay now", tone: "primary" });
     if (order.role === "student") actions.push({ key: "cancel", label: "Cancel order", tone: "ghost" });
   }
   if (order.status === "active" && order.role === "expert") {

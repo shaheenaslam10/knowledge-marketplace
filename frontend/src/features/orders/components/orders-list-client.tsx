@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ordersApi } from "@/features/orders/api";
+import { EarningsCard } from "@/features/payments/components/earnings-card";
 import {
   ORDER_STATUS_COPY,
   ORDER_STATUS_TONE,
@@ -66,6 +67,7 @@ export function OrdersListClient() {
 
   return (
     <div className="space-y-4">
+      <EarningsCard />
       <div className="flex gap-1.5" role="tablist" aria-label="Filter orders by status">
         {STATUS_FILTERS.map((status) => (
           <button

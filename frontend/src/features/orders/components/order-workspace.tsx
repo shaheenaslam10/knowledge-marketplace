@@ -25,6 +25,7 @@ import {
   type OrderEventRecord,
 } from "@/features/orders/types";
 import { fileDownloadUrl } from "@/features/orders/api";
+import { PaymentCard } from "@/features/orders/components/payment-card";
 
 const STEPS = ["Confirmed", "In progress", "Delivered", "Completed"] as const;
 
@@ -306,6 +307,20 @@ export function OrderWorkspace({
         </div>
       </Card>
 
+      {order.payment && (
+        <PaymentCard
+          payment={order.payment}
+          role={order.role}
+          busy={busy}
+          onPay={async () => {
+            await onAction("pay");
+          }}
+          onConfirm={async () => {
+            await onAction("confirm-payment");
+          }}
+        />
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="space-y-4">
@@ -403,7 +418,11 @@ export function OrderWorkspace({
             {actions.length > 0 && mode === "idle" && (
               <div className="border-border flex flex-wrap gap-2 border-t pt-4">
                 {actions.map((action) =>
-                  action.tone === "ghost" ? (
+                  action.key === "pay" ? (
+                    <Button key={action.key} onClick={() => void onAction("pay")} disabled={busy}>
+                      {action.label}
+                    </Button>
+                  ) : action.tone === "ghost" ? (
                     <span key={action.key} className="text-muted self-center text-xs">
                       {action.label}
                     </span>
