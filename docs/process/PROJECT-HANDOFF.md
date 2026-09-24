@@ -9,16 +9,17 @@
 ## START HERE
 
 ```text
-Current phase:      Phase 7 — Payments & Commissions ✅ COMPLETE
-Latest commit:      f844575 (docs: permanent handoff system) — branch arena/01a0cd90-knowledge-marketplace
-Next phase:         Phase 8 — Messaging & Notifications  (see "NEXT PHASE" below)
-Read first:         docs/process/roadmap-phases.md (Phase 8 row + Phase 5–7 records),
-                    docs/workflows/messaging.md, docs/workflows/notifications.md,
-                    docs/architecture/realtime.md, docs/product/business-rules.md (BR-34/35)
-First implementation task:  apps/messaging — Thread/Message/MessageReceipt models +
-                    services with participant-only guards + migration
-Do not start:       Phase 9 (reviews/disputes/file expansion), Phase 10 (admin/analytics),
-                    Stripe activation (credentials do not exist; seam stays), Redis (prohibited)
+Current phase:      Phase 8 — Messaging & Notifications ✅ COMPLETE
+Latest commit:      bbbead2 (docs: Phase 8 sync) — branch arena/01a0cd90-knowledge-marketplace
+Next phase:         Phase 9 — Files, Reviews & Disputes  (see "NEXT PHASE" below)
+Read first:         docs/process/roadmap-phases.md (Phase 8 completion record + Phase 9 row),
+                    docs/workflows/disputes.md, docs/workflows/files.md,
+                    docs/architecture/files-storage.md, docs/product/business-rules.md (BR-36..43)
+First implementation task:  docs-first — as-built pass on disputes.md/files.md + reviews workflow
+                    spec, then R2 storage adapter behind FILE_STORAGE (local stays default)
+Do not start:       Phase 10 (admin/analytics), Phase 11 (security/hardening),
+                    Phase 12 (production deployment), Stripe activation (credentials do not
+                    exist; seam stays), Redis (prohibited)
 ```
 
 ---
@@ -31,9 +32,9 @@ Do not start:       Phase 9 (reviews/disputes/file expansion), Phase 10 (admin/a
 | Current phase | **Phase 8 — Messaging & Notifications ✅ complete** |
 | Next phase | **Phase 9 — Files, Reviews & Disputes** (scope below) |
 | Branch | `arena/01a0cd90-knowledge-marketplace` (all work happens here) |
-| Latest commit | `ff85028` — Phase 8: FE messaging+notifications UI, unsubscribe endpoint, prune command (feature commits `b66d381` backend, `ff85028` FE; docs-sync commit follows this handoff) |
-| Latest verified CI | run **`35986626495`** — ✓ on `ff85028` (2026-09-24); the docs-sync commit gets its own run — verify with `gh run list --limit 3` on takeover |
-| Working tree | Clean & synced with origin at the docs-sync commit; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
+| Latest commit | `bbbead2` — docs: Phase 8 sync (feature commits `b66d381` backend + `ff85028` FE beneath it) |
+| Latest verified CI | run **`35989150031`** — ✓ 4/4 on `bbbead2` (Backend · Frontend · Docs-sync · Compose smoke, 2026-09-24) |
+| Working tree | Clean & synced with origin at `bbbead2`; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
 | Test baseline | backend pytest **282 passed**; frontend lint/typecheck/vitest **40**/build/bundle-budgets green; ruff+format clean; import-linter 2 kept/0 broken; `makemigrations --check` clean |
 | Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 8 record has the as-built details + deferred list) |
 
