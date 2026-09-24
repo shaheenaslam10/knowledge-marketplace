@@ -37,7 +37,7 @@ Do not start:       Phase 12 (production deployment), Stripe activation (credent
 | Next phase | **Phase 11 — Security, Testing & Performance** (scope below) |
 | Branch | `arena/01a0cd90-knowledge-marketplace` (all work happens here) |
 | Latest commit | Phase 10 completion commit (roadmap record + this handoff); feature chain `dfefc87` → `a031fe1` → `6e637cb` (backend) → `c2471e6` (FE) → `64f75d9` (docs sync) |
-| Latest verified CI | run on the Phase 10 completion commit (verified on push; prior: `36007194246` ✓ 4/4 on `f0bff4b`) |
+| Latest verified CI | run **`36025183020`** — ✓ 4/4 on `e21a4b5` (Frontend · Docs sync · Backend · Compose smoke; prior: `36007194246` ✓ 4/4 on `f0bff4b`) |
 | Working tree | Clean & synced with origin at the completion commit; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
 | Test baseline | backend pytest **340 passed** (portal 14: staff authz incl. support-vs-admin config writes, KPI math, moderation idempotency, reconciliation detection); frontend lint/typecheck/vitest **68**/build/bundle-budgets green; ruff+format clean; import-linter 3 kept/0 broken; `makemigrations --check` clean; env-docs gate green |
 | Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 10 record has the as-built details + deferred list) |
