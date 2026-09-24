@@ -2,7 +2,7 @@
 
 > **Permanent project rule:** this file is the single continuation document for any new AI agent or developer (Arena, ChatGPT, Gemini, human). It is updated at every phase completion and whenever a plan/architecture/business-rule change is discovered — **before or with** the implementation, never silently. Detailed evidence lives in the linked documents; this file stays a fast, accurate map.
 >
-> Last updated: **2026-09-24 (Phase 7 completion)**
+> Last updated: **2026-09-24 (Phase 8 completion)**
 
 ---
 
@@ -28,14 +28,14 @@ Do not start:       Phase 9 (reviews/disputes/file expansion), Phase 10 (admin/a
 | Field | Value |
 |---|---|
 | Project | Hybrid Expert Marketplace (`knowledge-marketplace`) — three-experience marketplace: open bidding, managed service, one shared order/payment pipeline |
-| Current phase | **Phase 7 — Payments & Commissions ✅ complete** |
-| Next phase | **Phase 8 — Messaging & Notifications** (scope below) |
+| Current phase | **Phase 8 — Messaging & Notifications ✅ complete** |
+| Next phase | **Phase 9 — Files, Reviews & Disputes** (scope below) |
 | Branch | `arena/01a0cd90-knowledge-marketplace` (all work happens here) |
-| Latest commit | `08b7c40` — docs: Phase 7 sync — payments surfaces, ledger model, jobs, roadmap |
-| Latest verified CI | run **`35975718413`** — 4/4 ✓ (Backend · Frontend · Docs-sync · Compose smoke on clean checkout), 2026-09-24 |
-| Working tree | Clean & synced with origin at last verification (`08b7c40`); verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
-| Test baseline | backend pytest **248 passed**; frontend lint/typecheck/vitest **40**/build/bundle-budgets green |
-| Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records) |
+| Latest commit | `ff85028` — Phase 8: FE messaging+notifications UI, unsubscribe endpoint, prune command (feature commits `b66d381` backend, `ff85028` FE; docs-sync commit follows this handoff) |
+| Latest verified CI | run **`35986626495`** — ✓ on `ff85028` (2026-09-24); the docs-sync commit gets its own run — verify with `gh run list --limit 3` on takeover |
+| Working tree | Clean & synced with origin at the docs-sync commit; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
+| Test baseline | backend pytest **282 passed**; frontend lint/typecheck/vitest **40**/build/bundle-budgets green; ruff+format clean; import-linter 2 kept/0 broken; `makemigrations --check` clean |
+| Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 8 record has the as-built details + deferred list) |
 
 ---
 
@@ -52,8 +52,9 @@ Detailed scope, acceptance gates and per-phase records live in `docs/process/roa
 | 3.5 — Design & Product | Three-experience structure, design system + motion + component selection | see roadmap | ADR-0013, ADR-0014 | — |
 | 4 — Marketplace + Open Bidding | ServiceRequest lifecycle (+integrity attestation), opportunities feed, blind offers, **transactional selection → Order**, request files, bundle budget gate | `d8fe925`, `debb945`, `9e46c46` | ADR-0008, ADR-0009, ADR-0015 (domain boundaries, selection, order factory) | — |
 | 5 — Managed Service | Owner triage (Django admin), pool invitations (first-accept-wins), direct assignments, convergence into the SAME Order | `5fbd530`, `55f2417`, `8cf1d31`, `690b231` | ADR-0015, ADR-0010 | — |
-| 6 — Orders & Delivery | One order state machine for all three sources; delivery/revision loop (2 open / 3 managed), 72h auto-approval, cancellation, `/orders` + `/orders/[id]` workspace, OrderEvent timeline | `06808d0`, `9c41416`, `556b5cf`, `3421fc3` | order-lifecycle doc (BR-22..28) | `orders.auto_cancel_overdue` → Phase 9; chat deadline proposal → Phase 8 |
+| 6 — Orders & Delivery | One order state machine for all three sources; delivery/revision loop (2 open / 3 managed), 72h auto-approval, cancellation, `/orders` + `/orders/[id]` workspace, OrderEvent timeline | `06808d0`, `9c41416`, `556b5cf`, `3421fc3` | order-lifecycle doc (BR-22..28) | `orders.auto_cancel_overdue` → Phase 9; chat deadline proposal dropped from Phase 8 scope (backlog) |
 | 7 — Payments & Commissions | Provider-agnostic payment domain: Payment/Refund/Payout/LedgerEntry/WebhookEvent; ONE confirmation path (row-locked, amount-parity, atomic ledger + signal → order activation); webhooks idempotent; earnings/payouts; student payment UX; read-only financial admin | `111972b` (docs-first), `7fed70d`, `b505d1a`, `08b7c40` | **ADR-0005 amendment** (payments lower layer, Stripe = non-functional seam), ADR-0009 | **Stripe deferred until credentials + jurisdiction verification** (checklist in payments.md); refund automation of disputes → Phase 9; provider fee entries reserved for real rails |
+| 8 — Messaging & Notifications | Persistent threads (request/order contexts, live participant derivation), REST + WS on ONE service path, read receipts, chat attachments (message purpose, participant-only downloads), notification funnel across all domain events (q2 task: best-effort realtime push + plain-text email), per-category preferences (account immutable), public one-click unsubscribe, `prune_notifications` command, bell/toasts + `/messages` inbox + thread page + entry points | `b66d381`, `ff85028` | ADR-0003 held (InMemory layer, no Redis); ADR-0011 email adapter implemented (`EMAIL_BACKEND_MODE`) | **Deferred:** `request_new_matching` fan-out + daily digest, per-message report button + policy banner + dispute threads (Phase 9 moderation), chat deadline proposal (dropped), order-group WS hints |
 
 **Major plan changes so far** (all documented before/with implementation): django-tasks → django-q2 (ADR-0002 amendment); payments layering inversion via domain signal (ADR-0005 amendment); no PaymentAttempt/Transaction tables; ledger identity formalized; payout settlement manual-by-design; Stripe explicitly not production-ready until the checklist in `docs/workflows/payments.md` is verified.
 
@@ -69,7 +70,7 @@ Authoritative details live in `docs/architecture/*` — this is the map only.
 | Backend | **One Django + DRF modular monolith**; domain apps with acyclic imports (import-linter in CI); business logic only in `services.py` (views/serializers/tasks/admin are thin); uniform error envelope | ADR-0001, `docs/architecture/backend.md` |
 | Database | **PostgreSQL source of truth**; BigInteger minor-unit money (ADR-0009); UUID public ids (ADR-0008); migrations are append-only history | `docs/architecture/database.md` |
 | Background jobs | **django-q2 + ORM broker on PostgreSQL** (no Redis/Celery); idempotent tasks = thin wrappers over services; schedules are ops setup via admin; shipped jobs: assignments expiry, orders auto-approve/unpaid-sweeper/deadline-reminder, payments payout-sweeper/ledger-check | ADR-0002, `docs/architecture/background-jobs.md` |
-| Realtime | Channels on the single ASGI process, `InMemoryChannelLayer`, origin-validated WS handshake, JWT-cookie auth; only `PingConsumer` ships so far (real consumers = Phase 8); WS is a **refetch hint, never source of truth** | ADR-0003, `docs/architecture/realtime.md` |
+| Realtime | Channels on the single ASGI process, `InMemoryChannelLayer`, origin-validated WS handshake, JWT-cookie auth; `ThreadConsumer` + `NotificationConsumer` live since Phase 8 (WS = **refetch hint, never source of truth**; offline = REST send + refetch-on-focus/reconnect + poll) | ADR-0003, `docs/architecture/realtime.md` |
 | Payments | **Provider-agnostic** `PaymentGateway` registry via `PAYMENT_GATEWAY` env; **ManualGateway active** (dev/test + operator-confirmed fallback, simulated webhooks HMAC-signed); **StripeGateway = registered non-functional seam, no SDK dependency**; ledger = financial source of truth (identity `charge + refund == commission + expert_credit + fee`) | ADR-0005 (+ Phase 7 amendment), `docs/workflows/payments.md` |
 | Storage | Local disk in dev → Cloudflare R2 in prod (presigned, permission-checked); delivery/order_attachment purposes private, participant-traversal access | ADR-0006, `docs/architecture/files-storage.md`, `docs/workflows/files.md` |
 | Authentication | Email+password, JWT access/refresh in httpOnly cookies, rotation + reuse detection, per-request `is_active` check, custom-header CSRF, Argon2id | ADR-0004, `docs/architecture/authentication.md` |
@@ -94,55 +95,53 @@ Authoritative details live in `docs/architecture/*` — this is the map only.
 | Financial records append-only; admin read-only; money changes only via audited services | BR-32/33 | payments.md, `docs/architecture/security.md` |
 | Expert access requires application + admin approval; suspended experts excluded | product rule | ADR-0012 |
 | Academic-integrity rules BR-10..14 authoritative | owner mandate | `docs/product/business-rules.md` |
-| On-platform communication + report-driven moderation (BR-34/35) | Phase 8 must implement these, not skip them | `docs/product/business-rules.md` |
+| On-platform communication + report-driven moderation (BR-34/35) | BR-34 participant-only chat shipped in Phase 8; report button/policy banner + dispute linkage land in Phase 9 (recorded as deferred, not skipped) | `docs/product/business-rules.md` |
 | Docs-as-source-of-truth; Discover → Document → Implement → Test → Update handoff → Commit → Push | process rule | `docs/process/development-workflow.md`, this file |
 
 ---
 
 ## NEXT PHASE
 
-### Phase 8 — Messaging & Notifications
+### Phase 9 — Files, Reviews & Disputes
 
-**Goal.** Make the marketplace communicative and self-explaining: persistent per-context chat threads (request ↔ order lifecycle), realtime delivery over the existing Channels foundation with a database-backed fallback so nothing is lost when WebSockets are unavailable, read/unread receipts, a notification center with per-category preferences, and asynchronous fan-out (in-app + email) through django-q2 — replacing the current ad-hoc order-email hooks. All server-authorized, all Postgres-persisted, **no Redis** (in-memory channel layer, single ASGI process).
+**Goal.** Close the trust loop: secure file exchange for order work (R2 presigned downloads), the review/reputation system (student→expert reviews, expert reply, weighted public rating), and the dispute lifecycle with admin resolution executed through the existing refund/ledger machinery (BR-36..42) — plus the moderation hooks Phase 8 explicitly deferred (per-message report button, on-platform policy banner, dispute-context threads).
 
 **Starting point (what exists).**
-- ASGI/Channels foundation: `config/asgi.py` routing + origin validation + cookie auth; `apps/core/consumers.py` has only `PingConsumer` (`/ws/ping/`) as the plumbing proof — real consumers must follow its rules (authenticate on connect, authorize per group, delegate ALL business logic to services, no ORM writes in consumers).
-- Notification seams to replace/absorb: `apps/orders/tasks.py` (`send_order_event_email` + `COPY` map, invoked via `orders.services._notify` → django-q2 `async_task`), `apps/assignments/tasks.py` + `apps/bidding/tasks.py` email hooks, `apps/accounts` verification/reset emails (keep these email-only categories).
-- Email adapter seam (ADR-0011, console backend active): `EMAIL_BACKEND_MODE` env wiring is documented as a Phase 8 deliverable.
-- UI entry points to hook: request page, offer cards, `/orders/[id]` workspace (chat surface), app shell (`SiteHeader`) for the notification bell.
+- Files app (`apps/files`): local-disk storage, upload-first purposes incl. `message` (Phase 8) and `delivery` (Phase 6), `grant_download` sidecar traversals, signed 5-min streaming tokens (`issue_download_token`/`resolve_download_token`), admin-audited credential views. R2 adapter = a storage-backend swap behind `FILE_STORAGE` (`docs/architecture/files-storage.md`), NOT a re-architecture.
+- Refunds exist (Phase 7): staff full/partial with proportional commission reversal + ledger entries; dispute outcomes must reuse `payments.refund` (BR-41) — no new money path.
+- Messaging (`apps/messaging`): `context_type="dispute"` is reserved in the schema; participants derive from live context rows — dispute threads slot in as a third context; `admin_view_thread` (BR-35, audited) is ready for dispute linkage.
+- Notification funnel: add `dispute_opened`/`dispute_resolved`/`review_new`/`review_reply` types + the deferred `request_new_matching` emission decision (emit plainly or keep deferred — record the decision).
+- Reviews data: `Review` model planned in `docs/architecture/database.md` (order 1-1, rating 1-5 + sub-scores, expert reply, published|hidden); expert rating aggregation feeds the public directory (`experts.rating_avg` already queried).
 
 **First tasks (ordered checklist).**
-1. Backend `apps/messaging`: models `Thread` (context `request|order|dispute` + FK, one thread per context, created lazily), `Message` (sender, body ≤5000 plain text, optional attachment via `apps.files`, soft-hide flag), `MessageReceipt` (per-participant `read_at`); migration; add `apps.messaging` + `apps.notifications` to `LOCAL_APPS` and to the import-linter layers (see `backend/pyproject.toml`) at the correct height.
-2. `apps/messaging/services.py`: thread get-or-create per context, send (participant guard + context-open guard — cancelled/expired contexts read-only, BR-34 banner data), inbox list, mark-read (throttle-tolerant), admin-view-with-audit only for open dispute/report (BR-35).
-3. REST API: `GET /me/threads`, `GET /me/threads/{id}/messages`, `POST /me/threads/{id}/messages` (same service the WS consumer calls — one business path).
-4. Consumers: `messaging/consumers.py` (`thread_{id}` group: message.new broadcast + typing indicator ephemeral) and `notifications/consumers.py` (`user_{id}` group: notification.push) on the Phase 1 pattern.
-5. Backend `apps/notifications`: `Notification` rows (source of truth) + `NotificationPreference` (user × category, in_app always on, email toggleable, tokenized unsubscribe); `notifications.deliver` django-q2 task (push to `user_{id}` + email unless opted out, email task itself queued with retries).
-6. Wire the catalog entries that exist today (`request_new_offer`, `offer_accepted`, `invitation_new`, `assignment_new`, `order_*` family, `message_new`) by replacing `orders.services._notify`'s direct email task with the notification service; keep `accounts` auth emails email-only.
-7. Frontend: `/messages` inbox + thread page (WS client with refetch-on-reconnect/focus fallback and optimistic send), notification bell + toasts in the app shell (reduced-motion-safe per motion-system.md), entry points on request/order pages.
-8. Tests: participant-only connect **and** send, cross-account 403s, read receipts/unread counts, offline DB fallback (WS down ⇒ message persisted + notification row exists), fan-out idempotency (django-q2 sync mode), preferences honored, read-only contexts, BR-35 admin view audit, frontend component tests.
-9. Docs sync in the same phase: messaging.md, notifications.md, realtime.md, background-jobs.md, environments.md (email vars), api.md, database.md, roadmap completion record — and **update PROJECT-HANDOFF.md** (protocol below).
+1. Docs-first: update `docs/workflows/disputes.md` + `docs/workflows/files.md` (+ reviews spec in `docs/workflows/` — currently only business rules BR-37..39) to as-built intent; then implement.
+2. R2 storage adapter: `django-storages` boto3 behind `FILE_STORAGE=r2`, presigned-GET download URLs through the existing token grant (env vars already documented: `R2_BUCKET`/`R2_ACCOUNT_ID`/`R2_ACCESS_KEY`/`R2_SECRET_KEY`/`R2_REGION`); local storage stays the default and dev reality.
+3. Reviews: model + migration, "leave a review" surface on completed orders (student-only), expert reply-once, weighted public rating (BR-39) on profile/offers, hide-appeal via moderation flag; aggregates tested.
+4. Disputes: `Dispute` model per database.md, open (BR-40 window + payout freeze hook into `payments` payout scheduling), dispute thread context (`messaging`), evidence files (`dispute_evidence` purpose), admin resolution action executing full/partial/release/split through the Phase 7 refund/ledger services (BR-41), notifications on open/resolve.
+5. Moderation (BR-34/35): per-message report button + `admin_view_thread` linkage to an open report/dispute; on-platform policy banner in the thread UI; admin report queue lands in Phase 10 — Phase 9 ships the data + audited view.
+6. Backlog absorbed this phase (decide + record): `orders.auto_cancel_overdue` job, `files` retention cleanup, chat `extend-deadline` (implement or explicitly push to Phase 10 — record the decision in roadmap).
+7. Tests: cross-account file access denied (P9 gate), review aggregates correctness, dispute→partial refund→ledger identity (P9 gate), payout freeze/unfreeze on dispute open/resolve, dispute-window enforcement, report→audit linkage.
+8. Docs sync + handoff update in the same phase (protocol below).
 
 **Required files/docs to read first.**
-- `docs/process/PROJECT-HANDOFF.md` (this file) + `docs/process/roadmap-phases.md` (Phase 8 row, Phase 5–7 records)
-- `docs/workflows/messaging.md` (Thread/Message/MessageReceipt model, surfaces, BR-34/35 rules)
-- `docs/workflows/notifications.md` (catalog, preference model, fan-out design)
-- `docs/architecture/realtime.md` (consumers, groups `thread_{id}`/`user_{id}`, fallback doctrine)
-- `docs/architecture/background-jobs.md` + ADR-0002 (django-q2 rules), ADR-0003 + `backend/apps/core/consumers.py` + `config/asgi.py` (WS foundation)
-- `docs/product/business-rules.md` (BR-34, BR-35), `docs/design/design-system.md` + `docs/design/motion-system.md` (UI rules)
-- `backend/pyproject.toml` (import-linter layers — new apps must be inserted correctly)
+- `docs/process/PROJECT-HANDOFF.md` (this file) + `docs/process/roadmap-phases.md` (Phase 9 row, Phase 8 record + its deferred list)
+- `docs/workflows/disputes.md`, `docs/workflows/files.md`, `docs/architecture/files-storage.md` (ADR-0006), `docs/workflows/payments.md` (refund paths)
+- `docs/product/business-rules.md` (BR-36..43), `docs/architecture/database.md` (planned `Review`/`Dispute` schemas)
+- `docs/workflows/messaging.md` (dispute thread context, `admin_view_thread`) + `docs/architecture/background-jobs.md` (job seams)
+- `backend/pyproject.toml` (import-linter layers — files stays low; reviews/disputes apps slot above orders/payments)
 
-**Dependencies.** Auth/JWT cookies (Phase 2), files app for chat attachments (Phase 3, purpose rules in files.md), request/offer/order/assignment surfaces (Phases 4–6), django-q2 worker (Phase 1), Channels foundation (Phase 1).
+**Dependencies.** Orders & delivery (Phase 6), payments refunds/ledger/payouts (Phase 7), files grant/token plumbing (Phase 3/6/8), messaging dispute context (Phase 8).
 
 **Do not implement yet.**
-- Dispute threads/resolution, review system, file-access expansion (`secure downloads`), refund automation → **Phase 9**
-- Admin dashboards/moderation queues/audit viewer polish → **Phase 10**
-- Full E2E/hardening pack, CSP hardening → **Phase 11**
-- Stripe adapter implementation (needs credentials + verified checklist), provider fees, payout provider integration → blocked until owner verification
-- Redis channel layer (settings-only scale-out, not now), group chats, E2E encryption, message search (messaging.md non-goals)
+- Admin dashboards/KPIs/moderation queues/audit viewer/config UI/reconciliation views → **Phase 10**
+- Authorization-matrix suite, CSP/security headers, dependency audit, E2E pack, perf budgets → **Phase 11**
+- Production deploy (staging→prod, backups drill, monitoring, legal) → **Phase 12**
+- Stripe activation (needs credentials + verified checklist in payments.md), provider fees, payout provider integration → blocked until owner verification
+- Redis channel layer, message search, E2E encryption, group chats (non-goals)
 
-**Acceptance criteria.** Roadmap Phase 8 row + the standard gates: backend pytest all green (incl. new messaging/notifications suites), FE lint/typecheck/vitest/build green, bundle budgets respected, ruff/format/lint-imports green, `makemigrations --check` clean, env-docs gate green, CI 4/4 on a clean checkout, docs + this handoff updated in the same phase.
+**Acceptance criteria.** Roadmap Phase 9 row + the standard gates: backend pytest all green (incl. new reviews/disputes/files-access suites), FE lint/typecheck/vitest/build green, bundle budgets respected, ruff/format/lint-imports green, `makemigrations --check` clean, env-docs gate green, CI 4/4 on a clean checkout, docs + this handoff updated in the same phase.
 
-**Expected GitHub workflow.** Work on `arena/01a0cd90-knowledge-marketplace` only; logical commits (backend messaging → notifications → frontend → docs); run the full suite + docs gates before every push; push and watch CI; update `PROJECT-HANDOFF.md` + roadmap in the completion commit; report hashes and CI run.
+**Expected GitHub workflow.** Work on `arena/01a0cd90-knowledge-marketplace` only; logical commits (docs-first → backend files/reviews/disputes → frontend → docs sync); run the full suite + docs gates before every push; push and watch CI; update `PROJECT-HANDOFF.md` + roadmap in the completion commit; report hashes and CI run.
 
 ---
 

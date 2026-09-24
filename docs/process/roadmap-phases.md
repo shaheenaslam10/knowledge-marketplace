@@ -1,6 +1,6 @@
 # Development Phases, Dependencies & Acceptance Criteria
 
-> Status: **Phase 7 ✅ complete · Next: Phase 8 (Messaging & Notifications)** · Last updated: Phase 7 completion
+> Status: **Phase 8 ✅ complete · Next: Phase 9 (Files, Reviews & Disputes)** · Last updated: Phase 8 completion
 > **Single source of truth.** The table below reflects what the system actually contains after each phase. Renumbered at Phase 5 kickoff (owner direction): the marketplace foundation (requests + open bidding + selection + order creation) shipped together in Phase 4, so the former "Bidding & Selection" phase no longer exists and later phases shifted down one. Per-phase completion records live at the bottom of this file.
 
 ## Phase overview
@@ -16,7 +16,7 @@
 | 5 | Managed Service + Owner Assignment | 4 | ✅ owner triage (approve/reject), pool invitations (first-accept wins), direct assignments, quote/price guidance, expert accept/decline, **convergence into the same Order** (`source=managed_pool|managed_direct`) |
 | 6 | Orders & Delivery | 5 | delivery/revision/approve/auto-approve/cancel flows, order workspaces (FE), timers, order timeline |
 | 7 | Payments & Commissions | 6 | Stripe Connect adapter (+manual), PaymentIntent flow, webhooks+idempotency, ledger, refunds, payout sweeper, earnings UI |
-| 8 | Messaging & Notifications | 5 | threads+WS realtime, read receipts, notification center+preferences+digests, realtime toasts |
+| 8 | Messaging & Notifications | 5 | ✅ threads+WS realtime (optimistic send, offline REST fallback), read receipts, notification center + preferences, realtime toasts, email funnel, unsubscribe, prune; digest deferred (see record) |
 | 9 | Files, Reviews & Disputes | 6,7 | secure downloads (R2 presigned), review flows+aggregates, dispute lifecycle+resolution execution |
 | 10 | Admin & Analytics | 5–9 | admin dashboards/KPIs, moderation queues, audit viewer, config UI, reconciliation views, seed polish |
 | 11 | Security, Testing & Performance | all | authorization matrix test suite, CSP/headers, dependency audit, E2E pack, perf budgets, checklist gate |
@@ -33,7 +33,7 @@ Notes on ordering: payments after orders (an order must exist to pay for); messa
 - **P5:** managed-flow E2E: submit→triage(approve pool / direct assign)→accept→order with correct `Order.source`; first-accept-wins race test; ineligible-expert rejections.
 - **P6:** delivery/revision/approve loops tested incl. auto-approve timer; order workspace live for both roles.
 - **P7:** webhook idempotency tests; ledger balance invariant test; refund+partial refund paths; payout scheduling incl. minimums; expert earnings math verified against commission snapshots.
-- **P8:** two-browser chat demo; offline email fallback; preference toggles honored.
+- **P8 (done):** live chat demo verified (two concurrent WS sessions: message broadcast + typing + read); offline path = REST send + refetch-on-focus/reconnect; email fallback via django-q2; preference toggles honored (account immutable); unsubscribe + prune verified.
 - **P9:** cross-account file access denied (tested); review aggregates correct; dispute→partial refund→ledger verified.
 - **P10:** owner can operate a full day (vet, triage, resolve, reconcile) from admin alone.
 - **P11:** security checklist (docs/architecture/security.md) signed off; coverage gates met.
@@ -239,3 +239,26 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 | Admin | Payment/Refund/Payout/LedgerEntry/WebhookEvent read-only; audited service actions: confirm, full-refund, settle, fail, redeliver |
 | Security | server-side amounts only; ownership + staff gates; signature-verified ingestion; no card data fields; no secrets in responses/logs |
 | Tests | +47 backend (248 total): the full acceptance matrix incl. wrong amount/order, cancelled-order confirmation, duplicate charge/confirm/settle, webhook idempotency/replay/rejection, refund caps/authz, payout floor/races, ledger tamper detection, stripe seam, dev-confirm gating; FE lint/type/test/build/bundle green |
+## Phase 8 — completion record (Messaging & Notifications)
+
+**Status: ✅ complete.** Persistent messaging (Postgres as source of truth) + realtime Channels transport + the notification funnel across all domain events; BR-34 participant-only communication enforced server-side for WS and REST alike.
+
+| Area | What exists |
+|---|---|
+| Threads | `apps/messaging`: `Thread` (context `request|order`, `dispute` reserved) lazy one-per-context; participants derived from LIVE context rows (order student+expert; request owner + offer-holding experts), synced on access; read-only when the context ended (order `cancelled`, request `cancelled|expired` — `thread_read_only`) with history preserved |
+| Messages | ≤5000-char plain text (strip + nonempty check); attachment via files app purpose `message` (5 MB, pdf/png/jpg/jpeg/txt, private, content-sniffed + deduped, string-id accepted for WS); `is_hidden` soft-delete (admin-toggleable) |
+| Read state | `MessageReceipt` UNIQUE(thread,user) `last_read_at` watermark; REST thread GET marks read; inbox cards carry per-thread unread counts |
+| Authorization | participant checks re-derived per request/WS-frame in services (single path); WS close 4401 unauth / 4403 non-participant; BR-35 `admin_view_thread` staff-only + audit `messaging.thread_viewed`; Django admin read-only (+`is_hidden` toggle only) |
+| Realtime | `ThreadConsumer` (`message.send`/`typing`/`read` → same services; `message.new` broadcast with shared payload incl. attachments; `message.error` to sender) + `NotificationConsumer` (group `user_{id}`, `notification.push`); InMemory channel layer, JWT-cookie auth, origin-validated handshake; NO Redis |
+| Fallback | WS = refetch hint only: optimistic send over WS, direct REST send when offline; thread page refetches on (re)connect/focus/visibility/online; notification badge adds a 60s poll — UI correct with zero sockets |
+| Notification center | `Notification` rows (url deep link, context JSONB, read/emailed/pushed timestamps); `/messages` inbox + bell dropdown (unread count, mark-read / mark-all-read); toasts (max 3, auto-dismiss) on push |
+| Funnel | `notify`/`notify_many` single funnel; domain emit points: orders (`_EVENT_COPY` map: paid_activated/delivered/revision/completed/cancelled/deadline_warning), bidding (`request_new_offer`, `offer_accepted`), assignments (`invitation_new`, `assignment_new`), payments (`payment_failed`, `payout_paid`), messaging (`message_new`); `deliver_notification` q2 task idempotent via `pushed_at`/`emailed_at` (realtime push best-effort + plain-text email per category preference) |
+| Preferences | per-category email toggles; `account` category immutable-on (service-enforced); `GET/PUT /me/notification-preferences` |
+| Email seam | `EMAIL_BACKEND_MODE` console/smtp/brevo; `BrevoEmailBackend` (stdlib urllib, raises without key); retries ride django-q2 |
+| Unsubscribe | public `GET /api/v1/unsubscribe?token=…` — signed stateless token (60-day), confirmation page; `account` tokens protected; bad tokens 400 |
+| Pruning | `manage.py prune_notifications [--days 90]` (idempotent; schedule via q2 `Schedule` in prod) |
+| Frontend | `/messages` inbox + `/messages/{id}` thread page (typing indicator, connection pill, attachment upload/download via signed URLs); bell + toasts in the app shell; `MessageThreadButton` entry points on order workspace, request offers, opportunities detail |
+| Deferred (recorded, not silent) | `request_new_matching` fan-out + daily digest (matching loop doesn't emit yet); `payout_scheduled` / `order_auto_approve_warning` emissions; per-message report button + on-platform policy banner (Phase 9 moderation wave); chat deadline proposal (dropped from scope); order-group WS timeline hints |
+| Tests | +34 backend (**282 total**: messaging suite — threads/authz/read-state/WS stack incl. 4401/4403/REST-vs-WS payload parity/chat-file access; notifications suite — funnel idempotency, preferences incl. account immutability, unsubscribe round-trip, prune); FE lint/typecheck/vitest 40/build + bundle budgets green; import-linter layers (messaging top, notifications bottom) 2 kept/0 broken |
+| Verified live | local e2e on seeded dev data: full order cycle → thread open → WS chat (broadcast + typing + read) → notifications rows + bell data → console emails via `qcluster` → unsubscribe flow (200/protected/400) |
+| Key commits | `b66d381` (backend), `ff85028` (FE + unsubscribe + prune) |

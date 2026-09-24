@@ -1,15 +1,44 @@
 # Notifications
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · Related: [realtime](../architecture/realtime.md), [background-jobs](../architecture/background-jobs.md)
+> Status: ✅ Phase 8 · Last updated: Phase 8 completion · Related: [realtime](../architecture/realtime.md), [background-jobs](../architecture/background-jobs.md)
 
-## Design
+## Design (implemented — `apps/notifications`)
 
-- Every notification = one `notifications.Notification` row (in-app inbox record, source of truth).
-- Delivery fan-out happens in a background task (`notifications.deliver`): **realtime** push via channel layer group `user_{id}` (toast/badge if online) + **email** (unless disabled per category preference).
-- Email sending is itself a queued task with retries; provider is a pluggable adapter (Brevo/Gmail SMTP — see [integrations](../operations/integrations.md)).
-- Preferences: `NotificationPreference` per user × category (`in_app` always on, `email` toggleable). Unsubscribe links set email opt-out per category (one-click, tokenized).
+- Every notification = one `notifications.Notification` row (in-app inbox record, source of truth): recipient, `type`, `title`, `body`, `url` (deep link), `context` JSONB, `read_at`, `emailed_at`, `pushed_at`.
+- Single funnel: domain services call `notify(recipient, type, *, title, body, url, context)` (accepts a user or user id). It creates the row and enqueues **one** django-q2 task (`notifications.deliver`); `notify_many` fans out for multi-recipient events.
+- Delivery (`deliver_notification`, idempotent via `pushed_at`/`emailed_at` guards): **realtime** push to channel group `user_{id}` (toast/badge if online — best-effort; an unavailable channel layer never fails delivery) + **plain-text email** unless the category preference is off.
+- Email transport is the pluggable adapter behind `EMAIL_BACKEND_MODE` (`console` in dev, `smtp`, or `brevo` API — see [environments](../architecture/environments.md)); retries ride django-q2 redelivery (`Q_MAX_ATTEMPTS`), not the adapter.
+- Preferences: `NotificationPreference` per user × category (`in_app` always on; only email is toggleable). Categories: `account` (security mail — **email immutable-on**), `marketplace`, `assignments`, `orders`, `messages`, `payments`. API: `GET/PUT /api/v1/me/notification-preferences`; `account` cannot be muted.
+- One-click unsubscribe: signed single-purpose token links (`GET /api/v1/unsubscribe?token=…`, public — the token IS the authorization, 60-day max age; renders a confirmation page). `account` tokens resolve to "protected" and never mute security mail.
+- Retention: `manage.py prune_notifications [--days 90]` deletes rows older than the cutoff (idempotent; schedule via django-q2 `Schedule` in production).
 
-## Catalog (MVP)
+## Realtime client behavior
+
+- One app-wide socket (`/ws/notifications/`, group `user_{id}`) held by the app shell. A `notification.push` frame triggers a **REST refetch** + a toast; the socket is a hint — the badge/list stay correct via refetch-on-focus/visibility/online plus a slow interval poll with no socket at all.
+- Toast queue (max 3, auto-dismiss) with deep link to `url`; bell dropdown = latest 10 with unread count, mark-read / mark-all-read.
+
+## Catalog (delivered in Phase 8 — actual emit points)
+
+| Type | Event | Recipient | Notes |
+|---|---|---|---|
+| `message_new` | chat message sent | other thread participants | preview + thread deep link |
+| `order_paid_activated` | payment confirmed → order active | student + expert | |
+| `order_delivered` | delivery submitted | student | |
+| `order_revision_requested` | revision requested | expert | |
+| `order_approved_completed` | delivery approved | student + expert | |
+| `order_cancelled` | order cancelled | student + expert | |
+| `order_deadline_warning` | deadline reminder job | expert | |
+| `request_new_offer` | offer placed | student | |
+| `offer_accepted` | student selects an offer | expert | |
+| `invitation_new` | pool invitation broadcast | invited expert | |
+| `assignment_new` | direct assignment | expert | |
+| `payment_failed` | charge attempt failed | student | |
+| `payout_paid` | payout settled | expert | |
+| `account_verify_email` / `account_password_reset` | auth flows | user | `account` category — email always on (Phase 2 seams) |
+
+## Catalog backlog (design target — NOT all implemented)
+
+The original MVP catalog below records the full design target. Types **wired in the category map but not yet emitted**: `request_new_matching` (new-matching fan-out + daily digest — the matching loop does not emit it yet), `payout_scheduled`, `order_auto_approve_warning`. All Phase 9+ types (disputes, reviews, refunds beyond the two shipped, admin reports) are unimplemented — treat this backlog as the roadmap of types, not a claim of shipping.
 
 | ID | Event | Recipient | Channels |
 |---|---|---|---|
@@ -44,11 +73,12 @@
 | `payment_failed` | charge failure | student | realtime (retry prompt) |
 | `admin_report_new` | any report | admins | in-app queue |
 
-Digesting: high-frequency events for experts (`request_new_matching`) are **batched into a daily digest email** (preference default: digest) to keep email volume sane.
+Digesting (deferred): the plan to batch high-frequency expert events (`request_new_matching`) into a daily digest email stays a design goal — it activates together with the `request_new_matching` emission (see backlog above). No digest emails exist today.
 
-## Implementation notes
+## Implementation notes (as built)
 
-- Emit points: domain service layers call `notifications.services.notify(recipient, type, context)` — single funnel, no scattered logic.
-- Templates: server-rendered text+HTML (Django templates); i18n-ready (English first).
-- Realtime payload is minimal (id, type, title, url); clients fetch detail on click.
-- Retention: notifications pruned after 90 days (management command); audit-relevant events live in the audit log, not here.
+- Emit points live in domain service layers: `orders` (`_EVENT_COPY` map + `_notify`), `bidding`, `assignments`, `payments`, `messaging` — single funnel, no scattered sends. `send_order_event_email(order_id, event)` remains as a backward-compat shim for tasks queued before deploy.
+- Emails are minimal plain text (title/body + deep-link URL) — HTML templates are later polish, not a Phase 8 deliverable.
+- Realtime payload is minimal (id, type, title, body, url); clients refetch on click.
+- Retention: `manage.py prune_notifications` (default 90 days) — implemented; audit-relevant events live in the audit log, not here.
+- Tests: funnel idempotency (q2 sync mode), `account` immutability, preference API shape, unread counts/read-all, unsubscribe round-trip incl. tampered + protected tokens, prune command.

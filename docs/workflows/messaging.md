@@ -1,34 +1,52 @@
 # Messaging / Chat
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · Related: [realtime](../architecture/realtime.md), [security](../architecture/security.md)
+> Status: ✅ Phase 8 · Last updated: Phase 8 completion · Related: [realtime](../architecture/realtime.md), [security](../architecture/security.md), [files](files.md)
 
-## Model
+## Model (implemented — `apps/messaging`)
 
-- `Thread`: linked to a **request** and/or an **order**; participants = student + expert (+admin when involved). One thread per context (created lazily on first message). `Thread` carries `context_type` (`request` | `order` | `dispute`) + FK.
-- `Message`: sender, body (≤5000 chars, plain text with minimal markdown — linkified, no HTML), optional attachment (via files app), `created_at`, soft-delete (hidden-by-report) flag.
-- `MessageReceipt`: per-participant `read_at` (drives unread counts).
+- `Thread`: linked to a **request** or an **order** (dispute context reserved for Phase 9; FK is `SET_NULL` so history survives context deletion). `context_type` (`request` | `order` | `dispute`) + nullable FK + `last_message_at`. One thread per context, created **lazily** on first use.
+- **Participants are derived from LIVE context rows, not snapshotted**: an order thread's participants are its student + expert; a request thread's are the owner + every expert holding an offer. The `participants` M2M is synced on access — no stale membership when a context changes.
+- `Message`: sender, body (≤ 5000 chars, plain text — stripped, linkified client-side, never HTML), optional attachment (files app, purpose `message`), `created_at`, `is_hidden` soft-delete flag.
+- `MessageReceipt`: unique (thread, user) with `last_read_at` — read state is an epoch watermark; unread counts = messages after it, excluding own.
 
-## Surfaces
+## Surfaces (implemented)
 
-- `/messages` — inbox with threads, unread badges, last message preview.
-- Thread page — realtime via WebSocket `/ws/threads/{id}/`; optimistic send; typing indicator (ephemeral via channel layer, not persisted).
-- Contextual entry points: request page ("Message"), offer card, order workspace (chat tab).
+- `/messages` — inbox cards (counterpart, context label, preview, relative time, unread badge, read-only marker) with focus/visibility refetch.
+- `/messages/{id}` — realtime thread page: WebSocket with **optimistic send** (pending bubble) when the socket is up, **direct REST send** when it is not; typing indicator (ephemeral); connection-state pill ("Live" / "Offline — messages send over REST and sync on reconnect").
+- Entry points: **Message** button on the order workspace, per-offer cards on the request page, and the opportunities (expert) detail page — all call `POST /api/v1/me/threads/open` (lazy create-or-fetch) then route to the thread.
+- Notification bell links to the inbox; `message_new` notifications deep-link to the thread.
 
-## Rules
+## Rules (implemented)
 
-- Participants only (server-enforced on connect **and** send); guests: none.
-- Threading exists at every match stage: pre-order (request context) and during order. After an order is created, the request thread links/redirects to the order thread (context switch notice).
-- Files in chat: same secure file pipeline as everywhere (purpose `message`, smaller quota).
-- **BR-34**: policy banner in thread ("Keep communication and payments on-platform…") + report button per message.
-- Moderation: report-driven. Admin can view a thread only for accounts with an open dispute/report — the view action writes an audit log entry (BR-35). MVP has no proactive content scanning; automated contact-info detection is post-MVP.
-- Blocked/ended contexts: cancelled/expired requests — threads become read-only (history preserved).
+- **Participants only** — server-enforced on WS connect (close 4403) *and* every REST call; services are the single authorization path for both transports. Guests: none (WS close 4401).
+- Thread access re-derives participants from the live context on every request — a user removed from the context loses access immediately.
+- **Ended contexts become read-only** (history preserved, sends rejected with `thread_read_only`): order `cancelled`; request `cancelled|expired`.
+- Files in chat: purpose `message` (pdf/png/jpg/jpeg/txt ≤ 5 MB, private storage, content-sniffed, deduped). Upload-first, then attach by id (string ids accepted over WS). Download authorization = **thread-participant traversal inside the files sidecar** — only users who are participants of a thread whose messages reference the file can fetch a signed URL.
+- Empty messages rejected; attachment-only messages allowed (body may be empty when a file is present).
 
-## Realtime behavior (see realtime doc for infra)
+## REST API (implemented)
 
-- New message → broadcast to thread group; recipients' open thread updates instantly; others get a notification-row update via their personal user group.
-- Offline users get in-app notification + email (per preferences).
-- Delivery/read: single open tab receipt writes are throttled (batched by frontend, debounced 2s).
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/me/threads` | inbox cards with per-thread unread counts |
+| POST | `/api/v1/me/threads/open` | `{context_type, order_id \| request_id}` → thread id (lazy create); participant-checked |
+| GET | `/api/v1/me/threads/{id}` | thread + full message history; **marks the thread read** |
+| POST | `/api/v1/me/threads/{id}/messages` | `{body, attachment_id?}` — REST send/fallback |
+| POST | `/api/v1/me/threads/{id}/read` | explicit read receipt |
+
+## Realtime behavior (see [realtime](../architecture/realtime.md) for infra)
+
+- `message.send` over WS → the consumer calls the **same service** as REST → persisted → `message.new` broadcast (shared wire payload, attachments included) to the thread group. Domain errors return to the sender only (`message.error`).
+- Every message fans out `message_new` notifications to the other participants (preview + thread deep link) through the standard notification funnel — realtime toast if online, email per preferences otherwise.
+- Typing: ephemeral broadcast, never persisted, not echoed to its author.
+- Read receipts: opening the thread (REST GET) marks read; the WS `read` action covers live sessions. UI batches are naturally debounced by the refetch cycle.
+- WS is a **refetch hint, never the source of truth** — the thread page re-fetches via REST on socket (re)connect, window focus, and `online` events; Postgres + REST responses are always authoritative.
+
+## Moderation (BR-34/35)
+
+- `admin_view_thread(thread, admin)` is staff-only and writes an audit row (`messaging.thread_viewed`). Django admin exposes threads/messages read-only, with `is_hidden` the only toggle.
+- Deferred to Phase 9 (disputes/moderation wave): per-message report button and the on-platform policy banner in the thread UI; dispute-context threads (`context_type="dispute"` is reserved in the schema).
 
 ## Non-goals (MVP)
 
-Group chats beyond the two parties, voice/video, E2E encryption (platform moderation access is a deliberate product requirement, audited), message search (Postgres FTS on messages is trivial to add later).
+Group chats beyond the two parties, voice/video, E2E encryption (platform moderation access is a deliberate product requirement, audited), message search (Postgres FTS on messages is trivial to add later), chat-based deadline proposal (removed from the Phase 8 scope during implementation; tracked as backlog with the disputes/moderation work).

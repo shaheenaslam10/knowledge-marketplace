@@ -1,6 +1,6 @@
 # Background Jobs — Database-Backed Queue (no Redis)
 
-> Status: ✅ foundation implemented in Phase 1 · Last updated: Phase 1 · ADR-0002 (amended)
+> Status: ✅ foundation (Phase 1) + orders/payments jobs (Phases 5–7) + notification delivery (Phase 8) · Last updated: Phase 8 completion · ADR-0002 (amended)
 
 ## Choice: `django-q2` with the ORM (PostgreSQL) broker
 
@@ -25,7 +25,7 @@ see ADR-0002 amendment. Revised choice:
 | assignments | expire invitations/assignments | hourly ✅ (Phase 5) | BR-20/21 |
 | orders | auto-approve deliveries (15 min) ✅, unpaid sweeper (hourly) ✅, deadline reminder (hourly) ✅ — Phase 6; overdue flagging ⏳ Phase 9 | BR-23/24/26 |
 | payments | payout sweeper (hourly ✅ Phase 7: schedules only, settlement is an operator/gateway action), ledger balance check (nightly ✅ Phase 7); refund executor + webhook state checker ⏳ with a real provider | BR-30/31 |
-| notifications | email fan-out, digests, prune | on notify/daily (Phase 8) | |
+| notifications | `deliver_notification` (realtime push + email, idempotent) ✅ Phase 8, `prune_notifications` command (90d default) ✅; digests ⏳ with `request_new_matching` emission | on notify / daily | fan-out batches per recipient |
 | files | retention cleanup | daily (Phase 9) | |
 | audit/ledger | nightly ledger balance check | daily ✅ (Phase 7: `payments.ledger_check_task`) | charge + refund = commission + expert_credit + fee |
 

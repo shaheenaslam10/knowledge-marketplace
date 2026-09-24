@@ -76,9 +76,9 @@
 | Variable | Example |
 |---|---|
 | `DEFAULT_FROM_EMAIL` | `no-reply@example.com` |
-| `EMAIL_BACKEND_MODE` | `console` \| `smtp` \| `brevo` — **wired in Phase 8** (console backend is active now) |
-| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP mode (Phase 8) |
-| `BREVO_API_KEY` | Brevo mode (Phase 8) |
+| `EMAIL_BACKEND_MODE` | `console` \| `smtp` \| `brevo` — **implemented (Phase 8)**: adapter at `config/email_backend.py`; Brevo mode raises without `BREVO_API_KEY` (retries ride django-q2) |
+| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | SMTP mode (implemented Phase 8) |
+| `BREVO_API_KEY` | Brevo mode (implemented Phase 8) |
 
 ### Production hardening (read by `config/settings/prod.py`)
 | Variable | Example |

@@ -1,6 +1,6 @@
 # API Architecture
 
-> Status: ✅ Phase 3 (auth, profiles, experts, taxonomy, files) · Last updated: Phase 3
+> Status: ✅ through Phase 8 (auth, profiles, experts, taxonomy, files, requests, offers, managed, orders, payments, messaging, notifications) · Last updated: Phase 8 completion
 
 ## Conventions
 
@@ -88,7 +88,7 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 | POST | `/me/orders/{id}/request-revision` | student | `{note}` required (≥10 chars); pauses auto-approval, +7d due date |
 | POST | `/me/orders/{id}/approve` | student | completes the order (auto-approval does the same after 72h) |
 | POST | `/me/orders/{id}/cancel` | participant | pre-payment: either party w/ reason; post-payment: support only (BR-26..28) |
-| *(deadline proposal/accept)* | via chat thread | student | Phase 8 (messaging) — `extend-deadline` endpoint lands with it |
+| *(deadline proposal/accept)* | via chat thread | student | deferred — dropped from Phase 8 scope (backlog with Phase 9) |
 
 ### Payments — `/api/v1` (Phase 7 shipped)
 | POST | `/me/orders/{id}/pay` | student (owner) | starts payment on the active gateway; amounts from the booked order only |
@@ -98,25 +98,32 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 | POST | `/payments/webhooks/{provider}` | provider (signed) | **public**, signature-verified before storage, event-id idempotent |
 | *(admin confirm/refund/settle)* | via Django admin service actions | staff | manual-rails operator flows (BR-26..28) |
 
-> Payment status also rides on the order detail payload (`payment` block: status, amounts, refunded, failure reason; instructions for students on manual rails). `extend-deadline` remains a Phase 8 (chat) surface.
+> Payment status also rides on the order detail payload (`payment` block: status, amounts, refunded, failure reason; instructions for students on manual rails). `extend-deadline` was dropped from Phase 8 scope (backlog).
 
-### Messaging — `/api/v1/threads` + WS
-| GET | `/threads` | participant | inbox |
-| GET | `/threads/{id}/messages` | participant | paginated history |
-| POST | `/threads/{id}/messages` | participant | REST fallback send |
-| POST | `/threads/{id}/read` | participant | read receipt |
-| WS | `/ws/threads/{id}/` | participant | realtime events |
-| WS | `/ws/notifications/` | authed | personal push |
+### Messaging — `/api/v1/me/threads` + WS — ✅ **implemented (Phase 8)**
+| GET | `/me/threads` | ✅ participant | inbox cards (counterpart, preview, per-thread unread, read-only flag) |
+| POST | `/me/threads/open` | ✅ participant | `{context_type, order_id \| request_id}` → lazy create-or-fetch thread id |
+| GET | `/me/threads/{id}` | ✅ participant | full history; **marks the thread read** |
+| POST | `/me/threads/{id}/messages` | ✅ participant | `{body, attachment_id?}` — REST send / offline fallback |
+| POST | `/me/threads/{id}/read` | ✅ participant | read receipt (watermark) |
+| WS | `/ws/threads/{id}/` | ✅ participant | realtime `message.send`/`typing`/`read`; broadcasts `message.new`; close 4401 unauth / 4403 non-participant |
 
-### Notifications — `/api/v1/notifications`
-| GET | `/notifications` · POST `/{id}/read` · POST `/read-all` · GET/PATCH `/me/notification-preferences` | |
+*Chat-based deadline proposal (`extend-deadline`) was dropped from the Phase 8 scope during implementation — it is backlog, tracked with the Phase 9 disputes/moderation wave.*
+
+### Notifications — `/api/v1/me/notifications` — ✅ **implemented (Phase 8)**
+| GET | `/me/notifications` | ✅ authed | latest 50 + unread count |
+| POST | `/me/notifications/{id}/read` · `/me/notifications/read-all` | ✅ authed | read state |
+| GET/PUT | `/me/notification-preferences` | ✅ authed | per-category email toggle (`account` immutable) |
+| GET | `/unsubscribe?token=…` | 🌐 public | one-click email opt-out (signed token; renders confirmation page) |
+| WS | `/ws/notifications/` | ✅ authed | `notification.push` → client refetch + toast |
+
 
 ### Files — `/api/v1/files` — ✅ **foundation implemented (Phase 3)**
 | POST | `/files` | ✅ authed | multipart upload; purposes `credential` (pdf/png/jpg ≤10 MB, private) + `avatar` (png/jpg/webp ≤2 MB, public); content sniffing, sha256 dedupe |
 | GET | `/files/{id}` | ✅ uploader/staff | metadata |
 | GET | `/files/{id}/download-url` | ✅ authorized | 5-min signed token (R2 presigned arrives with the Phase 9 adapter); staff views of private credentials are audited |
 | GET | `/files/{id}/download?token=` | ✅ signed token / public | local streaming; `Content-Disposition` + `nosniff` |
-Other purposes (`request_brief`, `message`, `delivery`, `dispute_evidence`) land with their phases.
+Other purposes: `request_brief` (Phase 4), `message` (Phase 8 — 5 MB pdf/png/jpg/jpeg/txt, thread-participant download authorization), `delivery` (Phase 6) are live; `dispute_evidence` lands Phase 9.
 
 ### Reviews & disputes — `/api/v1/reviews`, `/api/v1/disputes`
 | POST | `/orders/{id}/review` | student | once, completed |

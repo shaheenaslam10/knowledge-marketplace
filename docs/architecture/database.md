@@ -1,6 +1,6 @@
 # Database / Entity Architecture
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · PostgreSQL 16, Django ORM, single database
+> Status: ✅ schema through Phase 8 · Last updated: Phase 8 completion · PostgreSQL 16, Django ORM, single database
 
 ## Conventions
 
@@ -83,17 +83,18 @@ erDiagram
 - **WebhookEvent**: `provider`; `event_id` unique (replay protection); `type` (normalized `payment.succeeded|payment.failed|refund.succeeded`); `payload` JSONB; `status` (`received|processed|failed`); `error`; `received_at`, `processed_at`. Failed events redeliver from admin against the stored (verified-at-receipt) payload.
 - **PlatformConfig** (in core, singleton row): commission rates, TTLs, limits, quotas (see business-model/business-rules keys), `default_currency`, `price_guidance` JSONB.
 
-### messaging
-- **Thread**: `context_type` (`request|order|dispute`); nullable FKs to each context (UUID + FK where downward); `last_message_at`; `is_locked`.
-- **ThreadParticipant**: thread FK, user FK, `last_read_at`. Unique(thread,user).
-- **Message**: thread FK; sender FK; `body`; `is_hidden`; `hidden_reason`. Index (thread, created_at).
+### messaging (Phase 8 implementation notes)
+- **Thread**: `context_type` (`request|order|dispute` — dispute reserved for Phase 9); nullable FKs to request/order (`SET_NULL` — history survives context deletion); **M2M `participants`** (synced from the live context rows on access — no separate `ThreadParticipant` table); `last_message_at`. One thread per context, lazily created.
+- **Message**: thread FK (`messages`); sender FK; `body` ≤5000 plain text; attachment FK → `files.Attachment` (`SET_NULL`, purpose `message`); `is_hidden` soft-delete; `created_at`. Index (thread, created_at).
+- **MessageReceipt**: UNIQUE (thread, user) with `last_read_at` — read state is a watermark; unread = messages after it excluding own (replaces the planned per-message `read_at` rows).
 
 ### files
-- **Attachment**: `key` (storage path), `original_name`, `content_type`, `size`, `sha256`, `purpose`, `access` (`public|participants|admin_only`), uploader FK, `is_deleted`. Referenced by owner models (requests, deliveries, messages, disputes, profiles) via their own FKs (`delivery.primary_file` etc. or M2M `files`).
+- **Attachment**: `key` (storage path), `original_name`, `content_type`, `size`, `sha256`, `purpose` (`credential|avatar|request_brief|message|delivery`; `dispute_evidence` Phase 9), `access` (`public|private`), uploader FK, `is_deleted`. Referenced by owner models (requests, deliveries, messages, profiles) via their own FKs/M2M; download authorization traverses those relations inside the files sidecar.
 
-### notifications
-- **Notification**: recipient FK; `type`; `title`; `body`; `data` JSONB; `read_at`; `emailed_at`. Index (recipient, read_at, created_at).
-- **NotificationPreference**: user FK; `category`; `email_enabled` bool. Unique(user,category).
+### notifications (Phase 8 implementation notes)
+- **Notification**: recipient FK; `type`; `title`; `body`; `url` (deep link — added vs plan); `context` JSONB (replaces `data`); `read_at`; `emailed_at`; `pushed_at` (idempotent delivery guards). Index (recipient, read_at, created_at).
+- **NotificationPreference**: user FK; `category` (`account|marketplace|assignments|orders|messages|payments`); `email_enabled` bool. Unique(user,category); absent row = default on; `account` is immutable-on at the service layer.
+- Unsubscribe tokens are **stateless signed values** (`django.core.signing`, salt `notifications.unsubscribe`, 60-day max age) — no token table.
 
 ### reviews
 - **Review**: order 1-1; author FK (student); expert user FK; `rating` 1-5 int; `sub_quality/sub_communication/sub_timeliness` nullable; `body`; `status` (`published|hidden`); `expert_reply`; `replied_at`; `edited_at`.

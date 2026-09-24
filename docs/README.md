@@ -1,7 +1,7 @@
 # Documentation — Hybrid Expert Marketplace
 
 > **Working title:** Hybrid Expert Marketplace (repo: `knowledge-marketplace`)
-> **Docs status:** Phase 7 complete (Payments & Commissions) — next: Phase 8 (Messaging & Notifications). Architecture baseline: Phase 0, amended by phase findings (see ADRs).
+> **Docs status:** Phase 8 complete (Messaging & Notifications) — next: Phase 9 (Files, Reviews & Disputes). Architecture baseline: Phase 0, amended by phase findings (see ADRs).
 >
 > **Project continuation / next steps — START HERE:** [`process/PROJECT-HANDOFF.md`](process/PROJECT-HANDOFF.md) — the operational handoff document (current state, locked decisions, next-phase plan). Keep it updated after every phase.
 > **Rule:** Documentation is a first-class deliverable. Every architectural or business-logic change must be reflected here in the same phase it is made. See [process/development-workflow.md](process/development-workflow.md).
