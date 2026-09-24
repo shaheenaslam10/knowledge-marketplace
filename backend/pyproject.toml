@@ -19,6 +19,7 @@ dependencies = [
     "django-cors-headers==4.9.0",
     "channels==4.3.2",
     "daphne==4.2.3",
+    "django-storages[s3]==1.14.6",
     "uvicorn[standard]==0.53.0",
     "psycopg[binary]==3.3.6",
     "django-environ==0.14.0",
@@ -79,6 +80,8 @@ type = "layers"
 # (files/audit) import core only; core imports no domain app.
 layers = [
     "apps.seed",
+    "apps.disputes",
+    "apps.reviews",
     "apps.messaging",
     "apps.bidding",
     "apps.assignments",

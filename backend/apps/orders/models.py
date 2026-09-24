@@ -58,6 +58,7 @@ class Order(TimeStampedModel):
     accepted_at = models.DateTimeField(null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
+    has_open_dispute = models.BooleanField(default=False, db_index=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancelled_by = models.ForeignKey(
@@ -85,6 +86,23 @@ class Order(TimeStampedModel):
 
 def _next_number() -> str:
     return f"ORD-{timezone.now():%Y%m%d}-{uuid.uuid4().hex[:6].upper()}"
+
+
+class DeadlineProposal(TimeStampedModel):
+    """Late-delivery path (order-lifecycle.md): either party proposes a new
+    deadline; the counterpart accepts/declines. One pending proposal per order."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        DECLINED = "declined", "Declined"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="deadline_proposal")
+    proposed_by_id = models.BigIntegerField()
+    proposed_due_at = models.DateTimeField()
+    note = models.CharField(max_length=300, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
 
 
 # Delivery + OrderEvent live in delivery.py (imported here so app loading,

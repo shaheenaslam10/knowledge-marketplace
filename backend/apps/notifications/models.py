@@ -89,6 +89,13 @@ CATEGORY_FOR_TYPE: dict[str, str] = {
     "payment_failed": "payments",
     "payout_scheduled": "payments",
     "payout_paid": "payments",
+    "dispute_opened": "orders",
+    "dispute_resolved": "orders",
+    "review_new": "orders",
+    "review_reply": "orders",
+    "order_overdue_flagged": "orders",
+    "order_deadline_proposed": "orders",
+    "order_deadline_extended": "orders",
     "payout_failed": "payments",
 }
 

@@ -1,0 +1,31 @@
+{% extends "admin/change_form.html" %}
+{% block after_field_sets %}
+<fieldset class="module aligned">
+  <h2>Resolve (BR-41 — executes through payments services)</h2>
+  <div class="flex-container" style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end; padding:8px;">
+    <div>
+      <label for="outcome"><strong>Outcome</strong></label><br/>
+      <select id="outcome" name="outcome" style="min-width:260px;">
+        <option value="refund_student_full">Full refund to student</option>
+        <option value="refund_student_partial">Partial refund to student</option>
+        <option value="release_expert">Release to expert</option>
+        <option value="split">Split student/expert</option>
+        <option value="no_fault_close">No fault — resume order</option>
+      </select>
+    </div>
+    <div>
+      <label for="refund_amount_minor"><strong>Refund amount (minor units, partial/split)</strong></label><br/>
+      <input type="number" id="refund_amount_minor" name="refund_amount_minor" min="0" value="0"/>
+    </div>
+    <div style="flex:1 1 320px;">
+      <label for="resolution_notes"><strong>Resolution notes (≥20 chars, shared with both parties)</strong></label><br/>
+      <textarea id="resolution_notes" name="resolution_notes" rows="3" style="width:100%;"></textarea>
+    </div>
+    <div>
+      <button type="submit" class="button" name="_resolve" value="1">Execute resolution</button>
+    </div>
+  </div>
+  <p class="help" style="padding:0 8px 8px;">Only available while the dispute is <code>under_review</code>. Full/partial/split call <code>payments.issue_refund</code>; release/no-fault just lift the freeze.</p>
+</fieldset>
+{{ adminform.model_admin.dispute_admin_media if False }}
+{% endblock %}

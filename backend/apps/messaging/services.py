@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from django.db import transaction
 from django.utils import timezone
@@ -15,6 +16,9 @@ from apps.accounts.models import User
 from apps.audit.services import log as audit_log
 from apps.core.exceptions import DomainError, PermissionDeniedError
 from apps.messaging.models import Message, MessageReceipt, Thread
+
+if TYPE_CHECKING:
+    from apps.messaging.models import MessageReport
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +41,10 @@ def _context_order(thread: Thread):
 def _context_participants(thread: Thread) -> set[int]:
     """Participant user-ids for the thread's context, resolved from the live
     context rows (never from the M2M snapshot — authorization follows reality)."""
-    if thread.context_type == Thread.Context.ORDER and thread.order is not None:
+    if (
+        thread.context_type in (Thread.Context.ORDER, Thread.Context.DISPUTE)
+        and thread.order is not None
+    ):
         return {thread.order.student_id, thread.order.expert_id}
     if thread.context_type == Thread.Context.REQUEST and thread.request is not None:
         ids = {thread.request.student_id}
@@ -50,6 +57,43 @@ def _assert_participant(user, thread: Thread) -> None:
     ids = _context_participants(thread)
     if user.id not in ids:
         raise PermissionDeniedError("You are not a participant of this conversation.")
+
+
+@transaction.atomic
+def report_message(message: Message, *, actor, reason: str, details: str = "") -> MessageReport:
+    """BR-34: a thread participant reports a message. Idempotent per
+    (message, reporter) while the previous report is still open."""
+    from .models import MessageReport
+
+    _assert_participant(actor, message.thread)
+    if reason not in MessageReport.Reason.values:
+        raise DomainError("Unknown report reason.", code="validation_error")
+    if MessageReport.objects.filter(
+        message=message, reported_by=actor, status=MessageReport.Status.OPEN
+    ).exists():
+        raise DomainError("You already reported this message.", code="duplicate_report")
+    report = MessageReport.objects.create(
+        message=message,
+        reported_by=actor,
+        reason=reason,
+        details=(details or "")[:500],
+    )
+    audit_log(actor, action="messaging.message_reported", obj=message, detail={"reason": reason})
+    return report
+
+
+def thread_has_moderation_grounds(thread: Thread) -> bool:
+    """BR-35: staff thread view is unlocked by an open dispute on the thread's
+    order or an open message report inside the thread. The dispute check rides
+    the denormalized `Order.has_open_dispute` flag (orders is a lower layer;
+    the flag is maintained by the disputes state machine)."""
+    from .models import MessageReport
+
+    if thread.order is not None and thread.order.has_open_dispute:
+        return True
+    return MessageReport.objects.filter(
+        message__thread=thread, status=MessageReport.Status.OPEN
+    ).exists()
 
 
 def _assert_context_open(thread: Thread) -> None:
@@ -102,6 +146,16 @@ def get_or_create_thread(*, context_type: str, context, actor) -> Thread:
         thread, created = Thread.objects.get_or_create(
             context_type=context_type,
             request=context,
+            defaults={"last_message_at": timezone.now()},
+        )
+    elif context_type == Thread.Context.DISPUTE:
+        # context is the disputed ORDER — messaging stays dispute-agnostic
+        participants = {context.student_id, context.expert_id}
+        if actor.id not in participants:
+            raise PermissionDeniedError("You are not a participant of this dispute.")
+        thread, created = Thread.objects.get_or_create(
+            context_type=context_type,
+            order=context,
             defaults={"last_message_at": timezone.now()},
         )
     else:
@@ -262,12 +316,19 @@ def _is_read_only(thread: Thread) -> bool:
 
 
 def admin_view_thread(thread: Thread, *, admin) -> list[Message]:
-    """Admin can view a thread ONLY with justification context (open dispute or
-    report); the view action is always audited. Dispute linkage arrives with
-    Phase 9 — today staff use is limited and every use is logged."""
+    """BR-35: staff thread view ONLY for an open dispute on the thread's order
+    or an open message report inside the thread; every view is audited."""
     if admin is None or not getattr(admin, "is_staff", False):
         raise PermissionDeniedError("Only staff can inspect conversations.")
+    if not thread_has_moderation_grounds(thread):
+        raise PermissionDeniedError(
+            "Thread inspection requires an open dispute or report (BR-35).",
+            code="no_moderation_grounds",
+        )
     audit_log(
-        admin, action="messaging.thread_viewed", obj=thread, detail={"reason": "staff-inspection"}
+        admin,
+        action="messaging.thread_viewed",
+        obj=thread,
+        detail={"reason": "moderation-inspection"},
     )
     return list(thread.messages.select_related("sender").order_by("created_at"))

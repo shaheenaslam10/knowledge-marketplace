@@ -401,6 +401,9 @@ def schedule_payout(order, *, now=None):
         )
     if Payout.objects.filter(order=order).exists():
         return Payout.objects.filter(order=order).first()
+    if order.has_open_dispute:
+        logger.info("payout rolled forward order=%s dispute open (BR-40 freeze)", order.number)
+        return None
     amount = expert_credit_balance(order)
     if amount < PAYOUT_MIN_MINOR:
         logger.info(
@@ -428,6 +431,10 @@ def settle_payout(payout: Payout, *, actor=None) -> Payout:
         Payout.Status.IN_TRANSIT,
     ):
         raise DomainError("Payout is not settleable.", code="invalid_transition")
+    # BR-40 freeze: re-read the order under lock (same lock open_dispute takes)
+    order = type(payout.order).objects.select_for_update().get(pk=payout.order_id)
+    if order.has_open_dispute:
+        raise DomainError("This payout is frozen by an open dispute (BR-40).", code="payout_frozen")
     gateway = get_gateway()
     gateway_ref = gateway.transfer(
         destination_account=f"expert:{payout.expert_id}",
@@ -490,6 +497,7 @@ def payout_sweeper(now=None) -> int:
         Payment.objects.filter(status=Payment.Status.SUCCEEDED, order__status="completed")
         .select_related("order")
         .exclude(order_id__in=Payout.objects.values("order_id"))
+        .exclude(order__has_open_dispute=True)
     )
     for payment in paid_payments:
         if schedule_payout(payment.order) is not None:

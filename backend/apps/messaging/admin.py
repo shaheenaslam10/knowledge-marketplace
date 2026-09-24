@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from apps.messaging.models import Message, MessageReceipt, Thread
+from apps.messaging.models import Message, MessageReceipt, MessageReport, Thread
 
 
 class MessageInline(admin.TabularInline):
@@ -50,3 +50,20 @@ class MessageAdmin(admin.ModelAdmin):
 
 
 admin.site.register(MessageReceipt)
+
+
+@admin.register(MessageReport)
+class MessageReportAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "reason", "status", "created_at")
+    list_filter = ("reason", "status")
+    search_fields = ("details",)
+    readonly_fields = [f.name for f in MessageReport._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

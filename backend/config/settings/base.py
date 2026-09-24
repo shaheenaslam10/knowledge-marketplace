@@ -63,6 +63,8 @@ LOCAL_APPS = [
     "apps.orders",  # Phase 4: order anchor (awaiting_payment only)
     "apps.payments",  # Phase 1: gateway interface only
     "apps.messaging",  # Phase 8: threads, receipts, WS transport
+    "apps.reviews",  # Phase 9: reviews + weighted reputation
+    "apps.disputes",  # Phase 9: dispute lifecycle + payout freeze
     "apps.notifications",  # Phase 8: inbox, preferences, fan-out
     "apps.seed",  # top layer: demo data (accounts cannot import domain apps)
 ]
@@ -143,12 +145,53 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "django-static"
 MEDIA_ROOT = env.str("MEDIA_ROOT", default=str(BASE_DIR.parent / "var" / "media"))
 
-# --- Storage backend (local in dev/CI; R2/S3-compatible in prod from Phase 10) ---
+# --- Storage backend (local default in dev/CI; R2/S3-compatible in staging/prod) ---
+# docs/architecture/files-storage.md: switching is an env change, zero code.
 FILE_STORAGE = env.str("FILE_STORAGE", default="local")
-STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
-}
+R2_PRESIGN_TTL_SECONDS = env.int("R2_PRESIGN_TTL_SECONDS", default=300)
+
+
+def build_storages(settings_module) -> dict:
+    """Storage map by FILE_STORAGE env — local FileSystemStorage (default) or
+    a private R2/S3 bucket via django-storages (presign s3v4, path style)."""
+    storages = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+    if settings_module.FILE_STORAGE == "r2":
+        storages["default"] = {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "bucket_name": settings_module.R2_BUCKET,
+                "endpoint_url": getattr(
+                    settings_module,
+                    "R2_ENDPOINT_URL",
+                    f"https://{settings_module.R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+                ),
+                "access_key": settings_module.R2_ACCESS_KEY,
+                "secret_key": settings_module.R2_SECRET_KEY,
+                "region_name": getattr(settings_module, "R2_REGION", "auto"),
+                "config": {"signature_version": "s3v4", "s3": {"addressing_style": "path"}},
+                "default_acl": "private",
+                "file_overwrite": False,
+            },
+        }
+    return storages
+
+
+class _R2SettingsProbe:
+    """Reads just the storage-related envs for build_storages()."""
+
+    R2_ENDPOINT_URL = env.str("R2_ENDPOINT_URL", default=None)
+    R2_REGION = env.str("R2_REGION", default="auto")
+    FILE_STORAGE = FILE_STORAGE
+    R2_BUCKET = env.str("R2_BUCKET", default="")
+    R2_ACCOUNT_ID = env.str("R2_ACCOUNT_ID", default="")
+    R2_ACCESS_KEY = env.str("R2_ACCESS_KEY", default="")
+    R2_SECRET_KEY = env.str("R2_SECRET_KEY", default="")
+
+
+STORAGES = build_storages(_R2SettingsProbe)
 
 # --- URLs & security ---
 ADMIN_URL = env.str("ADMIN_URL", default="admin/")

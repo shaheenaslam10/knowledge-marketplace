@@ -42,7 +42,9 @@ class MyThreadDetailView(APIView):
                 "id": str(thread.pk),
                 "context_type": thread.context_type,
                 "context_label": (
-                    f"Order {thread.order.number}"
+                    f"Dispute — Order {thread.order.number}"
+                    if (thread.context_type == "dispute" and thread.order)
+                    else f"Order {thread.order.number}"
                     if thread.order
                     else f"Request: {thread.request.title}"
                 ),
@@ -96,7 +98,7 @@ class ThreadContextOpenView(APIView):
         from apps.service_requests.models import ServiceRequest
 
         context_type = str(request.data.get("context_type", ""))
-        if context_type == "order":
+        if context_type in ("order", "dispute"):
             context = Order.objects.filter(pk=request.data.get("order_id")).first()
         elif context_type == "request":
             context = ServiceRequest.objects.filter(pk=request.data.get("request_id")).first()

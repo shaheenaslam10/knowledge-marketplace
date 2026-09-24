@@ -93,3 +93,41 @@ class MessageReceipt(models.Model):
 
     def __str__(self) -> str:
         return f"receipt:{self.thread_id}:{self.user_id}"
+
+
+class MessageReport(TimeStampedModel):
+    """BR-34 report-driven moderation: participant reports an on-platform
+    communication concern. Queue/dashboard = Phase 10; the row + audited
+    staff view is the Phase 9 surface."""
+
+    class Reason(models.TextChoices):
+        OFF_PLATFORM = "off_platform", "Off-platform payment/contact"
+        ABUSE = "abuse", "Abusive language"
+        INTEGRITY = "integrity", "Academic integrity concern"
+        SPAM = "spam", "Spam"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        REVIEWED = "reviewed", "Reviewed"
+        DISMISSED = "dismissed", "Dismissed"
+
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="reports")
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="message_reports"
+    )
+    reason = models.CharField(max_length=20, choices=Reason.choices)
+    details = models.CharField(max_length=500, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.OPEN)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["message", "reported_by"],
+                condition=models.Q(status="open"),
+                name="one_open_report_per_message_per_user",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"report:{self.pk}:msg:{self.message_id}:{self.reason}"

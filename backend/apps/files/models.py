@@ -36,6 +36,7 @@ class Attachment(TimeStampedModel):
         DELIVERY = "delivery", "Order delivery file"
         ORDER_ATTACHMENT = "order_attachment", "Order scope attachment"
         MESSAGE = "message", "Chat attachment"
+        DISPUTE_EVIDENCE = "dispute_evidence", "Dispute evidence"
 
     class Access(models.TextChoices):
         """`private` = uploader + authorized parties only (grant_download gates
@@ -57,6 +58,7 @@ class Attachment(TimeStampedModel):
     content_type = models.CharField(max_length=100)
     size = models.PositiveIntegerField()
     sha256 = models.CharField(max_length=64, db_index=True)
+    legal_hold = models.BooleanField(default=False)  # retention purge skip (files.md)
 
     class Meta:
         indexes = [

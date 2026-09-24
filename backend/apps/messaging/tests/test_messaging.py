@@ -190,14 +190,25 @@ class TestReadState:
 
 class TestModeration:
     def test_admin_view_is_staff_only_and_audited(self, student, admin, order_thread):
-        thread, _, _ = order_thread
+        # BR-35 (Phase 9): staff view requires an open dispute or report ground
+        thread, _order, _expert = order_thread
         with pytest.raises(PermissionDeniedError):
             messaging.admin_view_thread(thread, admin=student)
+        with pytest.raises(PermissionDeniedError, match="dispute or report"):
+            messaging.admin_view_thread(thread, admin=admin)  # no grounds yet
+
+        # an open message report unlocks the audited view
+        message = messaging.send_message(thread, sender=student, body="Flaggable content.")
+        messaging.report_message(message, actor=_expert_for(order_thread), reason="abuse")
         messages = messaging.admin_view_thread(thread, admin=admin)
         assert isinstance(messages, list)
         from apps.audit.models import AuditEvent
 
         assert AuditEvent.objects.filter(action="messaging.thread_viewed").exists()
+
+
+def _expert_for(order_thread):
+    return order_thread[2]
 
 
 # --- WS + REST: one service path, fallback behavior -----------------------------------

@@ -71,6 +71,7 @@ class ServiceRequest(TimeStampedModel):
     currency = models.CharField(max_length=3, default="USD")
     deadline = models.DateField(null=True, blank=True)
     preferred_schedule = models.CharField(max_length=300, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)  # terminal-state stamp (retention)
     status = models.CharField(
         max_length=15, choices=Status.choices, default=Status.DRAFT, db_index=True
     )

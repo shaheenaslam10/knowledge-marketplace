@@ -24,7 +24,7 @@ from apps.audit.services import log as audit_log
 from apps.core.exceptions import DomainError, PermissionDeniedError
 from apps.files.models import Attachment
 from apps.orders.delivery import Delivery, OrderEvent
-from apps.orders.models import Order
+from apps.orders.models import DeadlineProposal, Order
 from apps.payments import services as payments_services
 from apps.service_requests import services as request_services
 
@@ -52,8 +52,12 @@ TRANSITIONS: dict[tuple[str, str], str] = {
     ("revision_requested", "completed"): "approve",
     ("revision_requested", "disputed"): "open_dispute",
     ("revision_requested", "cancelled"): "cancel",
+    ("completed", "disputed"): "open_dispute",  # BR-40: 7-day post-completion window
     ("disputed", "completed"): "resolve_release",  # executed by the Phase 9 resolution service
     ("disputed", "cancelled"): "resolve_refund",
+    ("disputed", "active"): "resolve_no_fault",
+    ("disputed", "delivered"): "resolve_no_fault",
+    ("disputed", "revision_requested"): "resolve_no_fault",
 }
 
 
@@ -62,7 +66,9 @@ def _record_event(order: Order, event_type: str, *, actor=None, **data: Any) -> 
 
 
 @transaction.atomic
-def transition(order: Order, to_status: str, *, actor=None, event_type: str | None = None) -> Order:
+def transition(
+    order: Order, to_status: str, *, actor=None, event_type: str | None = None, **event_data
+) -> Order:
     order = Order.objects.select_for_update().get(pk=order.pk)
     action = TRANSITIONS.get((order.status, to_status))
     if action is None:
@@ -72,7 +78,7 @@ def transition(order: Order, to_status: str, *, actor=None, event_type: str | No
         )
     order.status = to_status
     order.save(update_fields=["status", "updated_at"])
-    _record_event(order, event_type or to_status, actor=actor)
+    _record_event(order, event_type or to_status, actor=actor, **event_data)
     audit_log(actor, action=f"order.{action}", obj=order, detail={"to": to_status})
     return order
 
@@ -91,6 +97,10 @@ _EVENT_COPY = {
     "completed": (("both",), "order_approved_completed", "Order completed"),
     "cancelled": (("both",), "order_cancelled", "Order cancelled"),
     "deadline_reminder": (("expert",), "order_deadline_warning", "Delivery due within 24 hours"),
+    "dispute_opened": (("both",), "dispute_opened", "A dispute was opened on your order"),
+    "dispute_resolved": (("both",), "dispute_resolved", "The dispute on your order was resolved"),
+    "overdue_flagged": (("both",), "order_overdue_flagged", "This order is past its deadline"),
+    "deadline_extended": (("both",), "order_deadline_extended", "The order deadline was extended"),
 }
 
 
@@ -427,3 +437,113 @@ def deadline_reminder(now: datetime | None = None) -> int:
         _notify(order, "deadline_reminder", extra_email=order.expert_id)
         reminded += 1
     return reminded
+
+
+# --- deadline proposals + overdue flagging (order-lifecycle.md, Phase 9) ----------
+
+
+@transaction.atomic
+def propose_deadline(order, *, actor, proposed_due_at, note: str = "") -> DeadlineProposal:
+    """Either participant proposes a new delivery deadline (BR-26 late path)."""
+    from django.utils import timezone as tz
+
+    order = Order.objects.select_for_update().get(pk=order.pk)
+    if actor.id not in (order.student_id, order.expert_id):
+        raise PermissionDeniedError("Only the order's participants can propose deadlines.")
+    if order.status not in ("active", "delivered", "revision_requested"):
+        raise DomainError(
+            "Deadlines can be proposed only while work is in progress.", code="invalid_transition"
+        )
+    if DeadlineProposal.objects.filter(
+        order=order, status=DeadlineProposal.Status.PENDING
+    ).exists():
+        raise DomainError("A proposal is already pending on this order.", code="duplicate_proposal")
+    if tz.is_naive(proposed_due_at):
+        proposed_due_at = tz.make_aware(proposed_due_at)
+    if proposed_due_at <= tz.now():
+        raise DomainError("The proposed deadline must be in the future.", code="validation_error")
+    proposal = DeadlineProposal.objects.create(
+        order=order,
+        proposed_by_id=actor.id,
+        proposed_due_at=proposed_due_at,
+        note=(note or "")[:300],
+    )
+    _record_event(
+        order,
+        "deadline_proposed",
+        actor=actor,
+        proposal_id=str(proposal.pk),
+        proposed_due_at=proposed_due_at.isoformat(),
+    )
+    audit_log(
+        actor, action="order.deadline_proposed", obj=order, detail={"proposal": str(proposal.pk)}
+    )
+    counterpart = order.expert_id if actor.id == order.student_id else order.student_id
+    from apps.notifications.services import notify
+
+    notify(
+        counterpart,
+        "order_deadline_proposed",
+        title="A new delivery deadline was proposed",
+        body=(note or "Review the proposal on the order page.")[:120],
+        url=f"/orders/{order.pk}",
+        context={"proposal_id": str(proposal.pk)},
+    )
+    return proposal
+
+
+@transaction.atomic
+def respond_deadline_proposal(order, *, actor, accept: bool) -> DeadlineProposal:
+    """Counterpart accepts/declines the pending proposal; acceptance extends
+    delivery_due_at (audit-recorded, order-lifecycle.md)."""
+    order = Order.objects.select_for_update().get(pk=order.pk)
+    if actor.id not in (order.student_id, order.expert_id):
+        raise PermissionDeniedError("Only the order's participants can respond to proposals.")
+    proposal = DeadlineProposal.objects.filter(
+        order=order, status=DeadlineProposal.Status.PENDING
+    ).first()
+    if proposal is None:
+        raise DomainError("No pending deadline proposal on this order.", code="not_found")
+    if proposal.proposed_by_id == actor.id:
+        proposal.status = DeadlineProposal.Status.WITHDRAWN
+        proposal.save(update_fields=["status", "updated_at"])
+        return proposal
+    proposal.status = (
+        DeadlineProposal.Status.ACCEPTED if accept else DeadlineProposal.Status.DECLINED
+    )
+    proposal.save(update_fields=["status", "updated_at"])
+    if accept:
+        order.delivery_due_at = proposal.proposed_due_at
+        order.save(update_fields=["delivery_due_at", "updated_at"])
+        _record_event(
+            order,
+            "deadline_extended",
+            actor=actor,
+            proposal_id=str(proposal.pk),
+            due_at=proposal.proposed_due_at.isoformat(),
+        )
+        audit_log(actor, action="order.deadline_extended", obj=order)
+    return proposal
+
+
+OVERDUE_FLAG_GRACE_HOURS = 24  # order-lifecycle.md jobs table (BR-26)
+
+
+def flag_overdue(now=None) -> int:
+    """Daily job: flag orders whose delivery deadline passed >24h ago without a
+    delivery, once (deduped by the persisted overdue_flagged event)."""
+    from django.utils import timezone as tz
+
+    now = now or tz.now()
+    cutoff = now - timedelta(hours=OVERDUE_FLAG_GRACE_HOURS)
+    flagged = 0
+    overdue = Order.objects.filter(
+        status__in=["active", "revision_requested"],
+        delivery_due_at__lt=cutoff,
+    ).exclude(events__event_type="overdue_flagged")
+    for order in overdue:
+        _record_event(order, "overdue_flagged")
+        audit_log(None, action="order.overdue_flagged", obj=order)
+        _notify(order, "overdue_flagged")
+        flagged += 1
+    return flagged

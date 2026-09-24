@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import uuid as uuid_lib
 from dataclasses import dataclass
 
+from django.conf import settings
 from django.core import signing
 from django.core.files.base import File
 from django.db import transaction
@@ -74,6 +76,16 @@ PURPOSE_RULES: dict[str, PurposeRule] = {
             (b"", "text/plain"),
         ),
         access=Attachment.Access.PRIVATE,  # thread participants granted via grant_download
+    ),
+    Attachment.Purpose.DISPUTE_EVIDENCE: PurposeRule(
+        max_bytes=10 * MB,
+        extensions=frozenset({"pdf", "png", "jpg", "jpeg"}),
+        magic=(
+            (b"%PDF", "application/pdf"),
+            (b"\x89PNG\r\n\x1a\n", "image/png"),
+            (b"\xff\xd8\xff", "image/jpeg"),
+        ),
+        access=Attachment.Access.PRIVATE,  # dispute participants via grant_download
     ),
     Attachment.Purpose.DELIVERY: PurposeRule(
         max_bytes=25 * MB,
@@ -205,6 +217,12 @@ def grant_download(user, attachment: Attachment) -> bool:
     # reference the file may download it (traversal stays inside the sidecar).
     if attachment.purpose == Attachment.Purpose.MESSAGE:
         return attachment.chat_messages.filter(thread__participants=user).exists()
+    # Dispute evidence (Phase 9): the disputed order's student + expert.
+    if attachment.purpose == Attachment.Purpose.DISPUTE_EVIDENCE:
+        return (
+            attachment.dispute_evidence.filter(order__student_id=user.pk).exists()
+            or attachment.dispute_evidence.filter(order__expert_id=user.pk).exists()
+        )
     # Request briefs: the selected (accepted) expert keeps participant access;
     # browsing experts see metadata only — no signed URLs (docs/workflows/files.md).
     if attachment.purpose == Attachment.Purpose.REQUEST_BRIEF:
@@ -229,9 +247,42 @@ def issue_download_token(attachment: Attachment) -> str:
     return signing.dumps({"aid": str(attachment.id)}, salt=DOWNLOAD_SALT)
 
 
+def _setting_or_env(name: str, default: str | None = None) -> str:
+    value = getattr(settings, name, None) or os.environ.get(name) or default
+    if value is None:
+        from apps.core.exceptions import DomainError
+
+        raise DomainError("Object storage is not configured.", code="storage_misconfigured")
+    return value
+
+
+def _r2_presigned_get(attachment: Attachment) -> str:
+    """5-minute presigned GET for FILE_STORAGE=r2 (files-storage.md). Built from
+    the same settings/envs as the storage backend; grant_download already ran."""
+    import boto3
+
+    account = _setting_or_env("R2_ACCOUNT_ID")
+    endpoint = _setting_or_env("R2_ENDPOINT_URL", f"https://{account}.r2.cloudflarestorage.com")
+    client = boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=_setting_or_env("R2_ACCESS_KEY"),
+        aws_secret_access_key=_setting_or_env("R2_SECRET_KEY"),
+        region_name=_setting_or_env("R2_REGION", "auto"),
+    )
+    return client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": _setting_or_env("R2_BUCKET"), "Key": attachment.file.name},
+        ExpiresIn=getattr(settings, "R2_PRESIGN_TTL_SECONDS", 300),
+    )
+
+
 def download_url(request, attachment: Attachment) -> str:
-    """Local/dev streaming URL with a 5-minute signed token (R2 presigned URLs
-    arrive with the storage adapter in Phase 10 — same caller contract)."""
+    """R2: presigned GET (transport only — grant_download already authorized).
+    Local/dev: streaming URL with a 5-minute signed token. Same caller contract."""
+
+    if getattr(settings, "FILE_STORAGE", "local") == "r2":
+        return _r2_presigned_get(attachment)
     token = issue_download_token(attachment)
     path = f"/api/v1/files/{attachment.id}/download"
     return request.build_absolute_uri(f"{path}?token={token}")
@@ -245,3 +296,61 @@ def resolve_download_token(attachment_id: str, token: str | None) -> None:
             raise signing.BadSignature
     except signing.BadSignature:
         raise PermissionDeniedError("This download link is invalid or has expired.") from None
+
+
+# --- retention (files.md) ---------------------------------------------------------
+
+
+def retention_cleanup(now=None) -> dict:
+    """files.md Retention, as one idempotent housekeeping pass:
+    - request briefs on requests cancelled/expired (no order = without payment)
+      30+ days ago → storage+soft delete;
+    - delivery/order/dispute files on orders that ended (completed/cancelled)
+      12+ months ago → storage+soft delete, unless legal_hold is set.
+    One batched audit entry per pass."""
+    from datetime import timedelta
+
+    from django.db.models import Q
+    from django.utils import timezone
+
+    from apps.audit.services import log as audit_log
+
+    now = now or timezone.now()
+    purged = {"briefs": 0, "order_files": 0}
+
+    brief_ids = set(
+        Attachment.objects.filter(
+            purpose=Attachment.Purpose.REQUEST_BRIEF,
+            service_requests__status__in=["cancelled", "expired"],
+            service_requests__closed_at__lte=now - timedelta(days=30),
+        ).values_list("pk", flat=True)
+    )
+    purposes = [
+        Attachment.Purpose.DELIVERY,
+        Attachment.Purpose.ORDER_ATTACHMENT,
+        Attachment.Purpose.DISPUTE_EVIDENCE,
+    ]
+    cutoff = now - timedelta(days=365)
+    ended = Q(orders__completed_at__lte=cutoff) | Q(orders__cancelled_at__lte=cutoff)
+    order_file_ids = set(
+        Attachment.objects.filter(purpose__in=purposes, legal_hold=False)
+        .filter(ended)
+        .values_list("pk", flat=True)
+    ) | set(
+        Attachment.objects.filter(purpose__in=purposes, legal_hold=False)
+        .filter(
+            Q(deliveries__order__completed_at__lte=cutoff)
+            | Q(deliveries__order__cancelled_at__lte=cutoff)
+        )
+        .values_list("pk", flat=True)
+    )
+    for bucket, ids in (("briefs", brief_ids), ("order_files", order_file_ids)):
+        for attachment in Attachment.objects.filter(pk__in=ids):
+            if attachment.file:
+                attachment.file.delete(save=False)
+            attachment.file.name = ""
+            attachment.save(update_fields=["file", "updated_at"])
+            purged[bucket] += 1
+    if purged["briefs"] or purged["order_files"]:
+        audit_log(None, action="files.retention_purged", detail=purged)
+    return purged

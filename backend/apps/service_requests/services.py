@@ -78,7 +78,9 @@ def transition(
     request.status = to_status
     if to_status == ServiceRequest.Status.CANCELLED:
         request.closed_reason = reason[:200]
-    request.save(update_fields=["status", "closed_reason", "updated_at"])
+    if to_status in (ServiceRequest.Status.CANCELLED, ServiceRequest.Status.EXPIRED):
+        request.closed_at = timezone.now()
+    request.save(update_fields=["status", "closed_reason", "closed_at", "updated_at"])
     audit_log(actor, action=action, obj=request, detail={"to": to_status})
     return request
 
@@ -249,7 +251,9 @@ def expire_due(now=None) -> int:
     """Bulk-expire open requests past their TTL (BR-08). Returns count."""
     now = now or timezone.now()
     stale = ServiceRequest.objects.filter(status=ServiceRequest.Status.OPEN, expires_at__lte=now)
-    count = stale.update(status=ServiceRequest.Status.EXPIRED, closed_reason="TTL expired")
+    count = stale.update(
+        status=ServiceRequest.Status.EXPIRED, closed_reason="TTL expired", closed_at=now
+    )
     if count:
         audit_log(None, action="requests.bulk_expire", detail={"count": count})
     return count

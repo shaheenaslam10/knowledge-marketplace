@@ -48,3 +48,11 @@ def send_order_event_email(order_id: str, event: str, extra_email: int | None = 
         return {"sent": False}
     _notify(order, event)
     return {"sent": True}
+
+
+def overdue_flagging() -> int:
+    """Daily — flag orders overdue >24h past deadline for admin/student action
+    (BR-26, order-lifecycle.md jobs table)."""
+    from apps.orders import services
+
+    return services.flag_overdue()

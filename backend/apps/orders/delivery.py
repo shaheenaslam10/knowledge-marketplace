@@ -60,7 +60,13 @@ class OrderEvent(TimeStampedModel):
         COMPLETED = "completed", "Order completed"
         CANCELLED = "cancelled", "Order cancelled"
         DISPUTE_OPENED = "dispute_opened", "Dispute opened"
-        # Administrative marker (jobs table, order-lifecycle.md) — dedupes the
+        DISPUTE_RESOLVED = "dispute_resolved", "Dispute resolved"
+        OVERDUE_FLAGGED = "overdue_flagged", "Overdue — flagged for follow-up"
+        DEADLINE_PROPOSED = "deadline_proposed", "Deadline proposal sent"
+        DEADLINE_EXTENDED = (
+            "deadline_extended",
+            "Deadline extended (proposal accepted)",
+        )  # Administrative marker (jobs table, order-lifecycle.md) — dedupes the
         # hourly T-24h reminder; the workspace timeline renders it as a plain
         # "deadline reminder sent" row.
         DEADLINE_REMINDED = "deadline_reminded", "Deadline reminder sent"
