@@ -2,27 +2,27 @@
 
 > **Permanent project rule:** this file is the single continuation document for any new AI agent or developer (Arena, ChatGPT, Gemini, human). It is updated at every phase completion and whenever a plan/architecture/business-rule change is discovered — **before or with** the implementation, never silently. Detailed evidence lives in the linked documents; this file stays a fast, accurate map.
 >
-> Last updated: **2026-09-24 (Phase 9 completion)**
+> Last updated: **2026-09-24 (Phase 10 completion)**
 
 ---
 
 ## START HERE
 
 ```text
-Current phase:      Phase 9 — Files, Reviews & Disputes ✅ COMPLETE
-Latest commit:      Phase 9 completion commit (this one — roadmap record + handoff).
-                    Feature chain: fd90947 (backend core: R2/reviews/disputes/moderation/
-                    jobs) → b8323d4 (backend: workspace embeds + expert received-reviews)
-                    → 07e8d04 (frontend: review/dispute/moderation surfaces)
-                    → 8b19135 (docs sync: api/database/jobs/environments/workflows)
-Next phase:         Phase 10 — Admin & Analytics  (see "NEXT PHASE" below)
-Read first:         docs/process/roadmap-phases.md (Phase 9 completion record + Phase 10 row),
-                    ADR-0010 (Django admin = owner back office for the MVP),
-                    docs/workflows/disputes.md (moderation surfaces), docs/architecture/observability.md
-First implementation task:  docs-first Phase 10 plan — moderation/report queue and the portal
-                    dashboards built ON the Phase 9 data (MessageReport, Dispute, AuditLog)
-Do not start:       Phase 11 (security/hardening), Phase 12 (production deployment),
-                    Stripe activation (credentials do not exist; seam stays), Redis (prohibited)
+Current phase:      Phase 10 — Admin & Analytics ✅ COMPLETE
+Latest commit:      Phase 10 completion commit (this one — roadmap record + handoff).
+                    Feature chain: dfefc87 (docs checkpoint) → a031fe1 (docs-first plan)
+                    → 6e637cb (backend: ops API, PlatformConfig, moderation services,
+                    seed funnel) → c2471e6 (FE portal: dashboard/moderation/disputes/
+                    audit/finance/users/config) → 64f75d9 (docs sync)
+Next phase:         Phase 11 — Security, Testing & Performance  (see "NEXT PHASE" below)
+Read first:         docs/process/roadmap-phases.md (Phase 10 completion record + Phase 11 row),
+                    docs/architecture/security.md, docs/product/user-roles.md (authorization
+                    matrix), docs/workflows/admin-journey.md (portal surface matrix)
+First implementation task:  authorization-matrix test suite across ALL roles × ALL endpoints
+                    (Phase 10 /ops surfaces included), then CSP/security headers
+Do not start:       Phase 12 (production deployment), Stripe activation (credentials do not
+                    exist; seam stays), Redis (prohibited)
 ```
 
 
@@ -33,14 +33,14 @@ Do not start:       Phase 11 (security/hardening), Phase 12 (production deployme
 | Field | Value |
 |---|---|
 | Project | Hybrid Expert Marketplace (`knowledge-marketplace`) — three-experience marketplace: open bidding, managed service, one shared order/payment pipeline |
-| Current phase | **Phase 9 — Files, Reviews & Disputes ✅ complete** |
-| Next phase | **Phase 10 — Admin & Analytics** (scope below) |
+| Current phase | **Phase 10 — Admin & Analytics ✅ complete** |
+| Next phase | **Phase 11 — Security, Testing & Performance** (scope below) |
 | Branch | `arena/01a0cd90-knowledge-marketplace` (all work happens here) |
-| Latest commit | Phase 9 completion commit (roadmap record + this handoff); feature chain `fd90947` (backend core) → `b8323d4` (backend embeds/received-reviews) → `07e8d04` (FE) → `8b19135` (docs sync) |
-| Latest verified CI | run **`36007194246`** — ✓ 4/4 on `f0bff4b` (Phase 9 completion commit: Backend · Frontend · Docs-sync · Compose smoke, 2026-09-24) |
+| Latest commit | Phase 10 completion commit (roadmap record + this handoff); feature chain `dfefc87` → `a031fe1` → `6e637cb` (backend) → `c2471e6` (FE) → `64f75d9` (docs sync) |
+| Latest verified CI | run on the Phase 10 completion commit (verified on push; prior: `36007194246` ✓ 4/4 on `f0bff4b`) |
 | Working tree | Clean & synced with origin at the completion commit; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
-| Test baseline | backend pytest **326 passed** (reviews 15, disputes 22, files+R2 17, messaging 27 incl. moderation-grounds); frontend lint/typecheck/vitest **58**/build/bundle-budgets green; ruff+format clean; import-linter 2 kept/0 broken; `makemigrations --check` clean; env-docs gate green |
-| Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 9 record has the as-built details + deferred list) |
+| Test baseline | backend pytest **340 passed** (portal 14: staff authz incl. support-vs-admin config writes, KPI math, moderation idempotency, reconciliation detection); frontend lint/typecheck/vitest **68**/build/bundle-budgets green; ruff+format clean; import-linter 3 kept/0 broken; `makemigrations --check` clean; env-docs gate green |
+| Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 10 record has the as-built details + deferred list) |
 
 ---
 
@@ -62,6 +62,8 @@ Detailed scope, acceptance gates and per-phase records live in `docs/process/roa
 | 8 — Messaging & Notifications | Persistent threads (request/order contexts, live participant derivation), REST + WS on ONE service path, read receipts, chat attachments (message purpose, participant-only downloads), notification funnel across all domain events (q2 task: best-effort realtime push + plain-text email), per-category preferences (account immutable), public one-click unsubscribe, `prune_notifications` command, bell/toasts + `/messages` inbox + thread page + entry points | `b66d381`, `ff85028` | ADR-0003 held (InMemory layer, no Redis); ADR-0011 email adapter implemented (`EMAIL_BACKEND_MODE`) | **Deferred:** `request_new_matching` fan-out + daily digest, order-group WS hints; chat deadline proposal (dropped) |
 | 9 — Files, Reviews & Disputes | `FILE_STORAGE=r2` adapter (django-storages, private bucket, 5-min presigned GET after `grant_download`; local stays free default); `dispute_evidence` purpose + `legal_hold` + `files.retention_cleanup` q2 job; reviews (student-only per completed order, edit-until-reply, single immutable expert reply + private student rating, staff hide) with BR-39 recency-weighted aggregates into `ExpertProfile`; disputes (BR-40 window, services-only state machine, evidence, dispute threads, Django-admin resolve) whose money outcomes reuse Phase 7 `issue_refund`/payout services — **zero direct ledger writes**; payout freeze via `Order.has_open_dispute` (schedule/settle/sweeper, race-tested); moderation hooks (`MessageReport` + report route, BR-35 grounds-gated audited thread view, FE policy banner + report dialog); backlog absorbed: overdue flagging job, deadline proposals, retention cleanup | `fd90947`, `b8323d4`, `07e8d04`, `8b19135` | ADR-0006 implemented as specified (storage = env swap); layers extended (disputes > reviews > messaging) | **Deferred:** moderation queue/dashboard + analytics → Phase 10; `request_new_matching` fan-out + digest; chat deadline-proposal card (services exist; UI non-goal); order-group WS hints; `expert_rating_of_student` stays private |
 
+| 10 — Admin & Analytics | Operations portal `(portal)`: KPI dashboard (server-side Postgres aggregation, UTC ranges, KPI dictionary in observability.md), moderation report queue (audited dismiss/confirm-hide via the messaging service), dispute triage queue (resolution deep-links Django admin), audit viewer, financial reconciliation (read-only, ledger-identity reuse), users overview, PlatformConfig singleton + audited admin-only config UI, seed operations funnel | `6e637cb`, `c2471e6`, `64f75d9` | ADR-0010 implemented (portal/admin split documented in admin-journey.md) | Recharts deferred (bundle budget — SVG micro-charts); account warning/suspension service not built (business-rule change, recorded); CSV export post-MVP |
+
 **Major plan changes so far** (all documented before/with implementation): django-tasks → django-q2 (ADR-0002 amendment); payments layering inversion via domain signal (ADR-0005 amendment); no PaymentAttempt/Transaction tables; ledger identity formalized; payout settlement manual-by-design; Stripe explicitly not production-ready until the checklist in `docs/workflows/payments.md` is verified.
 
 ---
@@ -72,7 +74,7 @@ Authoritative details live in `docs/architecture/*` — this is the map only.
 
 | Area | Current state | Source |
 |---|---|---|
-| Frontend | **One Next.js (App Router, TS, Tailwind v4 CSS-first tokens) app with three experiences** — `(marketing)` / `(app)` / `(portal)` route groups, ESLint experience boundaries | ADR-0013, `docs/architecture/frontend.md`, `docs/architecture/web-experiences.md` |
+| Frontend | **One Next.js (App Router, TS, Tailwind v4 CSS-first tokens) app with three experiences** — `(portal)` operations surfaces live since Phase 10 — `(marketing)` / `(app)` / `(portal)` route groups, ESLint experience boundaries | ADR-0013, `docs/architecture/frontend.md`, `docs/architecture/web-experiences.md` |
 | Backend | **One Django + DRF modular monolith**; domain apps with acyclic imports (import-linter in CI); business logic only in `services.py` (views/serializers/tasks/admin are thin); uniform error envelope | ADR-0001, `docs/architecture/backend.md` |
 | Database | **PostgreSQL source of truth**; BigInteger minor-unit money (ADR-0009); UUID public ids (ADR-0008); migrations are append-only history | `docs/architecture/database.md` |
 | Background jobs | **django-q2 + ORM broker on PostgreSQL** (no Redis/Celery); idempotent tasks = thin wrappers over services; schedules are ops setup via admin; shipped jobs: assignments expiry, orders auto-approve/unpaid-sweeper/deadline-reminder/**overdue-flagging**, payments payout-sweeper/ledger-check, **files retention-cleanup** | ADR-0002, `docs/architecture/background-jobs.md` |
@@ -108,45 +110,37 @@ Authoritative details live in `docs/architecture/*` — this is the map only.
 
 ## NEXT PHASE
 
-### Phase 10 — Admin & Analytics
+### Phase 11 — Security, Testing & Performance
 
-**Goal.** Give the owner an operations layer on top of everything shipped through Phase 9: moderation queues (reports + dispute review), platform KPIs/dashboards, an audit viewer, config UI, reconciliation views and seed polish — per ADR-0010 Django admin remains the back office until this phase explicitly upgrades selected surfaces into the `(portal)` experience.
+**Goal.** Convert the implicit security posture into an explicit, tested one and close the pre-production hardening gaps: a full authorization-matrix suite (every role × every endpoint), CSP/security headers, dependency audit, the E2E pack, and performance budgets — the last engineering phase before deployment.
 
 **Starting point (what exists).**
-- Moderation data is live: `MessageReport` (one open per message+reporter; `open|reviewed|dismissed`, `reviewed_by/at`), BR-35 `admin_view_thread` grounds-gated + audited, `MessageReportAdmin` read-only, dispute admin with service-backed resolve. The **queue UI + review workflow** is the Phase 10 gap.
-- `AuditLog` is append-only and admin-read-only; Phase 10 adds the audit viewer/filtering surface.
-- **PlatformConfig does not exist yet** (commission rates are module constants in `apps/payments/config.py` — database.md always planned the singleton). Phase 10 task 4 = introduce `core.PlatformConfig` + service-backed config UI; money code keeps constants as defaults so BR-17/18 stay intact.
-- Payments admin is read-only + `payments.ledger_check` nightly job + WebhookEvent replay from admin — reconciliation views build on these.
-- Frontend `(portal)` route group + shell exists (ADR-0013); ESLint experience boundaries hold.
-- Analytics inputs: Order/Payment/Refund/Payout rows, Review aggregates, Dispute outcomes, notification funnel — all append-only/audit-backed.
+- Server-side authorization everywhere (services are the single gate); Phase 10 `/ops/*` surfaces staff-gated (support reads/moderates, admin config-writes — tested).
+- Existing suites: backend 340 (per-app authz incl. cross-account files, IDOR-style 404 masks, moderation grounds), FE 68; CSP/headers NOT yet enforced (deployment.md lists the intent).
+- Threat notes live in `docs/architecture/security.md`; the role matrix in `docs/product/user-roles.md` is the test spec.
 
 **First tasks (ordered checklist).**
-1. Docs-first: write the Phase 10 plan into `docs/process/roadmap-phases.md` (row 10 detail) + `docs/workflows/admin-journey.md` + `docs/architecture/observability.md` as-built intent — scope the portal surfaces vs Django-admin-only decisions BEFORE building (ADR-0010 governs; every portal surface needs a stated reason).
-2. Moderation queue: report list/review workflow (approve → hide message + optional user warning/ban data; dismiss), wired to the existing services + audit; dispute triage queue on top of the dispute admin.
-3. KPIs/dashboards: GMV, take rate, orders by state, dispute rate/outcomes, review averages — server-aggregated, read-only, no new financial computation (reuse ledger queries).
-4. Audit viewer + config UI (PlatformConfig service-side edits, audited) + reconciliation views (ledger vs payments, payout states).
-5. Seed polish + demo fixtures for the portal (idempotent, documented passwords).
-6. Tests: staff-only access on every portal surface (IDOR/privilege escalation), moderation state transitions, config-change audit rows.
+1. Docs-first: finalize the authorization-matrix table (role × endpoint × expectation) as a test plan doc section, then implement `test_authorization_matrix.py` generating parametrized cases across accounts/experts/requests/bidding/assignments/orders/payments/messaging/reviews/disputes/files/ops.
+2. Security headers: CSP (report-only → enforce), HSTS, X-Frame-Options/frame-ancestors, Referrer-Policy, Permissions-Policy — config via env, verified in prod settings tests.
+3. Dependency audit: `pip-audit` + `npm audit` in CI (fail on high/critical; document suppressions).
+4. E2E pack: Playwright happy-paths over seeded demo data (student funnel, expert funnel, dispute+moderation, portal staff read).
+5. Performance: query-count budgets on the hot paths (order detail, inbox, KPI dashboard — `assertNumQueries`), bundle budgets already enforced; add slow-query logging note for ops.
+6. Rate-limit review (DRF throttles already exist) + JWT reuse-detection tests already exist — extend to /ops surfaces.
 7. Docs sync + handoff update in the same phase (protocol below).
 
 **Required files/docs to read first.**
-- `docs/process/PROJECT-HANDOFF.md` (this file) + `docs/process/roadmap-phases.md` (Phase 10 row, Phase 9 record + its deferred list)
-- ADR-0010 (admin-as-back-office), ADR-0013 (experiences/portal shell), `docs/architecture/observability.md`, `docs/workflows/admin-journey.md`
-- `docs/workflows/disputes.md` + `docs/workflows/messaging.md` (moderation data shipped in Phase 9), `docs/architecture/database.md` (MessageReport/Dispute/AuditLog/PlatformConfig)
-- `docs/workflows/payments.md` (ledger identity + reconciliation inputs), `backend/pyproject.toml` (import-linter layers)
-
-**Dependencies.** Everything 0–9 (the portal is a consumer); no new infrastructure.
+- `docs/process/PROJECT-HANDOFF.md` (this file) + `docs/process/roadmap-phases.md` (Phase 11 row, Phase 10 record + deferred list)
+- `docs/architecture/security.md`, `docs/architecture/testing.md`, `docs/product/user-roles.md`, `docs/architecture/deployment.md` (headers intent)
+- `backend/pyproject.toml` (import-linter), `.github/workflows/ci.yml` (gates to extend)
 
 **Do not implement yet.**
-- Authorization-matrix suite, CSP/security headers, dependency audit, E2E pack, perf budgets → **Phase 11**
 - Production deploy (staging→prod, backups drill, monitoring, legal pages) → **Phase 12**
-- Stripe activation (needs credentials + verified checklist in payments.md), provider fees, payout provider integration → blocked until owner verification
-- Redis channel layer, message search, E2E encryption, group chats (non-goals)
-- No new financial/pricing logic — Phase 10 surfaces read and moderate, they do not recompute money
+- Stripe activation (needs credentials + verified checklist in payments.md) → blocked until owner verification
+- Redis, Elasticsearch, warehouses (prohibited by cost/architecture rules)
 
-**Acceptance criteria.** Roadmap Phase 10 row + the standard gates: backend pytest all green (incl. portal authz suites), FE lint/typecheck/vitest/build green, bundle budgets respected, ruff/format/lint-imports green, `makemigrations --check` clean, env-docs gate green, CI 4/4 on a clean checkout, docs + this handoff updated in the same phase.
+**Acceptance criteria.** Roadmap Phase 11 row + the standard gates: backend pytest all green **including the authorization-matrix suite**, FE lint/typecheck/vitest/build green, Playwright pack green, headers verified in tests, dependency audit clean (or documented), ruff/format/lint-imports clean, `makemigrations --check` clean, env-docs gate green, CI 4/4 on a clean checkout, docs + this handoff updated in the same phase.
 
-**Expected GitHub workflow.** Work on `arena/01a0cd90-knowledge-marketplace` only; logical commits (docs-first → backend queues/analytics → portal FE → docs sync); run the full suite + docs gates before every push; push and watch CI; update `PROJECT-HANDOFF.md` + roadmap in the completion commit; report hashes and CI run.
+**Expected GitHub workflow.** Work on `arena/01a0cd90-knowledge-marketplace` only; logical commits (docs-first matrix → headers → audit → e2e → perf → docs sync); full suite + gates before every push; push and watch CI; update `PROJECT-HANDOFF.md` + roadmap in the completion commit; report hashes and CI run.
 
 ---
 

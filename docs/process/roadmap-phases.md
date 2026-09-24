@@ -1,6 +1,6 @@
 # Development Phases, Dependencies & Acceptance Criteria
 
-> Status: **Phase 9 ✅ complete · Next: Phase 10 (Admin & Analytics)** · Last updated: Phase 9 completion
+> Status: **Phase 10 ✅ complete · Next: Phase 11 (Security, Testing & Performance)** · Last updated: Phase 10 completion
 > **Single source of truth.** The table below reflects what the system actually contains after each phase. Renumbered at Phase 5 kickoff (owner direction): the marketplace foundation (requests + open bidding + selection + order creation) shipped together in Phase 4, so the former "Bidding & Selection" phase no longer exists and later phases shifted down one. Per-phase completion records live at the bottom of this file.
 
 ## Phase overview
@@ -18,7 +18,7 @@
 | 7 | Payments & Commissions | 6 | provider-agnostic `PaymentGateway` — **ManualGateway active** (dev/test + operator-confirmed fallback, simulated signed webhooks); **StripeGateway = registered non-functional seam, no SDK/credentials**; idempotent confirm path, ledger, refunds, payout sweeper, earnings UI |
 | 8 | Messaging & Notifications | 5 | ✅ threads+WS realtime (optimistic send, offline REST fallback), read receipts, notification center + preferences, realtime toasts, email funnel, unsubscribe, prune; digest deferred (see record) |
 | 9 | Files, Reviews & Disputes | 6,7 | ✅ R2 storage adapter + presigned downloads, retention job; review flows + BR-39 weighted aggregates; dispute lifecycle + resolution reusing Phase 7 money services; moderation hooks (report + grounds-gated view); overdue flagging + deadline proposals |
-| 10 | Admin & Analytics | 5–9 | `(portal)` operations surfaces: KPI dashboard (server-side Postgres aggregation, date ranges), moderation report queue (review/dismiss/hide, audited), dispute queue (read/triage; resolution stays in Django admin), audit viewer, PlatformConfig singleton + audited config UI, read-only financial reconciliation, users/experts operational views, seed polish; charts via dependency-free SVG micro-visualizations (bundle-budget decision) |
+| 10 | Admin & Analytics | 5–9 | ✅ `(portal)` operations surfaces: KPI dashboard (server-side Postgres aggregation, UTC ranges), moderation report queue (audited review/dismiss/hide), dispute triage queue (resolution deep-links Django admin), audit viewer, PlatformConfig singleton + audited config UI, read-only financial reconciliation, users overview, seed operations funnel |
 | 11 | Security, Testing & Performance | all | authorization matrix test suite, CSP/headers, dependency audit, E2E pack, perf budgets, checklist gate |
 | 12 | Production Deployment | 11 | staging→prod deploy, backups+restore drill, monitoring, legal pages, launch checklist |
 
@@ -284,3 +284,23 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 | Deferred (recorded, not silent) | `request_new_matching` fan-out + digest (unchanged from Phase 8); chat-based deadline proposal card (service exists; UI non-goal); order-group WS timeline hints; dispute detail page as standalone route (workspace panel chosen); moderation queue + expert `rating_of_student` surfacing = Phase 10 decisions |
 | Tests | backend **333 passed** (+51: disputes 22 — window/freeze/sweeper/races/outcomes/ledger-identity/lifecycle/evidence-authz/thread/REST embeds; reviews 15 — eligibility/one-per-order/edit-until-reply/single-reply/hidden-recompute/weighted-math/public+received endpoints; files +R2 storage/presign/retention/legal-hold/evidence-traversal; messaging moderation grounds gate); FE vitest **58 passed** (+18: review eligibility/composer validation/role boundaries, dispute window gating/composer/status, report flow + banner); ruff+format clean; import-linter 2 kept/0 broken; bundle budgets green; CI 4/4 |
 | Key commits | `fd90947` (backend core), `b8323d4` (backend embeds + received-reviews), `07e8d04` (frontend), `8b19135` (docs sync), completion commit (roadmap + handoff) |
+
+## Phase 10 — completion record (Admin & Analytics)
+
+**Status: ✅ complete.** The owner/operator layer: a dense operations portal over the Phase 0–9 data — KPI dashboard, moderation queue, dispute triage, audit viewer, financial reconciliation, users overview, and an audited PlatformConfig editor — with Django admin retained for triage/approvals/resolution (ADR-0010 split documented in admin-journey.md).
+
+| Area | What exists |
+|---|---|
+| KPI dashboard | `/portal` — marketplace/financial/quality/communication groups + trend bars; ranges today/7d/30d/custom (UTC, `[from,to)`, server-evaluated); every metric defined in observability.md §KPI dictionary naming its exact source (GMV = succeeded payments; commission/payable = ledger aggregates; **no money recomputed outside ledger/payment tables**) |
+| Moderation | `/portal/moderation` — `MessageReport` queue (status/reason filters); review actions `dismiss` / `confirm_hide` via `portal.services.moderation` → messaging's audited `set_message_hidden` (idempotent; `report_not_open` guard); reviewer + timestamp persisted (`MessageReport.reviewed_by/at`, migration 0003); **no account suspension/warning** (no such service — recorded decision) |
+| Disputes | `/portal/disputes` — triage queue (status/reason/amount/order links); resolution deep-links the Django admin resolve form executing the Phase 9 service path — **no duplicated financial logic** |
+| Audit viewer | `/portal/audit` — actor/action/object/time filters over `AuditEvent`; append-only everywhere (view has no write methods) |
+| Reconciliation | `/portal/finance` — read-only checks: per-order ledger identity (reuses `payments.ledger_check`), refund-rows↔REFUND-ledger parity, unsettled-payouts↔expert-credit parity, succeeded-payment charge coverage, refunded_minor↔refund-rows, failed webhooks; no repair buttons (fixes = existing admin service actions) |
+| Config | `core.PlatformConfig` singleton (database.md plan realized): BR-17 rates, BR-18/30 floors, BR-40 window — data-migration-seeded from the historical constants; domain code reads via `apps.core.services`; `/portal/config` writes ONLY via `portal.services.config_editor` (whitelist + bounds + `platform.config_updated` audit before/after; `default_currency` immutable); admin = write, support = read (403 on write, tested) |
+| Users | `/portal/users` — verified/role/expert-status/aggregate counts; edits stay in Django admin |
+| API | `/api/v1/ops/*` (api.md section): staff-gated (`IsSupport\|IsAdmin`; config write admin-only) — anon 401, students 403, support-write-config 403 all tested |
+| Charts | dependency-free inline SVG trend bars (Recharts deferred — 220 kB budget decision, admin-journey.md); tables scroll-contain on mobile |
+| Seed | `seed_demo` portal funnel: completed order (+payout, review+reply), open dispute, resolved dispute with full refund, off-platform report — idempotent (unique-state guarded), service-driven, dev/test-guarded |
+| Tests | backend **340 passed** (+14 portal: authz 401/403/support-vs-admin, KPI math vs fixtures, moderation idempotency, config validation/audit/domain-behavior, reconciliation detection + clean pass); FE vitest **68 passed** (+10: KPI cards, trend bars, range control, money formatting, moderation queue actions/filters/guards); lint/format/import-linter/migrations/env-docs clean; bundle budgets green; CI 4/4 |
+| Deferred (recorded, not silent) | Recharts (budget decision); account warning/suspension service (business-rule change); `/portal/orders` + `/portal/expert-applications` (Django admin deep-links chosen); export/CSV of audit (post-MVP); expert `rating_of_student` surfacing (private per BR-37) |
+| Key commits | `dfefc87` (docs checkpoint), `a031fe1` (docs-first plan), `6e637cb` (backend), `c2471e6` (FE), `64f75d9` (docs sync), completion commit (roadmap + handoff) |
