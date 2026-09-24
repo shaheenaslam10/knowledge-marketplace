@@ -1,8 +1,9 @@
 from django.urls import path
 
-from apps.notifications.api import views
+from apps.notifications.api import unsubscribe, views
 
 urlpatterns = [
+    path("unsubscribe", unsubscribe.UnsubscribeView.as_view(), name="unsubscribe"),
     path("me/notifications", views.MyNotificationListView.as_view(), name="my-notifications"),
     path(
         "me/notifications/read-all",

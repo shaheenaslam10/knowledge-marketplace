@@ -25,6 +25,7 @@ import {
   type OrderEventRecord,
 } from "@/features/orders/types";
 import { fileDownloadUrl } from "@/features/orders/api";
+import { MessageThreadButton } from "@/features/messaging/MessageThreadButton";
 import { PaymentCard } from "@/features/orders/components/payment-card";
 
 const STEPS = ["Confirmed", "In progress", "Delivered", "Completed"] as const;
@@ -266,14 +267,21 @@ export function OrderWorkspace({
                 {SOURCE_COPY[order.source]} · {student ? `Expert: ${order.counterparty}` : `Client: ${order.counterparty}`}
               </p>
             </div>
-            <motion.span
-              key={order.status}
-              initial={reduce ? false : { opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: DURATIONS.fast }}
-            >
-              <Badge tone={ORDER_STATUS_TONE[order.status]}>{ORDER_STATUS_COPY[order.status]}</Badge>
-            </motion.span>
+            <div className="flex flex-wrap items-center gap-2">
+              <MessageThreadButton
+                context={{ context_type: "order", order_id: order.id }}
+                disabled={order.status === "cancelled"}
+                disabledReason="Ended orders are read-only"
+              />
+              <motion.span
+                key={order.status}
+                initial={reduce ? false : { opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: DURATIONS.fast }}
+              >
+                <Badge tone={ORDER_STATUS_TONE[order.status]}>{ORDER_STATUS_COPY[order.status]}</Badge>
+              </motion.span>
+            </div>
           </div>
           <ProgressRail status={order.status} />
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">

@@ -11,18 +11,9 @@ from apps.messaging import services
 
 
 def _message_meta(message) -> dict:
-    return {
-        "id": str(message.pk),
-        "sender_id": message.sender_id,
-        "sender_name": message.sender.name or message.sender.email,
-        "body": message.body,
-        "created_at": message.created_at,
-        "attachment": (
-            {"id": str(message.attachment.id), "original_name": message.attachment.original_name}
-            if (message.attachment and not message.is_hidden)
-            else None
-        ),
-    }
+    from apps.messaging.services import message_payload
+
+    return message_payload(message)
 
 
 class MyThreadListView(APIView):

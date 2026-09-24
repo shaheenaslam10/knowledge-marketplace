@@ -128,6 +128,22 @@ def thread_for_user(thread_id, user) -> Thread:
 
 
 @transaction.atomic
+def message_payload(message: Message) -> dict:
+    """Wire shape shared by the REST views and the WS broadcast (one contract)."""
+    return {
+        "id": str(message.pk),
+        "sender_id": message.sender_id,
+        "sender_name": message.sender.name or message.sender.email,
+        "body": message.body,
+        "created_at": message.created_at.isoformat(),
+        "attachment": (
+            {"id": str(message.attachment.id), "original_name": message.attachment.original_name}
+            if (message.attachment_id and not message.is_hidden)
+            else None
+        ),
+    }
+
+
 def send_message(thread: Thread, *, sender, body: str, attachment=None) -> Message:
     _assert_participant(sender, thread)
     _assert_context_open(thread)

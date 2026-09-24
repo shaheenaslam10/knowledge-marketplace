@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useSession } from "@/features/auth/SessionProvider";
+import { NotificationBell } from "@/features/notifications/NotificationBell";
+import { NotificationToasts } from "@/features/notifications/NotificationToasts";
+import { NotificationsProvider } from "@/features/notifications/NotificationsProvider";
 import { cn } from "@/lib/utils";
 
 /**
@@ -46,8 +49,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const notificationShell = (
+    <>
+      <NotificationToasts />
+      {children}
+    </>
+  );
+
   const nav = [
     { href: "/requests", label: "My requests", show: true },
+    { href: "/messages", label: "Messages", show: true },
     { href: "/opportunities", label: "Opportunities", show: Boolean(user?.roles?.expert) },
     { href: "/offers", label: "My offers", show: Boolean(user?.roles?.expert) },
     { href: "/assignments", label: "Assignments", show: Boolean(user?.roles?.expert) },
@@ -58,6 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
+    <NotificationsProvider>
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4 sm:px-6">
@@ -81,6 +93,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" aria-label="Account menu">
@@ -129,7 +142,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{notificationShell}</main>
     </div>
+    </NotificationsProvider>
   );
 }

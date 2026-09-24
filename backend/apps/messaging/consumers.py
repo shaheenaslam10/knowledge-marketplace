@@ -50,23 +50,17 @@ class ThreadConsumer(AsyncJsonWebsocketConsumer):
             body = str(content.get("body", ""))
             attachment_id = content.get("attachment_id")
             try:
-                message = await sync_to_async(services.send_message)(
-                    self.thread, sender=self.user, body=body, attachment=attachment_id
-                )
+                payload = await sync_to_async(
+                    lambda: services.message_payload(
+                        services.send_message(
+                            self.thread, sender=self.user, body=body, attachment=attachment_id
+                        )
+                    )
+                )()
             except Exception as exc:  # domain errors go back to the sender only
                 await self.send_json({"type": "message.error", "error": str(exc)})
                 return
-            await self.channel_layer.group_send(
-                self.group_name,
-                {
-                    "type": "message.new",
-                    "id": str(message.pk),
-                    "sender_id": self.user.id,
-                    "sender_name": self.user.name or self.user.email,
-                    "body": message.body,
-                    "created_at": message.created_at.isoformat(),
-                },
-            )
+            await self.channel_layer.group_send(self.group_name, {"type": "message.new", **payload})
         elif action == "typing":
             # ephemeral — broadcast to the group, never persisted
             await self.channel_layer.group_send(

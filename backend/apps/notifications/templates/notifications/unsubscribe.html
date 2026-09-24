@@ -1,0 +1,33 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Email preferences — Hybrid Expert Marketplace</title>
+    <style>
+      body { font-family: system-ui, sans-serif; background: #f8fafc; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+      .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 2rem; max-width: 26rem; text-align: center; }
+      h1 { font-size: 1.1rem; margin: 0 0 .5rem; }
+      p { color: #475569; font-size: .9rem; margin: .25rem 0; }
+      .ok { color: #166534; font-weight: 600; }
+      .bad { color: #b91c1c; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Hybrid Expert Marketplace</h1>
+      {% if status == "unsubscribed" %}
+        <p class="ok">You're unsubscribed.</p>
+        <p>You will no longer receive <strong>{{ category_label }}</strong> emails.
+           In-app notifications continue (they're part of the product).</p>
+      {% elif status == "protected" %}
+        <p class="ok">This email can't be disabled.</p>
+        <p><strong>{{ category_label }}</strong> emails are security-related and are always sent.</p>
+      {% else %}
+        <p class="bad">This link is invalid or expired.</p>
+        <p>Request a fresh email preference link from your account settings.</p>
+      {% endif %}
+    </div>
+  </body>
+</html>

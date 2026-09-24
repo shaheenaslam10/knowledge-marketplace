@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { MessageThreadButton } from "@/features/messaging/MessageThreadButton";
 import { offersApi } from "@/features/offers/api";
 import {
   OFFER_STATUS_COPY,
@@ -103,6 +104,7 @@ export default function OpportunityDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{request.title}</h1>
+          <MessageThreadButton context={{ context_type: "request", request_id: request.id }} label="Message client" />
           <p className="mt-1 text-xs text-muted">
             {request.subject?.name ?? "No subject"} · {REQUEST_STATUS_COPY[request.status]}
             {request.deadline != null && ` · needed by ${request.deadline}`}

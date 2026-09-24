@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { selectionApi } from "@/features/offers/api";
 import { OFFER_STATUS_COPY, OFFER_STATUS_TONE, type Offer } from "@/features/offers/types";
+import { MessageThreadButton } from "@/features/messaging/MessageThreadButton";
 import { requestsApi } from "@/features/requests/api";
 import {
   REQUEST_STATUS_COPY,
@@ -147,6 +148,7 @@ export default function RequestDetailPage() {
                 <div className="text-right">
                   <p className="font-mono text-lg font-semibold">{offer.amount_display} {offer.currency}</p>
                   <div className="mt-2 flex gap-2">
+                    <MessageThreadButton context={{ context_type: "request", request_id: request.id }} />
                     {offer.status === "pending" && canAcceptOffers(request.status) && (
                       <>
                         <Button
