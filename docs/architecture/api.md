@@ -90,11 +90,15 @@ Deferred to their phase: `/me/student-profile` (Phase 3+ domain profiles).
 | POST | `/me/orders/{id}/cancel` | participant | pre-payment: either party w/ reason; post-payment: support only (BR-26..28) |
 | *(deadline proposal/accept)* | via chat thread | student | Phase 8 (messaging) — `extend-deadline` endpoint lands with it |
 
-### Payments — `/api/v1/payments`
-| POST | `/orders/{id}/pay` | student | → PaymentIntent client_secret (or manual instructions) |
-| GET | `/payments/{id}` | student | status polling fallback |
-| POST | `/payments/webhook/stripe` | Stripe (signed) | **public**, signature-verified, idempotent |
-| POST | `/orders/{id}/manual-payment-reference` | student | manual gateway mode |
+### Payments — `/api/v1` (Phase 7 shipped)
+| POST | `/me/orders/{id}/pay` | student (owner) | starts payment on the active gateway; amounts from the booked order only |
+| POST | `/me/orders/{id}/payment/confirm` | student (owner) | **dev-only** (`PAYMENT_DEV_SELF_CONFIRM`), manual rails: simulated "transfer arrived" → active |
+| GET | `/me/earnings` | expert | ledger-derived earned / paid-out / available (BR-32) |
+| GET | `/me/payouts` | expert | payout history |
+| POST | `/payments/webhooks/{provider}` | provider (signed) | **public**, signature-verified before storage, event-id idempotent |
+| *(admin confirm/refund/settle)* | via Django admin service actions | staff | manual-rails operator flows (BR-26..28) |
+
+> Payment status also rides on the order detail payload (`payment` block: status, amounts, refunded, failure reason; instructions for students on manual rails). `extend-deadline` remains a Phase 8 (chat) surface.
 
 ### Messaging — `/api/v1/threads` + WS
 | GET | `/threads` | participant | inbox |

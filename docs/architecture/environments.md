@@ -67,9 +67,10 @@
 | `PAYMENT_GATEWAY` | `manual` \| `stripe` (adapter registry; `stripe` is registered but requires credentials + verification) |
 | `MANUAL_PAYMENT_INSTRUCTIONS` | text shown to students in manual mode (**wired — read by the gateway**) |
 | `MANUAL_WEBHOOK_SECRET` | HMAC secret for simulated manual-gateway webhook signatures (dev/test; default is dev-only) |
-| `STRIPE_SECRET_KEY` | `sk_…` (Phase 7) |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_…` (Phase 7) |
-| `STRIPE_API_COUNTRY` | `US` (Phase 7) |
+| `PAYMENT_DEV_SELF_CONFIRM` | `1` dev-only affordance letting a student self-confirm a manual payment; defaults false outside dev settings — **never production** |
+| `STRIPE_SECRET_KEY` | `sk_…` — unused until the StripeGateway activates (seam only; activation checklist in payments.md) |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` — unused until the StripeGateway activates |
+| `STRIPE_API_COUNTRY` | `US` — unused until the StripeGateway activates |
 
 ### Email
 | Variable | Example |

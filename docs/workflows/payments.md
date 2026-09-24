@@ -87,6 +87,19 @@ Append-only `payments.LedgerEntry`: `entry_type` (`charge`, `commission`, `exper
 | Expert account not onboarded at completion | earnings stay `available`; payout retries when enabled |
 | Currency mismatch errors | single-currency MVP (ADR-0009) makes this a validation error at order creation |
 
+## Local development & testing (no Stripe, by design)
+
+`PAYMENT_GATEWAY=manual` (the default) demonstrates the complete lifecycle offline:
+
+1. Student opens `/orders/{id}` → **Pay now** (instructions snapshot shown; the card is labeled *Simulated (manual gateway)*).
+2. **Confirm payment (dev)** (enabled by `PAYMENT_DEV_SELF_CONFIRM` in dev settings only) or the Django-admin *Confirm payment* action → ledger entries written → order `active` → delivery loop as in Phase 6.
+3. On approval the payout is auto-scheduled; the admin *Settle payouts* action (operator executed the external transfer) marks it paid and writes the `payout` ledger entry.
+4. Refunds: admin *Issue full refund* action (or the service in tests). Webhook round-trips: `apps.payments.gateway.build_simulated_webhook` produces correctly-signed events consumed by the same `POST /payments/webhooks/manual` endpoint real providers use.
+
+Failure-path testing: a payment whose provider reference starts with `fail` fails confirmation deterministically (order stays `awaiting_payment`, reason shown, retry re-arms the attempt). Tests live in `apps/payments/tests` (domain units) and `apps/orders/tests/test_payment_integration.py` (order coupling).
+
+Switching to a real provider later = set `PAYMENT_GATEWAY=stripe`, add the three `STRIPE_*` variables and the SDK dependency in the activation commit, and implement the `StripeGateway` methods — no business-code changes (the ledger, order gating, webhooks and admin are gateway-agnostic by construction).
+
 ## Phase 7 shipped surfaces (implementation reference)
 
 - **Models** (`apps/payments/models.py`): `Payment` (1-1 order; gateway, provider_reference unique-nullable, amount_minor, currency, status `pending|requires_action|processing|succeeded|failed|canceled|refunded|partially_refunded`, failure_reason, receipt/instructions snapshot, timestamps) · `Refund` (payment FK, amount_minor, reason enum + note, provider_reference, status `pending|succeeded|failed`, initiated_by) · `Payout` (order FK, expert FK, amount_minor, status `scheduled|in_transit|paid|failed|reversed`, provider_reference, failure_reason, timestamps) · `LedgerEntry` (append-only: entry_type `charge|commission|expert_credit|refund|payout|fee|adjustment`, signed amount_minor BigInteger, currency, order/user refs, description, provider_object_id) · `WebhookEvent` (provider, event_id unique, type, payload JSONB, status `received|processed|failed`, error, processed_at).

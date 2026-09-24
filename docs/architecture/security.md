@@ -24,7 +24,7 @@ Posture: modern web-app baseline for a money-handling marketplace, sized for a s
 
 ## Money-path integrity
 
-- Payment state transitions **only** via verified Stripe webhooks / service layer (BR-29/32/33); amount recomputation server-side from order snapshot (never client amounts); webhook signature + event-id dedup; ledger append-only.
+- Payment state transitions **only** via verified provider webhooks / operator action / service layer (BR-29/32/33); amount recomputation server-side from order snapshot (never client amounts); webhook signature + event-id dedup; ledger append-only. **Shipped (Phase 7):** confirmation is one service path with row locks and amount-parity checks; webhooks verify signatures before storage (event_id unique = replay-safe; failures replayable via admin on already-verified payloads); operator confirm exists only on manual rails; the student "confirm (dev)" affordance is `PAYMENT_DEV_SELF_CONFIRM`-gated and disabled outside dev; refunds/payouts are staff-only service actions; financial admin tables are read-only; no card data fields exist anywhere in the schema; provider secrets never enter API responses (manual mode exposes static instructions text only).
 - Payouts gated on: order completed + no open dispute + account enabled + minimum.
 - Admin money actions: confirmation + reason + audit row (BR-42).
 

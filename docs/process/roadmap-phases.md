@@ -1,6 +1,6 @@
 # Development Phases, Dependencies & Acceptance Criteria
 
-> Status: **Phase 6 ✅ complete · Next: Phase 7 (Payments & Commissions)** · Last updated: Phase 6 completion
+> Status: **Phase 7 ✅ complete · Next: Phase 8 (Messaging & Notifications)** · Last updated: Phase 7 completion
 > **Single source of truth.** The table below reflects what the system actually contains after each phase. Renumbered at Phase 5 kickoff (owner direction): the marketplace foundation (requests + open bidding + selection + order creation) shipped together in Phase 4, so the former "Bidding & Selection" phase no longer exists and later phases shifted down one. Per-phase completion records live at the bottom of this file.
 
 ## Phase overview
@@ -220,3 +220,22 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 | Frontend | `/orders` list (both roles, status filters) + `/orders/[id]` workspace (summary card, 4-step progress rail, delivery thread, timeline, role-gated actions); delivery upload through the existing files API; `/orders` middleware-guarded |
 | Design/motion | design-system tokens/components only; motion = status-badge pop, progress-rail fill, timeline stagger — transform/opacity only, reduced-motion collapses to instant states |
 | Tests | +13 backend (201 total): payment-seam authz, delivery loop with files, revision rules + history, duplicate completion, cancellation paths, auto-approval idempotency + student-race, unpaid sweeper, file access matrix, reminder dedupe, API workspace + stranger lockout; FE lint/typecheck/vitest/build + bundle gates green |
+
+## Phase 7 — completion record (Payments & Commissions)
+
+**Status: ✅ complete.** `awaiting_payment → (payment confirmed: gateway/dev/admin/webhook) → active`, ledger as the financial source of truth — all provider-agnostic, ManualGateway fully functional locally, Stripe a prepared seam (ADR-0005 amendment).
+
+| Area | What exists |
+|---|---|
+| Abstraction | `PaymentGateway` port (create/confirm/status/refund/transfer/verify_webhook) + `PAYMENT_GATEWAY` registry; `ManualGateway` = dev/test + operator-confirmed fallback (deterministic failure hook, simulated signed webhooks); `StripeGateway` registered, raises `GatewayNotConfigured`, no SDK dependency |
+| Domain | Payment (1-1 order) / Refund / Payout / LedgerEntry (append-only) / WebhookEvent (event-id idempotent); no attempt tables (reasoning documented) |
+| Confirmation | ONE service path: order row locked first, amount parity, ledger charge+commission+expert_credit atomically, `payment_confirmed` signal → `orders.mark_paid` (order `active`, request `in_progress`); duplicates/wrong-amount/cancelled all rejected & rolled back; failures recorded for retry |
+| Commission | booked order snapshot is the immutable source (15% open / 20% managed); `commission_split` deterministic integer math; never recomputed after booking |
+| Ledger | signed minor-unit entries; identity `charge + refund == commission + expert_credit + fee` enforced by nightly `payments.ledger_check`; expert earnings = queries over entries, never denormalized balances |
+| Refunds | staff-only full/partial with proportional commission/credit reversal; refundable-balance cap; payment → `refunded|partially_refunded`; dispute-specific policies stay Phase 9 |
+| Payouts | auto-scheduled on completion (BR-30: completed + dispute-free + expert active + ≥$10 else rolls forward); settlement = explicit operator/gateway action with ledger entry; failure reason + retry |
+| Webhooks | `POST /payments/webhooks/{provider}`: signature verification before storage, raw payload kept, event-id dedup (replays no-op), failures persisted + admin redeliver |
+| API/UX | pay + dev-confirm endpoints, `payment` block on order detail, `/me/earnings`, `/me/payouts`; student payment card (instructions, simulated badge, failure/retry, refund state); expert earnings card on `/orders` |
+| Admin | Payment/Refund/Payout/LedgerEntry/WebhookEvent read-only; audited service actions: confirm, full-refund, settle, fail, redeliver |
+| Security | server-side amounts only; ownership + staff gates; signature-verified ingestion; no card data fields; no secrets in responses/logs |
+| Tests | +47 backend (248 total): the full acceptance matrix incl. wrong amount/order, cancelled-order confirmation, duplicate charge/confirm/settle, webhook idempotency/replay/rejection, refund caps/authz, payout floor/races, ledger tamper detection, stripe seam, dev-confirm gating; FE lint/type/test/build/bundle green |
