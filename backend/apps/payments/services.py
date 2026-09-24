@@ -20,6 +20,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import log as audit_log
+from apps.core import services as core_services
 from apps.core.exceptions import DomainError, PermissionDeniedError
 from apps.core.money import allocate
 from apps.payments.config import commission_split
@@ -29,7 +30,7 @@ from apps.payments.signals import payment_confirmed
 
 logger = logging.getLogger(__name__)
 
-PAYOUT_MIN_MINOR = 1000  # BR-30: payouts below $10.00 roll forward
+PAYOUT_MIN_MINOR = 1000  # BR-30 default (runtime value = core.PlatformConfig)
 
 
 class OrderLike(Protocol):
@@ -405,7 +406,7 @@ def schedule_payout(order, *, now=None):
         logger.info("payout rolled forward order=%s dispute open (BR-40 freeze)", order.number)
         return None
     amount = expert_credit_balance(order)
-    if amount < PAYOUT_MIN_MINOR:
+    if amount < core_services.payout_min_minor():
         logger.info(
             "payout rolled forward order=%s amount_minor=%s below floor", order.number, amount
         )

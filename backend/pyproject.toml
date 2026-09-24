@@ -80,6 +80,7 @@ type = "layers"
 # (files/audit) import core only; core imports no domain app.
 layers = [
     "apps.seed",
+    "apps.portal",
     "apps.disputes",
     "apps.reviews",
     "apps.messaging",

@@ -401,6 +401,11 @@ class Command(BaseCommand):
 
         # expert @demo.local keeps the expert role even though "student@" etc.
         # exist — sanity: directory should contain Ayra only (Zoya suspended).
+
+        # --- Phase 10: portal operations funnel (orders→money→reviews→
+        # disputes→reports). Idempotent: every step goes through domain
+        # services and is skipped once its unique state exists.
+        self._seed_portal_funnel(student, ayra, admin)
         from apps.experts.services import directory_queryset
 
         visible = directory_queryset().count()
@@ -420,3 +425,123 @@ class Command(BaseCommand):
         self.stdout.write(
             f"  Demo password default: {DEFAULT_DEMO_PASSWORD} (demo-only — never production credentials)"
         )
+
+    def _seed_portal_funnel(self, student, expert_user, admin) -> None:
+        """Portal demo data (Phase 10): a completed order with payout, a
+        review + expert reply, an open dispute, a resolved dispute with full
+        refund, and a moderation report. Idempotent — every step rides its
+        domain service and unique-state guards."""
+        from apps.core.exceptions import DomainError
+        from apps.disputes import services as disputes
+        from apps.disputes.models import Dispute
+        from apps.messaging import services as messaging
+        from apps.messaging.models import MessageReport
+        from apps.orders import services as order_services
+        from apps.orders.models import Order
+        from apps.payments.services import confirm_order_payment, schedule_payout, start_payment
+        from apps.reviews import services as reviews
+        from apps.service_requests import services as request_services
+        from apps.taxonomy.services import ensure_term
+
+        subject = ensure_term(kind="subject", name="Portal Demo Subject")[0]
+
+        def run_funnel(title):
+            request = request_services.create_request(
+                student,
+                payload={
+                    "category": "tutoring",
+                    "title": title,
+                    "description": "Portal demo request — guided problem walkthrough for the final exam.",
+                    "subject": subject,
+                    "budget_max": 12000,
+                },
+            )
+            request = request_services.publish(student, request, attested=True)
+            request_services.mark_matched(request)
+            order = order_services.create_order_for_request(
+                request,
+                expert=expert_user,
+                amount=9000,
+                currency="USD",
+                source=order_services.Order.Source.OPEN_BID,
+            )
+            order = Order.objects.get(pk=order.pk)
+            start_payment(order, actor=student)
+            confirm_order_payment(Order.objects.get(pk=order.pk), actor=admin)
+            return Order.objects.get(pk=order.pk)
+
+        try:
+            if not Order.objects.filter(request__student=student, status="completed").exists():
+                order = run_funnel("Portal demo — completed")
+                order_services.submit_delivery(
+                    order,
+                    expert=expert_user,
+                    summary="Full walkthrough delivered with practice set and notes.",
+                )
+                order_services.approve_delivery(order, actor=student)
+                schedule_payout(Order.objects.get(pk=order.pk))
+                try:
+                    review = reviews.submit_review(
+                        Order.objects.get(pk=order.pk),
+                        actor=student,
+                        rating=5,
+                        body="Excellent walkthrough — clear structure and patient explanations throughout.",
+                        sub_quality=5,
+                        sub_communication=5,
+                    )
+                    reviews.reply_to_review(
+                        review,
+                        actor=expert_user,
+                        reply="Thank you! Great questions during the session.",
+                        rating_of_student=5,
+                    )
+                except DomainError:
+                    pass
+
+            if not Dispute.objects.filter(order__request__student=student).exists():
+                active = run_funnel("Portal demo — disputed")
+                disputes.open_dispute(
+                    active,
+                    actor=student,
+                    reason="quality_below_expectations",
+                    description="Half of the agreed practice set is missing from the delivered materials.",
+                )
+
+            if not Order.objects.filter(request__student=student, status="cancelled").exists():
+                refunded = run_funnel("Portal demo — refunded dispute")
+                order_services.submit_delivery(
+                    refunded, expert=expert_user, summary="Delivery for the dispute demo order."
+                )
+                order_services.approve_delivery(refunded, actor=student)
+                refunded = Order.objects.get(pk=refunded.pk)
+                dispute = disputes.open_dispute(
+                    refunded,
+                    actor=student,
+                    reason="quality_below_expectations",
+                    description="The delivered summary does not cover the agreed syllabus sections at all.",
+                )
+                disputes.take_case(dispute, actor=admin)
+                disputes.resolve(
+                    dispute,
+                    actor=admin,
+                    outcome="refund_student_full",
+                    resolution_notes="Full refund — delivered material missed the agreed scope.",
+                )
+
+            if (
+                not MessageReport.objects.exists()
+                and Order.objects.filter(request__student=student).exists()
+            ):
+                thread = messaging.get_or_create_thread(
+                    context_type="order",
+                    context=Order.objects.filter(request__student=student).first(),
+                    actor=student,
+                )
+                message = messaging.send_message(
+                    thread,
+                    sender=expert_user,
+                    body="We could continue over email and settle payment there directly.",
+                )
+                messaging.report_message(message, actor=student, reason="off_platform")
+        except DomainError as exc:  # reseed safety — never abort the whole seed
+            self.stdout.write(self.style.WARNING(f"  Portal funnel skipped: {exc}"))

@@ -14,11 +14,12 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import log as audit_log
+from apps.core import services as core_services
 from apps.core.exceptions import DomainError, NotFoundError, PermissionDeniedError
 
 from .models import Dispute
 
-DISPUTE_WINDOW_DAYS = 7  # BR-40: within 7 days after completion
+DISPUTE_WINDOW_DAYS = 7  # BR-40 default (runtime value = core.PlatformConfig)
 DISPUTABLE_STATUSES = ("active", "delivered", "revision_requested")
 MIN_DESCRIPTION = 20
 
@@ -69,7 +70,7 @@ def open_dispute(
     now = timezone.now()
     if order.status == "completed":
         if order.completed_at is None or now - order.completed_at > timedelta(
-            days=DISPUTE_WINDOW_DAYS
+            days=core_services.dispute_window_days()
         ):
             raise DomainError(
                 "The dispute window closed 7 days after completion (BR-40).",

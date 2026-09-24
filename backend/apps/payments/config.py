@@ -1,18 +1,27 @@
 """Money configuration — platform commission (BR-17).
 
-Module constants until the payments phase introduces the PlatformConfig
-singleton (docs/architecture/database.md); nothing here is env-configurable
-so the split stays intentional and test-visible.
+Since Phase 10 the values live in the `core.PlatformConfig` singleton
+(seeded from the historical module constants; mutable only through the
+audited portal config service). The functions below keep their signatures —
+callers (bidding/assignments/orders) do not change.
 """
 
 from __future__ import annotations
 
 from decimal import Decimal
 
-OPEN_COMMISSION_RATE = Decimal("0.1500")  # open-marketplace fee (BR-17)
-MANAGED_COMMISSION_RATE = Decimal("0.2000")  # managed service fee (managed-service workflow)
+from apps.core.services import (
+    DEFAULT_MANAGED_COMMISSION_RATE,
+    DEFAULT_MIN_OFFER_MINOR,
+    DEFAULT_OPEN_COMMISSION_RATE,
+    commission_rate_for,
+    min_offer_minor,
+)
+
+OPEN_COMMISSION_RATE = DEFAULT_OPEN_COMMISSION_RATE  # backwards-compatible alias
+MANAGED_COMMISSION_RATE = DEFAULT_MANAGED_COMMISSION_RATE
 COMMISSION_RATE = OPEN_COMMISSION_RATE  # backwards-compatible alias (open market default)
-MIN_OFFER_MINOR = 500  # BR-18: binding floor (equals $5.00 for 2-decimal currencies)
+MIN_OFFER_MINOR = DEFAULT_MIN_OFFER_MINOR  # BR-18 (defaults; runtime value = PlatformConfig)
 
 _SOURCES = {
     "open_bid": OPEN_COMMISSION_RATE,
@@ -22,11 +31,16 @@ _SOURCES = {
 
 
 def rate_for_source(source: str) -> Decimal:
-    """Commission rate snapshotted onto the order, by acquisition source."""
-    try:
-        return _SOURCES[source]
-    except KeyError:
-        raise ValueError(f"Unknown order source: {source}") from None
+    """Commission rate snapshotted onto the order, by acquisition source.
+
+    Reads the PlatformConfig singleton (constants above = seeded defaults).
+    """
+    return commission_rate_for(source)
+
+
+def min_offer() -> int:
+    """Runtime BR-18 floor (PlatformConfig-backed)."""
+    return min_offer_minor()
 
 
 def commission_split(amount_minor: int, rate: Decimal = COMMISSION_RATE) -> tuple[int, int]:

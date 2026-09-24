@@ -54,7 +54,8 @@ urlpatterns = [
     path("", include("apps.messaging.api.urls")),
     path("", include("apps.messaging.api.urls_message_reports")),  # Phase 9 (BR-34)
     path("", include("apps.reviews.api.urls")),  # Phase 9
-    path("", include("apps.disputes.api.urls")),  # Phase 9
+    path("", include("apps.disputes.api.urls")),
+    path("", include("apps.portal.api.urls")),  # Phase 10 (staff /ops/*)
     path("", include("apps.notifications.api.urls")),
 ]
 urls_v1 = urlpatterns

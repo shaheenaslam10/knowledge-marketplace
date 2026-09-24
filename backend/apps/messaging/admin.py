@@ -67,3 +67,37 @@ class MessageReportAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.action(description="Hide selected messages (audited)")
+def hide_messages(modeladmin, request, queryset):
+    from apps.messaging.services import set_message_hidden
+
+    for message in queryset.filter(is_hidden=False):
+        set_message_hidden(message, actor=request.user, hidden=True, reason="admin-action")
+
+
+@admin.action(description="Unhide selected messages (audited)")
+def unhide_messages(modeladmin, request, queryset):
+    from apps.messaging.services import set_message_hidden
+
+    for message in queryset.filter(is_hidden=True):
+        set_message_hidden(message, actor=request.user, hidden=False, reason="admin-action")
+
+
+MessageAdmin.actions = ["hide_messages", "unhide_messages"]
+
+
+@admin.action(description="Dismiss selected reports (audited)")
+def dismiss_reports(modeladmin, request, queryset):
+    from apps.core.exceptions import DomainError
+    from apps.portal.services.moderation import ReportAction, review_report
+
+    for report in queryset.filter(status=MessageReport.Status.OPEN):
+        try:
+            review_report(report, actor=request.user, action=ReportAction.DISMISS)
+        except DomainError:
+            continue  # raced closed — idempotent sweep
+
+
+MessageReportAdmin.actions = ["dismiss_reports"]

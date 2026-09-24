@@ -119,6 +119,14 @@ class MessageReport(TimeStampedModel):
     reason = models.CharField(max_length=20, choices=Reason.choices)
     details = models.CharField(max_length=500, blank=True)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.OPEN)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="message_reports_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [

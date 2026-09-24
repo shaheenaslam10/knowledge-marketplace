@@ -64,7 +64,8 @@ LOCAL_APPS = [
     "apps.payments",  # Phase 1: gateway interface only
     "apps.messaging",  # Phase 8: threads, receipts, WS transport
     "apps.reviews",  # Phase 9: reviews + weighted reputation
-    "apps.disputes",  # Phase 9: dispute lifecycle + payout freeze
+    "apps.disputes",
+    "apps.portal",  # Phase 10 — staff operations surfaces  # Phase 9: dispute lifecycle + payout freeze
     "apps.notifications",  # Phase 8: inbox, preferences, fan-out
     "apps.seed",  # top layer: demo data (accounts cannot import domain apps)
 ]

@@ -60,6 +60,24 @@ def _assert_participant(user, thread: Thread) -> None:
 
 
 @transaction.atomic
+def set_message_hidden(message: Message, *, actor, hidden: bool, reason: str = "") -> Message:
+    """Moderation visibility toggle (BR-35): the ONLY non-view write path for
+    `Message.is_hidden` (Django admin actions call this too). Audited."""
+    message = Message.objects.select_for_update().get(pk=message.pk)
+    if message.is_hidden == hidden:
+        return message  # idempotent
+    message.is_hidden = hidden
+    message.save(update_fields=["is_hidden", "updated_at"])
+    audit_log(
+        actor,
+        action="moderation.message_hidden" if hidden else "moderation.message_unhidden",
+        obj=message,
+        detail={"reason": reason[:200]},
+    )
+    return message
+
+
+@transaction.atomic
 def report_message(message: Message, *, actor, reason: str, details: str = "") -> MessageReport:
     """BR-34: a thread participant reports a message. Idempotent per
     (message, reporter) while the previous report is still open."""
