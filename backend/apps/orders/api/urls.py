@@ -13,4 +13,10 @@ urlpatterns = [
         name="order-revision",
     ),
     path("me/orders/<int:pk>/cancel", views.OrderCancelView.as_view(), name="order-cancel"),
+    path("me/orders/<int:pk>/pay", views.OrderPayView.as_view(), name="order-pay"),
+    path(
+        "me/orders/<int:pk>/payment/confirm",
+        views.OrderPaymentConfirmView.as_view(),
+        name="order-payment-confirm",
+    ),
 ]

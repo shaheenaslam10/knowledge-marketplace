@@ -25,6 +25,7 @@ from apps.core.exceptions import DomainError, PermissionDeniedError
 from apps.files.models import Attachment
 from apps.orders.delivery import Delivery, OrderEvent
 from apps.orders.models import Order
+from apps.payments import services as payments_services
 from apps.service_requests import services as request_services
 
 AUTO_APPROVE_HOURS = 72  # BR-24
@@ -237,6 +238,7 @@ def approve_delivery(order: Order, *, actor=None, source: str = "student") -> Or
     _record_event(order, OrderEvent.EventType.COMPLETED, actor=actor, source=source)
     if order.request.status == "in_progress":
         request_services.transition(order.request, "completed", actor=actor)
+    payments_services.schedule_payout(order)  # BR-30 (no-op below the $10 floor)
     _notify(order, "completed")
     return order
 
@@ -261,6 +263,7 @@ def cancel(order: Order, *, actor, reason: str = "") -> Order:
     order.cancellation_reason = reason[:200]
     order.save(update_fields=["cancelled_at", "cancelled_by", "cancellation_reason", "updated_at"])
     order = transition(order, Order.Status.CANCELLED, actor=actor)
+    payments_services.void_payment_for_order(order, actor=actor)  # close any open attempt
     if order.request.status in ("matched", "in_progress"):
         request_services.transition(order.request, "cancelled", actor=actor, reason=reason)
     _notify(order, "cancelled")

@@ -63,13 +63,20 @@ class OrderAdmin(admin.ModelAdmin):
     inlines = [DeliveryInline]
     actions = ("confirm_payment", "force_approve", "cancel_order")
 
-    @admin.action(description="Confirm payment (manual mode → active)")
+    @admin.action(description="Confirm payment (manual rails: transfer verified → active + ledger)")
     def confirm_payment(self, request, queryset):
+        from apps.payments import services as payment_services
+
         done = 0
         for order in queryset.filter(status=Order.Status.AWAITING_PAYMENT):
-            order = services.mark_paid(order, actor=request.user, via="manual")
-            done += 1
-        messages.info(request, f"Confirmed payment on {done} order(s) — now active.")
+            try:
+                payment_services.confirm_order_payment(order, actor=request.user, source="admin")
+                done += 1
+            except Exception as exc:
+                messages.warning(request, f"{order.number}: {exc}")
+        messages.info(
+            request, f"Confirmed payment on {done} order(s) — now active, ledger written."
+        )
 
     @admin.action(description="Force-approve delivered orders (admin)")
     def force_approve(self, request, queryset):

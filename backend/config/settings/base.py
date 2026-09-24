@@ -252,6 +252,13 @@ MANUAL_PAYMENT_INSTRUCTIONS = env.str(
         "on the order page. An operator confirms receipt before work starts."
     ),
 )
+MANUAL_WEBHOOK_SECRET = env.str(
+    "MANUAL_WEBHOOK_SECRET", default="dev-only-webhook-secret"
+)  # simulated webhooks only
+
+STRIPE_SECRET_KEY = env.str("STRIPE_SECRET_KEY", default="")  # unused until StripeGateway activates
+STRIPE_WEBHOOK_SECRET = env.str("STRIPE_WEBHOOK_SECRET", default="")
+STRIPE_API_COUNTRY = env.str("STRIPE_API_COUNTRY", default="US")
 
 # --- Feature flags ---
 FEATURE_MANAGED_SERVICE = env.bool("FEATURE_MANAGED_SERVICE", default=True)

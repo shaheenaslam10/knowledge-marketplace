@@ -1,5 +1,6 @@
 """Order API — one workspace contract for all three sources (open/managed_*)."""
 
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
@@ -12,6 +13,8 @@ from apps.core.pagination import DefaultCursorPagination
 from apps.orders import services
 from apps.orders.delivery import Delivery
 from apps.orders.models import Order
+from apps.payments import services as payment_services
+from apps.payments.models import Payment
 
 
 def _role(user, order: Order) -> str:
@@ -120,7 +123,14 @@ class MyOrderDetailView(APIView):
             for e in order.events.all()
         ]
         deliveries = [_delivery_meta(d) for d in order.deliveries.prefetch_related("attachments")]
-        return Response({**_order_meta(order, role), "events": events, "deliveries": deliveries})
+        return Response(
+            {
+                **_order_meta(order, role),
+                "events": events,
+                "deliveries": deliveries,
+                "payment": _payment_meta(order, role),
+            }
+        )
 
 
 class OrderDeliverView(APIView):
@@ -173,3 +183,66 @@ class OrderCancelView(APIView):
         _role(request.user, order)
         order = services.cancel(order, actor=request.user, reason=request.data.get("reason", ""))
         return Response({"status": order.status, "cancelled_at": order.cancelled_at})
+
+
+def _payment_meta(order: Order, role: str) -> dict | None:
+    payment = getattr(order, "payment", None)
+    if payment is None:
+        return None
+    meta = {
+        "id": str(payment.id),
+        "gateway": payment.gateway,
+        "status": payment.status,
+        "amount_minor": payment.amount_minor,
+        "amount_display": to_major(payment.amount_minor, payment.currency),
+        "currency": payment.currency,
+        "refunded_display": to_major(payment.refunded_minor, payment.currency),
+        "failure_reason": payment.failure_reason,
+        "paid_at": payment.paid_at,
+        "simulated": payment.gateway == "manual",
+    }
+    if role == "student" and payment.status == payment.Status.PENDING:
+        # Static instructions snapshot for the manual rails; never provider secrets.
+        meta["instructions"] = payment.instructions
+        meta["dev_self_confirm"] = payment.gateway == "manual" and getattr(
+            settings, "PAYMENT_DEV_SELF_CONFIRM", False
+        )
+    return meta
+
+
+class OrderPayView(APIView):
+    """POST /me/orders/{id}/pay — student starts payment (manual instructions
+    today; a provider client_secret with Stripe later). Amounts are read from
+    the booked order server-side; the client cannot submit prices."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order.objects.select_related("request"), pk=pk)
+        _role(request.user, order)
+        payment_services.start_payment(order, actor=request.user)
+        return Response({"status": order.status, "payment": _payment_meta(order, "student")})
+
+
+class OrderPaymentConfirmView(APIView):
+    """POST /me/orders/{id}/payment/confirm — DEVELOPMENT/TEST action for the
+    manual gateway only: 'the transfer arrived, activate the order'. Gated by
+    PAYMENT_DEV_SELF_CONFIRM (dev settings; never production) plus student
+    ownership. Operator confirmation in real manual deployments is the Django
+    admin action; provider rails confirm exclusively via webhooks."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if not getattr(settings, "PAYMENT_DEV_SELF_CONFIRM", False):
+            raise PermissionDeniedError(
+                "Payment self-confirmation is disabled on this environment."
+            )
+        order = get_object_or_404(Order.objects.select_related("request"), pk=pk)
+        _role(request.user, order)
+        payment = Payment.objects.filter(order=order).first()
+        if payment is None:
+            payment = payment_services.start_payment(order, actor=request.user)
+        payment_services.confirm_payment(payment, actor=request.user, source="student:dev-confirm")
+        order.refresh_from_db()
+        return Response({"status": order.status, "payment": _payment_meta(order, "student")})

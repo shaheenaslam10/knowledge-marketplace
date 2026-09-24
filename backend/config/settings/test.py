@@ -31,3 +31,6 @@ REST_FRAMEWORK = {
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
 LOGGING = {**LOGGING, "root": {**LOGGING["root"], "level": "WARNING"}}
+
+# Payment self-confirmation is a dev-only affordance; tests opt in explicitly.
+PAYMENT_DEV_SELF_CONFIRM = False
