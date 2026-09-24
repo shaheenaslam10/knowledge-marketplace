@@ -1,5 +1,7 @@
 /** Messaging API client (browser). */
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, ApiError } from "@/lib/api/client";
+
+export { ApiError };
 
 import type { ChatMessage, ThreadCard, ThreadDetail } from "./types";
 
@@ -21,12 +23,26 @@ export const messagingApi = {
       body: "{}",
       headers: { "Content-Type": "application/json" },
     }),
-  /** Lazy thread open from order/request entry points. */
-  open: (context: { context_type: "order"; order_id: string } | { context_type: "request"; request_id: string }) =>
+  /** Lazy thread open from order/request/dispute entry points. */
+  open: (
+    context:
+      | { context_type: "order"; order_id: string }
+      | { context_type: "dispute"; order_id: string }
+      | { context_type: "request"; request_id: string },
+  ) =>
     apiFetch<{ id: string; context_type: string }>({
       path: "/api/v1/me/threads/open",
       method: "POST",
       body: JSON.stringify(context),
+      headers: { "Content-Type": "application/json" },
+    }),
+
+  /** BR-34 report button — one open report per (message, reporter). */
+  reportMessage: (messageId: string, reason: string, details = "") =>
+    apiFetch<{ id: string; message_id: string; reason: string; status: string }>({
+      path: `/api/v1/me/messages/${messageId}/report`,
+      method: "POST",
+      body: JSON.stringify({ reason, details }),
       headers: { "Content-Type": "application/json" },
     }),
 };

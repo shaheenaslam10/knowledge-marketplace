@@ -6,14 +6,20 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { disputesApi } from "@/features/disputes/api";
+import type { Dispute } from "@/features/disputes/types";
 import { ordersApi } from "@/features/orders/api";
 import { OrderWorkspace } from "@/features/orders/components/order-workspace";
 import type { OrderDetail } from "@/features/orders/types";
+import { reviewsApi } from "@/features/reviews/api";
+import type { Review } from "@/features/reviews/types";
 
 export function OrderWorkspaceClient() {
   const params = useParams<{ id: string }>();
   const orderId = typeof params?.id === "string" ? params.id : "";
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [review, setReview] = useState<Review | null>(null);
+  const [dispute, setDispute] = useState<Dispute | null>(null);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -24,7 +30,15 @@ export function OrderWorkspaceClient() {
       setFailed(false);
     } catch {
       setFailed(true);
+      return;
     }
+    // Phase 9 side panels — 404 means "none yet", not an error.
+    const [reviewResult, disputeResult] = await Promise.allSettled([
+      reviewsApi.forOrder(orderId),
+      disputesApi.forOrder(orderId),
+    ]);
+    setReview(reviewResult.status === "fulfilled" ? reviewResult.value : null);
+    setDispute(disputeResult.status === "fulfilled" ? disputeResult.value : null);
   }, [orderId]);
 
   useEffect(() => {
@@ -48,6 +62,43 @@ export function OrderWorkspaceClient() {
         await ordersApi.requestRevision(orderId, payload);
       } else if (key === "cancel" && typeof payload === "string") {
         await ordersApi.cancel(orderId, payload);
+      } else if (key === "submit-review" && typeof payload === "object" && payload !== null) {
+        const { rating, body, subs } = payload as {
+          rating: number;
+          body: string;
+          subs: { sub_quality: number | null; sub_communication: number | null; sub_timeliness: number | null };
+        };
+        const created = await reviewsApi.submit(orderId, { rating, body, ...subs });
+        setReview(created);
+      } else if (key === "edit-review" && typeof payload === "object" && payload !== null) {
+        const { reviewId, rating, body, subs } = payload as {
+          reviewId: string;
+          rating: number;
+          body: string;
+          subs: { sub_quality: number | null; sub_communication: number | null; sub_timeliness: number | null };
+        };
+        const updated = await reviewsApi.edit(reviewId, { rating, body, ...subs });
+        setReview(updated);
+      } else if (key === "reply-review" && typeof payload === "object" && payload !== null) {
+        const { reviewId, reply, ratingOfStudent } = payload as {
+          reviewId: string;
+          reply: string;
+          ratingOfStudent: number | null;
+        };
+        const updated = await reviewsApi.reply(reviewId, reply, ratingOfStudent);
+        setReview(updated);
+      } else if (key === "open-dispute" && typeof payload === "object" && payload !== null) {
+        const { reason, description, evidenceIds } = payload as {
+          reason: string;
+          description: string;
+          evidenceIds: string[];
+        };
+        const created = await disputesApi.open(orderId, { reason, description, evidence_ids: evidenceIds });
+        setDispute(created);
+      } else if (key === "add-evidence" && typeof payload === "object" && payload !== null) {
+        const { disputeId, evidenceIds } = payload as { disputeId: string; evidenceIds: string[] };
+        await disputesApi.addEvidence(disputeId, evidenceIds);
+        setDispute(await disputesApi.detail(disputeId));
       }
       await load();
     } finally {
@@ -87,7 +138,7 @@ export function OrderWorkspaceClient() {
           ← My orders
         </Link>
       </Button>
-      <OrderWorkspace order={order} onAction={onAction} busy={busy} />
+      <OrderWorkspace order={order} review={review} dispute={dispute} onAction={onAction} busy={busy} />
     </div>
   );
 }

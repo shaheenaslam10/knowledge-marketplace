@@ -26,7 +26,12 @@ import {
 } from "@/features/orders/types";
 import { fileDownloadUrl } from "@/features/orders/api";
 import { MessageThreadButton } from "@/features/messaging/MessageThreadButton";
+import { DisputeSection } from "@/features/disputes/components/dispute-section";
+import type { Dispute } from "@/features/disputes/types";
 import { PaymentCard } from "@/features/orders/components/payment-card";
+import { ReviewSection } from "@/features/reviews/components/review-card";
+import type { SubScoreKey } from "@/features/reviews/types";
+import type { Review } from "@/features/reviews/types";
 
 const STEPS = ["Confirmed", "In progress", "Delivered", "Completed"] as const;
 
@@ -235,12 +240,18 @@ function DeliveryFiles({ order }: { order: OrderDetail }) {
   );
 }
 
+type ReviewAction = { rating: number; body: string; subs: Record<SubScoreKey, number | null> };
+
 export function OrderWorkspace({
   order,
+  review = null,
+  dispute = null,
   onAction,
   busy,
 }: {
   order: OrderDetail;
+  review?: Review | null;
+  dispute?: Dispute | null;
   onAction: (key: string, payload?: unknown) => Promise<void>;
   busy: boolean;
 }) {
@@ -423,6 +434,25 @@ export function OrderWorkspace({
               </form>
             )}
 
+            {(order.status === "completed" || review) && (
+              <div className="border-border border-t pt-4">
+                <ReviewSection
+                  orderRole={order.role === "student" ? "student" : "expert"}
+                  review={review}
+                  busy={busy}
+                  onSubmit={async (input) => {
+                    await onAction("submit-review", input);
+                  }}
+                  onEdit={async (reviewId: string, input: ReviewAction) => {
+                    await onAction("edit-review", { ...input, reviewId });
+                  }}
+                  onReply={async (reviewId: string, reply: string, ratingOfStudent: number | null) => {
+                    await onAction("reply-review", { reviewId, reply, ratingOfStudent });
+                  }}
+                />
+              </div>
+            )}
+
             {actions.length > 0 && mode === "idle" && (
               <div className="border-border flex flex-wrap gap-2 border-t pt-4">
                 {actions.map((action) =>
@@ -464,6 +494,19 @@ export function OrderWorkspace({
           </div>
         </Card>
       </div>
+
+      <DisputeSection
+        orderStatus={order.status}
+        orderRole={order.role === "student" ? "student" : "expert"}
+        dispute={dispute}
+        busy={busy}
+        onOpen={async (input) => {
+          await onAction("open-dispute", input);
+        }}
+        onAddEvidence={async (disputeId: string, evidenceIds: string[]) => {
+          await onAction("add-evidence", { disputeId, evidenceIds });
+        }}
+      />
     </div>
   );
 }

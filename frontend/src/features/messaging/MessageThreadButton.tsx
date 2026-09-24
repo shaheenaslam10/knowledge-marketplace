@@ -18,7 +18,10 @@ export function MessageThreadButton({
   disabled = false,
   disabledReason,
 }: {
-  context: { context_type: "order"; order_id: string } | { context_type: "request"; request_id: string };
+  context:
+    | { context_type: "order"; order_id: string }
+    | { context_type: "dispute"; order_id: string }
+    | { context_type: "request"; request_id: string };
   label?: string;
   variant?: "primary" | "secondary" | "ghost";
   size?: "sm" | "md";

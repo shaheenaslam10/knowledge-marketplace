@@ -6,10 +6,14 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { expertsApi } from "@/features/experts/api";
 import type { PublicExpert } from "@/features/experts/types";
+import { reviewsApi } from "@/features/reviews/api";
+import { ReviewCard, Stars } from "@/features/reviews/components/review-card";
+import type { PublicReviewsFeed } from "@/features/reviews/types";
 
 export default function ExpertPublicProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const [expert, setExpert] = useState<PublicExpert | null>(null);
+  const [feed, setFeed] = useState<PublicReviewsFeed | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing">("loading");
 
   useEffect(() => {
@@ -17,10 +21,16 @@ export default function ExpertPublicProfilePage({ params }: { params: Promise<{ 
     expertsApi
       .publicExpert(slug)
       .then((data) => {
-        if (!cancelled) {
-          setExpert(data);
-          setState("ready");
-        }
+        if (cancelled) return;
+        setExpert(data);
+        setState("ready");
+        // reviews are secondary — the profile renders without them on failure
+        reviewsApi
+          .public(slug)
+          .then((reviews) => {
+            if (!cancelled) setFeed(reviews);
+          })
+          .catch(() => undefined);
       })
       .catch(() => {
         if (!cancelled) setState("missing");
@@ -58,6 +68,19 @@ export default function ExpertPublicProfilePage({ params }: { params: Promise<{ 
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{expert.display_name}</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{expert.headline}</p>
+          <p className="mt-2 flex items-center gap-2 text-sm" data-testid="expert-rating">
+            {expert.rating_count > 0 && expert.rating_avg != null ? (
+              <>
+                <Stars value={Math.round(Number(expert.rating_avg))} />
+                <span className="text-slate-700 dark:text-slate-200">{expert.rating_avg}</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  · {expert.rating_count} review{expert.rating_count === 1 ? "" : "s"} (recency-weighted)
+                </span>
+              </>
+            ) : (
+              <span className="text-slate-500 dark:text-slate-400">No reviews yet</span>
+            )}
+          </p>
         </div>
         {expert.availability === "available" ? (
           <Badge tone="success">Available</Badge>
@@ -99,6 +122,23 @@ export default function ExpertPublicProfilePage({ params }: { params: Promise<{ 
             <Badge key={s.id}>{s.name}</Badge>
           ))}
         </div>
+      </Card>
+
+      <Card className="mt-6" data-testid="expert-reviews">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Reviews</h2>
+        {feed === null ? null : feed.results.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            No published reviews yet{feed.rating_count === 0 ? "" : " (moderation may hide reviews temporarily)"}.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-5">
+            {feed.results.map((review) => (
+              <li key={review.id}>
+                <ReviewCard review={review} />
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
     </div>
   );

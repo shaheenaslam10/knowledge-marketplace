@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/features/auth/SessionProvider";
 import { messagingApi, uploadChatAttachment } from "@/features/messaging/api";
+import { PolicyBanner, ReportMessageButton } from "@/features/messaging/moderation";
 import { fileDownloadUrl } from "@/features/orders/api";
 import type { ChatMessage, ThreadDetail } from "@/features/messaging/types";
 import { useRefetchOnFocus, useThreadSocket, type ThreadSocketEvent } from "@/features/messaging/use-thread-socket";
@@ -188,6 +189,8 @@ export default function ThreadPage() {
         </div>
       </header>
 
+      {(thread.context_type === "order" || thread.context_type === "dispute") && <PolicyBanner />}
+
       <div className="flex-1 space-y-3 overflow-y-auto py-4" data-testid="thread-messages">
         {messages.map((message) => {
           const mine = message.sender_id === user?.id;
@@ -220,6 +223,7 @@ export default function ThreadPage() {
                 <p className={cn("mt-1 text-right text-[10px]", mine ? "opacity-70" : "text-muted")}>
                   {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </p>
+                <ReportMessageButton messageId={message.id} />
               </div>
             </div>
           );
