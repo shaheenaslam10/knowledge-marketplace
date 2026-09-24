@@ -162,6 +162,16 @@ def _mark_payment_failed(payment_pk: int, *, reason: str) -> None:
     if updated:
         payment = Payment.objects.get(pk=payment_pk)
         audit_log(None, action="payment.failed", obj=payment, detail={"reason": reason[:255]})
+        from apps.notifications.services import notify
+
+        notify(
+            payment.order.student_id,
+            "payment_failed",
+            title="Payment failed",
+            body="Your payment attempt failed — you can retry from the order page.",
+            url=f"/orders/{payment.order_id}",
+            context={"payment_id": str(payment.pk)},
+        )
 
 
 @transaction.atomic
@@ -443,6 +453,16 @@ def settle_payout(payout: Payout, *, actor=None) -> Payout:
     )
     audit_log(
         actor, action="payout.settle", obj=payout, detail={"amount_minor": payout.amount_minor}
+    )
+    from apps.notifications.services import notify
+
+    notify(
+        payout.expert_id,
+        "payout_paid",
+        title="Payout sent",
+        body="Your earnings payout has been sent.",
+        url="/orders",
+        context={"payout_id": str(payout.pk)},
     )
     return payout
 

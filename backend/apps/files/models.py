@@ -35,6 +35,7 @@ class Attachment(TimeStampedModel):
         REQUEST_BRIEF = "request_brief", "Request brief attachment"
         DELIVERY = "delivery", "Order delivery file"
         ORDER_ATTACHMENT = "order_attachment", "Order scope attachment"
+        MESSAGE = "message", "Chat attachment"
 
     class Access(models.TextChoices):
         """`private` = uploader + authorized parties only (grant_download gates

@@ -1,5 +1,6 @@
-"""WebSocket foundation: ping consumer through the real ASGI stack (origin
-validation + auth middleware + in-memory channel layer).
+"""WebSocket stack through the real ASGI app (origin validation + auth
+middleware + in-memory channel layer): the Phase 1 ping proof plus the
+Phase 8 routing (threads + notifications consumers register in routing).
 
 Plugin-free async execution: each test runs its entire communicator session
 with asyncio.run (one fresh event loop per test) — no reliance on pytest-asyncio

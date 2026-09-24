@@ -1,37 +1,16 @@
-"""Order emails — thin django-q2 wrappers (Phase 8 expands the system)."""
+"""Order tasks — job wrappers (Phase 6) + pre-Phase-8 email shim.
+
+Notification delivery moved to the Phase 8 funnel (apps.notifications);
+`send_order_event_email` remains only so old queued tasks drain cleanly.
+django-q2 job wrappers wrap the idempotent services (schedules are ops
+setup via the admin, docs/workflows/order-lifecycle.md).
+"""
 
 from __future__ import annotations
 
 import logging
 
-from django.conf import settings
-from django.core.mail import send_mail
-
 logger = logging.getLogger(__name__)
-
-COPY = {
-    "order_active": (
-        "Order paid — you can start",
-        "Payment is confirmed; the deadline clock is running. Deliver through your Assignments → Order page.",
-    ),
-    "delivered": (
-        "Your order has a delivery to review",
-        "The expert submitted their work. Approve it or request a revision within 72 hours — after that it auto-approves.",
-    ),
-    "revision_requested": (
-        "Revision requested",
-        "The student requested changes. Check the order page for the notes and the updated due date.",
-    ),
-    "completed": (
-        "Order completed 🎉",
-        "The delivery was approved. Payout is scheduled per the payments terms (Phase 7).",
-    ),
-    "cancelled": ("Order cancelled", "This order was cancelled. No action is needed."),
-    "deadline_reminder": (
-        "Delivery due within 24 hours",
-        "Heads-up: your delivery is due within 24 hours. Submit it (or propose a new deadline in chat) to stay on track.",
-    ),
-}
 
 
 def auto_approve_deliveries() -> int:
@@ -51,31 +30,21 @@ def awaiting_payment_sweeper() -> int:
 
 
 def deadline_reminder() -> int:
-    """T-24h expert warning. Schedule: hourly (django-q2 Scheduled tasks, ops setup)."""
+    """T-24h expert warning (deduped by the persisted deadline_reminded event).
+    Schedule: hourly (django-q2 Scheduled tasks, ops setup)."""
     from apps.orders import services
 
     return services.deadline_reminder()
 
 
 def send_order_event_email(order_id: str, event: str, extra_email: int | None = None) -> dict:
-    from apps.accounts.models import User
+    """Backward-compatible shim: queued tasks from before the Phase 8 funnel
+    land here and are translated into notifications (idempotent)."""
     from apps.orders.models import Order
+    from apps.orders.services import _EVENT_COPY, _notify
 
-    order = Order.objects.select_related("request").get(pk=order_id)
-    subject, body = COPY.get(event, ("Order update", "Please sign in for details."))
-    recipients = [order.student_id, order.expert_id]
-    if extra_email is not None and extra_email not in recipients:
-        recipients.append(extra_email)
-    for user_id in recipients:
-        user = User.objects.filter(pk=user_id).first()
-        if user is None:
-            continue
-        send_mail(
-            subject=f"{subject} — Hybrid Expert Marketplace",
-            message=f"Hi {user.name or 'there'},\n\n{body}\n\nOrder {order.number} ({order.request.title}).",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
-    logger.info("order event email sent order=%s event=%s", order_id, event)
+    order = Order.objects.filter(pk=order_id).first()
+    if order is None or event not in _EVENT_COPY:
+        return {"sent": False}
+    _notify(order, event)
     return {"sent": True}

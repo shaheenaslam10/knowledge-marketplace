@@ -159,6 +159,16 @@ def accept(student, offer: Offer) -> tuple[Offer, Any]:
     request_services.mark_matched(request, actor=student)
     order = create_order_from_offer(offer)
     audit_log(student, action="offer.accept", obj=offer, detail={"order": str(order.pk)})
+    from apps.notifications.services import notify
+
+    notify(
+        offer.expert_id,
+        "offer_accepted",
+        title="Your offer was accepted",
+        body="The student selected your offer — the order is awaiting payment.",
+        url=f"/orders/{order.pk}",
+        context={"order_id": str(order.pk)},
+    )
     return offer, order
 
 

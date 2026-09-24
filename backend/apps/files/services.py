@@ -64,6 +64,17 @@ PURPOSE_RULES: dict[str, PurposeRule] = {
         ),
         access=Attachment.Access.PRIVATE,  # participants granted via grant_download (Phase 4)
     ),
+    Attachment.Purpose.MESSAGE: PurposeRule(
+        max_bytes=5 * MB,  # smaller quota for chat (docs/workflows/messaging.md)
+        extensions=frozenset({"pdf", "png", "jpg", "jpeg", "txt"}),
+        magic=(
+            (b"%PDF", "application/pdf"),
+            (b"\x89PNG\r\n\x1a\n", "image/png"),
+            (b"\xff\xd8\xff", "image/jpeg"),
+            (b"", "text/plain"),
+        ),
+        access=Attachment.Access.PRIVATE,  # thread participants granted via grant_download
+    ),
     Attachment.Purpose.DELIVERY: PurposeRule(
         max_bytes=25 * MB,
         extensions=frozenset({"pdf", "png", "jpg", "jpeg"}),
@@ -190,6 +201,10 @@ def grant_download(user, attachment: Attachment) -> bool:
         return False
     if user.pk == attachment.uploader_id or user.is_staff:
         return True
+    # Chat attachments (Phase 8): only participants of a thread whose messages
+    # reference the file may download it (traversal stays inside the sidecar).
+    if attachment.purpose == Attachment.Purpose.MESSAGE:
+        return attachment.chat_messages.filter(thread__participants=user).exists()
     # Request briefs: the selected (accepted) expert keeps participant access;
     # browsing experts see metadata only — no signed URLs (docs/workflows/files.md).
     if attachment.purpose == Attachment.Purpose.REQUEST_BRIEF:

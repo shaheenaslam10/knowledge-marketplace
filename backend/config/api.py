@@ -51,5 +51,7 @@ urlpatterns = [
     path("", include("apps.assignments.api.urls")),
     path("", include("apps.orders.api.urls")),
     path("", include("apps.payments.api.urls")),
+    path("", include("apps.messaging.api.urls")),
+    path("", include("apps.notifications.api.urls")),
 ]
 urls_v1 = urlpatterns

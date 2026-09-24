@@ -348,21 +348,28 @@ def expire_due() -> int:
 
 
 def _notify_pool(invitations: list[PoolInvitation]) -> None:
-    from django_q.tasks import async_task
+    """Phase 8: invitation emails flow through the notification funnel."""
+    from apps.notifications.services import notify_many
 
-    for invitation in invitations:
-        async_task(
-            "apps.assignments.tasks.send_invitation_email",
-            str(invitation.pk),
-            task_name="assignments.email",
-        )
+    notify_many(
+        [invitation.expert_id for invitation in invitations],
+        "invitation_new",
+        title="New managed invitation",
+        body="You were invited to take a managed request — respond before it expires.",
+        url="/assignments",
+        context={"invitation_ids": [str(i.pk) for i in invitations]},
+    )
 
 
 def _notify_direct(assignment: DirectAssignment) -> None:
-    from django_q.tasks import async_task
+    """Phase 8: direct-assignment emails flow through the notification funnel."""
+    from apps.notifications.services import notify
 
-    async_task(
-        "apps.assignments.tasks.send_assignment_email",
-        str(assignment.pk),
-        task_name="assignments.email",
+    notify(
+        assignment.expert_id,
+        "assignment_new",
+        title="New direct assignment",
+        body="The platform assigned a request to you — accept or decline within 24h.",
+        url="/assignments",
+        context={"assignment_id": str(assignment.pk)},
     )

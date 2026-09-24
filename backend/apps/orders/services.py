@@ -77,16 +77,42 @@ def transition(order: Order, to_status: str, *, actor=None, event_type: str | No
     return order
 
 
-def _notify(order: Order, event: str, extra_email: int | None = None) -> None:
-    from django_q.tasks import async_task
+# Event → (recipients, notification type, title) — the Phase 8 notification
+# catalog (docs/workflows/notifications.md); delivery channels (in-app +
+# realtime + email per preference) are the funnel's business.
+_EVENT_COPY = {
+    "order_active": (
+        ("both",),
+        "order_paid_activated",
+        "Order paid — work can start",
+    ),
+    "delivered": (("student",), "order_delivered", "Your order has a delivery to review"),
+    "revision_requested": (("expert",), "order_revision_requested", "Revision requested"),
+    "completed": (("both",), "order_approved_completed", "Order completed"),
+    "cancelled": (("both",), "order_cancelled", "Order cancelled"),
+    "deadline_reminder": (("expert",), "order_deadline_warning", "Delivery due within 24 hours"),
+}
 
-    async_task(
-        "apps.orders.tasks.send_order_event_email",
-        str(order.pk),
-        event,
-        extra_email=extra_email,
-        task_name="orders.email",
-    )
+
+def _notify(order: Order, event: str, extra_email: int | None = None) -> None:
+    """Order event → notifications funnel (in-app row + realtime push + email
+    per preference). Replaces the Phase 6 direct-email hook (Phase 8)."""
+    from apps.notifications.services import notify, notify_many
+
+    (_targets,), ntype, title = _EVENT_COPY[event]
+    url = f"/orders/{order.pk}"
+    if _targets == "both":
+        notify_many(
+            [order.student_id, order.expert_id],
+            ntype,
+            title=title,
+            url=url,
+            context={"order_id": str(order.pk)},
+        )
+    elif _targets == "student":
+        notify(order.student_id, ntype, title=title, url=url, context={"order_id": str(order.pk)})
+    else:
+        notify(order.expert_id, ntype, title=title, url=url, context={"order_id": str(order.pk)})
 
 
 def _student_guard(user, order: Order) -> None:

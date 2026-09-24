@@ -62,6 +62,8 @@ LOCAL_APPS = [
     "apps.bidding",  # Phase 4: offers + transactional selection
     "apps.orders",  # Phase 4: order anchor (awaiting_payment only)
     "apps.payments",  # Phase 1: gateway interface only
+    "apps.messaging",  # Phase 8: threads, receipts, WS transport
+    "apps.notifications",  # Phase 8: inbox, preferences, fan-out
     "apps.seed",  # top layer: demo data (accounts cannot import domain apps)
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -239,8 +241,20 @@ Q_CLUSTER = {
     "catch_up": False,
 }
 
-# --- Email (console in dev; SMTP/Brevo adapters arrive with notifications) ---
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# --- Email (ADR-0011 adapter: console dev / SMTP / Brevo API — no new deps) ---
+EMAIL_BACKEND_MODE = env.str("EMAIL_BACKEND_MODE", default="console")  # console|smtp|brevo
+EMAIL_HOST = env.str("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env.str("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env.str("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+BREVO_API_KEY = env.str("BREVO_API_KEY", default="")
+if EMAIL_BACKEND_MODE == "smtp":
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+elif EMAIL_BACKEND_MODE == "brevo":
+    EMAIL_BACKEND = "config.email_backend.BrevoEmailBackend"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="no-reply@localhost")
 
 # --- Payments (ADR-0005: interface Phase 1, domain shipped Phase 7 — see apps/payments + docs/workflows/payments.md) ---
