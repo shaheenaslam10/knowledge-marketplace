@@ -1,29 +1,35 @@
-# Reviews & Ratings
+# Reviews & Reputation
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · Related: [order-lifecycle](order-lifecycle.md)
+> Status: ✅ Phase 9 · Last updated: Phase 9 completion · Related: [expert-journey](expert-journey.md), [disputes](disputes.md), [moderation](../product/business-rules.md)
 
-## Rules (BR-37..39)
+## Model (implemented — `apps/reviews`)
 
-- **Student → expert review**: only on `completed` orders, one per order. Rating 1–5 + optional sub-scores (quality, communication, timeliness) + text (≤2000 chars). Publishes immediately.
-- **Expert reply**: one per review, ≤1000 chars, appears threaded under the review.
-- **Expert → student rating**: 1–5, **private** (aggregates only, shown to admin; used for student-quality signals and admin mediation). Never public.
-- Editable by author for 24h, then immutable. Deletion = hide via moderation (trace preserved).
-- Reviews from refunded/cancelled orders: not possible.
+- `Review`: **1-1 with Order** (one review per completed order, ever); author = the order's **student**; expert FK snapshot; `rating` 1–5 int; sub-scores (`sub_quality`, `sub_communication`, `sub_timeliness`, 1–5, optional); `body` (≥20 chars, ≤5000); `status` (`published|hidden`); `expert_reply` + `replied_at` (one reply, immutable once posted — BR-37); `expert_rating_of_student` (1–5, private aggregate — never public); `edited_at`.
 
-## Aggregates
+## Eligibility & lifecycle (implemented)
 
-- `ExpertProfile` denormalized: `rating_avg`, `reviews_count`, `completed_orders_count` — updated in the same transaction as review publish/moderation.
-- Public display rounds to 1 decimal; requires ≥3 reviews before showing a numeric score (else "New expert").
+- Submit: `POST /api/v1/me/orders/{id}/review` — requester must be the order's student, order `completed`, no existing review (BR-37). Rating required; sub-scores optional; body required.
+- Edit: author may edit rating/sub-scores/body **until the expert replies** (`review_already_answered` after); edits stamp `edited_at`.
+- Reply: `POST /api/v1/reviews/{id}/reply` — only the reviewed expert, exactly **one** reply (`duplicate_reply` guard), includes optional private `rating_of_student`; immutable afterwards.
+- Hide/unhide (moderation, BR-38 escalation): Django admin action via service (`hide_review`/`unhide_review`, audited); hidden reviews stop counting toward aggregates and disappear from public surfaces.
 
-## Moderation
+## Weighted public rating (BR-39, implemented)
 
-- Report button on any review (abuse/spam/false). Moderation queue → actions: dismiss, hide (unpublish), warn author. Hidden reviews excluded from aggregates; author notified with reason.
-- Review-incentivization patterns (BR-38) are handled as integrity violations.
+- Aggregate over **published** reviews of the expert's completed orders:
 
-## API
+  ```text
+  weight_i = 0.5 ** (age_days_i / 365)        # one-year half-life — recent orders weigh more
+  rating_avg = Σ(rating_i · weight_i) / Σ(weight_i)   # rounded to 2 decimals
+  ```
 
-- `GET /experts/{id}/reviews` — public, paginated, newest first.
-- `POST /orders/{id}/review` — student participant, order completed, once.
-- `POST /reviews/{id}/reply` — expert subject.
-- `POST /reviews/{id}/report` — any authenticated user.
-- Admin: moderation + hide via Django admin actions.
+- Recomputed on submit/edit/reply-free events/hide/unhide and written to `ExpertProfile.rating_avg` / `rating_count` (the same fields the directory and profile already read). Zero reviews → `rating_avg` null, `rating_count` 0. Suspended experts keep their aggregates (rows persist; directory excludes them). Recalculation is idempotent and cheap at MVP volumes (recompute-on-write, no cron).
+- `expert_rating_of_student` is stored but **not exposed** in MVP (private aggregate per BR-37).
+
+## Public surfaces (implemented)
+
+- `GET /api/v1/experts/{slug}/reviews` — published reviews (newest first): rating, sub-scores, body, expert reply, edited flag, created_at. Suspended/hidden profiles → 404 as with the directory.
+- Expert profile + public directory display the weighted `rating_avg` / `rating_count`; offer cards inherit the directory data.
+
+## Integrity (BR-38)
+
+Detection of self-reviews/coercion/trading is moderation tooling (Phase 10 queues). Phase 9 ships the enforcement primitives: one-review-per-order (schema-level), author/expert-only mutations, hidden status, and audit rows on hide/unhide.

@@ -1,6 +1,6 @@
 # File Storage Architecture
 
-> Status: ✅ foundation implemented in Phase 3 (local storage + signed streaming; R2 adapter Phase 9) · Last updated: Phase 3 · ADR-0006 · Related: [workflows/files](../workflows/files.md)
+> Status: ✅ local + R2 adapters implemented (Phase 9) · Last updated: Phase 9 · ADR-0006 · Related: [workflows/files](../workflows/files.md)
 
 ## Storage abstraction
 
@@ -8,10 +8,10 @@ Single Django storage API (`django-storages` S3 backend or FileSystemStorage) se
 
 | Env | Storage | Access pattern |
 |---|---|---|
-| local dev / CI | `FileSystemStorage` → `var/media/` (gitignored) | permission-checked streaming view (`/files/{id}/download?token=`, 5-min signed token) |
-| staging / prod | **Cloudflare R2** (S3-compatible) via `django-storages` boto3 | server-side authorization → **5-min presigned GET** → browser fetches directly from R2 |
+| local dev / CI | `FileSystemStorage` → `var/media/` (gitignored) — **default** | permission-checked streaming view (`/files/{id}/download?token=`, 5-min signed token) |
+| staging / prod | **Cloudflare R2** (S3-compatible) via `django-storages` boto3 (`FILE_STORAGE=r2`) | `grant_download` authorization → **5-min presigned GET** (boto3 `generate_presigned_url`, s3v4) → browser fetches directly from R2 |
 
-Same `Attachment` metadata either way — switching is an env change, zero code.
+Same `Attachment` metadata either way — switching is an env change (`FILE_STORAGE`), zero code. R2 is never required for local dev/CI: unset envs keep `FileSystemStorage`. `grant_download` remains the ONLY access decision for both adapters; the R2 presign simply replaces the transport after authorization.
 
 ## Why R2 (and not S3)
 

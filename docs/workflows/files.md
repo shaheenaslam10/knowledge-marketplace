@@ -1,6 +1,6 @@
 # File Uploads & Secure File Access
 
-> Status: ✅ Phase 3 foundation implemented (`credential` + `avatar` purposes, sniffing, dedupe, signed streaming, audited staff access) · Last updated: Phase 3 · Related: [files-storage](../architecture/files-storage.md), [security](../architecture/security.md)
+> Status: ✅ through Phase 9 (`credential`, `avatar`, `request_brief`, `message`, `delivery`, `order_attachment`, `dispute_evidence`; R2 adapter) · Last updated: Phase 9 · Related: [files-storage](../architecture/files-storage.md), [security](../architecture/security.md)
 
 ## Model
 
@@ -14,7 +14,7 @@
 | `message` | participants | 5 MB | pdf, png, jpg, txt, zip |
 | `delivery` | expert | 50 MB / file, ≤10 | pdf, docx, xlsx, pptx, zip, py, ipynb, txt, md |
 
-> **Phase 6 implementation delta:** the `delivery` and `order_attachment` purposes shipped with a reduced allowlist — pdf/png/jpg/jpeg, ≤25 MB/file (delivered documents + images for review in-browser). Widening to the full matrix above is a Phase 9 files expansion, alongside dispute evidence uploads. Access: `delivery`/`order_attachment` downloads resolve participants through `Delivery → order` / `Order` traversal (uploader/staff or the order's student/expert); strangers get 403/404.
+> **Implementation deltas (Phase 6/8/9):** `delivery`/`order_attachment` ship with a reduced allowlist — pdf/png/jpg/jpeg, ≤25 MB/file (delivered documents + images for review in-browser); `message` ships at 5 MB pdf/png/jpg/jpeg/txt (Phase 8); `dispute_evidence` ships at 10 MB pdf/png/jpg/jpeg (Phase 9). **Decision (Phase 9):** the reduced allowlists stay — widening to the full Phase 0 matrix has no demonstrated need; revisit with the first real request. Access: `delivery`/`order_attachment` resolve through `Delivery → order` / `Order` traversal; `dispute_evidence` resolves through `Dispute → order` (order student + expert; staff via the standard staff gate); strangers get 403/404.
 | `dispute_evidence` | participants | 10 MB | pdf, png, jpg |
 | `credential` | expert applicant | 10 MB, private | pdf, png, jpg |
 | `avatar` | any user | 2 MB, public-read | png, jpg, webp |
@@ -35,6 +35,6 @@ Quotas are per-purpose config in PlatformConfig; enforced at upload.
 
 ## Retention
 
-- Files on **cancelled-without-payment** requests: auto-deleted after 30 days (job).
-- Delivery/evidence files: retained 12 months post-completion (support & disputes), then purged (job) unless legal hold flag.
-- Deletion is storage+row, logged in audit.
+- Files on **cancelled-without-payment** requests: auto-deleted after 30 days (job: `files.retention_cleanup`, idempotent django-q2 wrapper).
+- Delivery/evidence files: retained 12 months post-completion (support & disputes), then purged by the same job unless the attachment's `legal_hold` flag is set (admin-settable).
+- Deletion is storage+row (soft-deleted bytes purged), logged in audit.
