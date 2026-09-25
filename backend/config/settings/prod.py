@@ -29,7 +29,27 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+COOKIE_SECURE = env.bool("COOKIE_SECURE", default=True)  # auth cookies (audit F-1)
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+
+# Security headers (audit F-2): CSP report-only first (env flips to enforce
+# after the Phase 12 pre-launch sweep); admin path exempted (inline handlers).
+SECURITY_HEADERS_CSP = env.str(
+    "CSP",
+    default=(
+        "default-src 'self'; img-src 'self' data:; font-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; "
+        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    ),
+)
+SECURITY_HEADERS_CSP_REPORT_ONLY = env.bool("CSP_REPORT_ONLY", default=True)
+SECURITY_HEADERS_PERMISSIONS_POLICY = env.str(
+    "PERMISSIONS_POLICY",
+    default="camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+)
+
+MIDDLEWARE = MIDDLEWARE + ["apps.core.middleware.SecurityHeadersMiddleware"]
 
 LOGGING = {
     **LOGGING,

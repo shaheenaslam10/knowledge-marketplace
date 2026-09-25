@@ -211,6 +211,9 @@ PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_HTTPONLY = True
+# Auth-cookie Secure flag — read by apps.accounts.api.views._cookie_kwargs.
+# Dev default False (plain http); prod.py forces True (audit F-1).
+COOKIE_SECURE = env.bool("COOKIE_SECURE", default=False)
 
 # --- CORS / origins ---
 FRONTEND_URL = env.str("FRONTEND_URL", default="http://localhost:3000")
@@ -247,6 +250,9 @@ REST_FRAMEWORK = {
         "anon": env.str("THROTTLE_ANON", default="30/min"),
         "user": env.str("THROTTLE_USER", default="120/min"),
         "auth": env.str("THROTTLE_AUTH", default="10/min"),  # login/register/reset/refresh guard
+        "ops_write": env.str(
+            "THROTTLE_OPS_WRITE", default="60/min"
+        ),  # staff write actions (audit F-5)
     },
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": [

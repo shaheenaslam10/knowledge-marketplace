@@ -8,6 +8,7 @@ from __future__ import annotations
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdmin, IsSupport
@@ -119,6 +120,8 @@ class ReportQueueView(APIView):
 
 
 class ReportReviewView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "ops_write"
     """POST /ops/reports/{id}/review {action: dismiss|confirm_hide, note?} —
     service-backed + audited (support or admin)."""
 
@@ -229,6 +232,8 @@ class AuditViewerView(APIView):
 
 
 class PlatformConfigView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "ops_write"
     """GET /ops/config (support+admin) · PUT /ops/config (admin only) —
     service-validated, audited before/after."""
 

@@ -66,7 +66,8 @@ class MyRequestDetailView(APIView):
         return Response(ServiceRequestSerializer(obj, context={"request": request}).data)
 
     def patch(self, request, pk):
-        obj = ServiceRequest.objects.get(pk=pk, student=request.user)
+        # 404 mask for foreign/unpublished drafts (never 500, never existence leak)
+        obj = get_object_or_404(ServiceRequest, pk=pk, student=request.user)
         payload = _write_payload(request.data)
         obj = services.update_draft(
             request.user,
