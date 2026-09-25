@@ -39,7 +39,7 @@ Do not start:       Stripe activation (credentials do not exist; seam stays), Re
 | Next phase | **Phase 12 — Production Deployment** (scope below) |
 | Branch | `arena/01a0cd90-knowledge-marketplace` (all work happens here) |
 | Latest commit | Phase 11 completion commit (roadmap record + this handoff); feature chain `5cb067e` → `7187e52` → `b509286` → `57570f1` → e2e repair `941ac41`/`414b039`/`01285ec`/`649e77e` → defect fixes `e89ca44`/`649eba3`/`79f1905`/`f839b62`/`4cecb9c` → `e8517b7` |
-| Latest verified CI | run **`36127464977`** — ✓ 4/4 on `e8517b7` (Backend · Frontend · Docs sync · Compose smoke) |
+| Latest verified CI | run **`36128437178`** — ✓ 4/4 on `0e20b75` (completion commit); content run **`36127464977`** — ✓ 4/4 on `e8517b7` (Backend · Frontend · Docs sync · Compose smoke) |
 | Working tree | Clean & synced with origin at the completion commit; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
 | Test baseline | backend pytest **367 passed** (incl. authorization-matrix suite + query budgets); frontend lint/typecheck/vitest **70**/build/bundle-budgets green; Playwright E2E **6/6** over the compose stack (4 golden journeys + smoke); ruff+format clean; import-linter kept; `makemigrations --check` clean; env-docs gate green |
 | Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 10 record has the as-built details + deferred list) |
