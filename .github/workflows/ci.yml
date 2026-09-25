@@ -147,6 +147,15 @@ jobs:
             docker compose logs frontend --tail 120 2>&1 | grep -iE "⨯|error|unhandled|failed" | head -12 | while IFS= read -r line; do echo "::error::fe: ${line:0:240}"; done
             exit 1
           fi
+      - name: Upload e2e diagnostics (traces + page snapshots + log)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-diagnostics
+          path: |
+            frontend/test-results/
+            /tmp/pw.log
+          if-no-files-found: ignore
       - name: Dump logs on failure
         if: failure()
         run: docker compose logs --tail 100
