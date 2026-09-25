@@ -149,9 +149,11 @@ jobs:
         run: |
           if ! npm run e2e > /tmp/pw.log 2>&1; then
             grep -E "[0-9]+\) \[chromium\]|✘|✗|failed|Error:|TimeoutError|expected" /tmp/pw.log | head -30 | while IFS= read -r line; do echo "::error::e2e: ${line:0:220}"; done
+            grep -B1 -A8 "Error:" /tmp/pw.log | head -60 | while IFS= read -r line; do echo "::error::e2e-ctx: ${line:0:240}"; done
             curl -s http://localhost:3000/ | grep -oE "<h1[^>]*>[^<]{0,60}|__next_error__|Application error" | head -4 | while IFS= read -r line; do echo "::error::html: ${line:0:200}"; done
-            docker compose logs backend --tail 40 2>&1 | grep -iE "error|traceback|exception" | head -6 | while IFS= read -r line; do echo "::error::be: ${line:0:220}"; done
+            docker compose logs backend --tail 400 2>&1 | grep -E "admin/|CSRF|Forbidden|ERROR|Traceback" | head -12 | while IFS= read -r line; do echo "::error::be: ${line:0:240}"; done
             docker compose logs frontend --tail 120 2>&1 | grep -iE "⨯|error|unhandled|failed" | head -12 | while IFS= read -r line; do echo "::error::fe: ${line:0:240}"; done
+            tail -6 /tmp/hem-mail.log 2>/dev/null | while IFS= read -r line; do echo "::error::mail: ${line:0:200}"; done
             exit 1
           fi
       - name: Upload e2e diagnostics (traces + page snapshots + log)

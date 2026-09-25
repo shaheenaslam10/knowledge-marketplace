@@ -31,7 +31,11 @@ services:
       context: ./backend
       target: dev
     entrypoint: ["/app/docker/entrypoint.sh"]
-    command: ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    # runserver (not raw uvicorn) for the DEV stack: runserver serves Django's
+    # /static/ (uvicorn does not), so the admin's actions.js loads and bulk
+    # actions work; daphne (installed before staticfiles in dev.py) keeps the
+    # server ASGI for Channels WebSockets.
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     environment: &backend_env
       DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.dev}
       SECRET_KEY: ${SECRET_KEY:-dev-only-insecure-key-change-me}

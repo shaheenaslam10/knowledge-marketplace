@@ -57,7 +57,9 @@ E2E runs on every PR against seeded data (`scripts/seed_demo.py --e2e` determini
 
 ### E2E environment contract (journeys 01–04)
 
-- **Stack**: tests assume the compose stack is already up (Next :3000, Django :8000,
+- **Stack**: tests assume the compose stack is already up (Next :3000, Django :8000
+  via `runserver` — daphne ASGI with static serving so the admin's JS works; raw
+  uvicorn serves no `/static/`, which broke admin bulk actions in early smoke runs —
   worker qcluster) — `docker compose up --build -d`, then `cd frontend && npm run e2e`.
 - **Verification emails**: the dev email backend is `console`; the q2 **worker** prints
   each message to its container stdout. Helpers in `frontend/e2e/helpers.ts` poll the
