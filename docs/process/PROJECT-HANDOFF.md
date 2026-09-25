@@ -2,27 +2,29 @@
 
 > **Permanent project rule:** this file is the single continuation document for any new AI agent or developer (Arena, ChatGPT, Gemini, human). It is updated at every phase completion and whenever a plan/architecture/business-rule change is discovered — **before or with** the implementation, never silently. Detailed evidence lives in the linked documents; this file stays a fast, accurate map.
 >
-> Last updated: **2026-09-24 (Phase 10 completion)**
+> Last updated: **2026-09-25 (Phase 11 completion)**
 
 ---
 
 ## START HERE
 
 ```text
-Current phase:      Phase 10 — Admin & Analytics ✅ COMPLETE
-Latest commit:      Phase 10 completion commit (this one — roadmap record + handoff).
-                    Feature chain: dfefc87 (docs checkpoint) → a031fe1 (docs-first plan)
-                    → 6e637cb (backend: ops API, PlatformConfig, moderation services,
-                    seed funnel) → c2471e6 (FE portal: dashboard/moderation/disputes/
-                    audit/finance/users/config) → 64f75d9 (docs sync)
-Next phase:         Phase 11 — Security, Testing & Performance  (see "NEXT PHASE" below)
-Read first:         docs/process/roadmap-phases.md (Phase 10 completion record + Phase 11 row),
-                    docs/architecture/security.md, docs/product/user-roles.md (authorization
-                    matrix), docs/workflows/admin-journey.md (portal surface matrix)
-First implementation task:  authorization-matrix test suite across ALL roles × ALL endpoints
-                    (Phase 10 /ops surfaces included), then CSP/security headers
-Do not start:       Phase 12 (production deployment), Stripe activation (credentials do not
-                    exist; seam stays), Redis (prohibited)
+Current phase:      Phase 11 — Security, Testing & Performance ✅ COMPLETE
+Latest commit:      Phase 11 completion commit (this one — roadmap record + handoff).
+                    Feature chain: 5cb067e (docs-first audit) → 7187e52 (backend hardening)
+                    → b509286 (FE headers/a11y) → 57570f1 (E2E+perf+audit gates)
+                    → e2e repair chain 941ac41/414b039/01285ec/649e77e
+                    → e2e-exposed defect fixes e89ca44/649eba3/79f1905/f839b62/4cecb9c
+                    → e8517b7 (retry-safe e2e, CI 4/4)
+Next phase:         Phase 12 — Production Deployment  (see "NEXT PHASE" below)
+Read first:         docs/process/roadmap-phases.md (Phase 11 completion record + Phase 12 row),
+                    docs/architecture/deployment.md, docs/architecture/security.md,
+                    docs/architecture/security-audit-phase11.md (F-2/F-7 = Phase 12 gates)
+First implementation task:  staging deploy config + CSP enforcement sweep
+                    (security-audit-phase11.md F-2 — nonced inline bootstrap), then the
+                    Phase 12 launch checklist (backups drill, monitoring, legal pages)
+Do not start:       Stripe activation (credentials do not exist; seam stays), Redis/
+                    Elasticsearch (prohibited), new features/modes/providers
 ```
 
 
@@ -33,13 +35,13 @@ Do not start:       Phase 12 (production deployment), Stripe activation (credent
 | Field | Value |
 |---|---|
 | Project | Hybrid Expert Marketplace (`knowledge-marketplace`) — three-experience marketplace: open bidding, managed service, one shared order/payment pipeline |
-| Current phase | **Phase 10 — Admin & Analytics ✅ complete** |
-| Next phase | **Phase 11 — Security, Testing & Performance** (scope below) |
+| Current phase | **Phase 11 — Security, Testing & Performance ✅ complete** |
+| Next phase | **Phase 12 — Production Deployment** (scope below) |
 | Branch | `arena/01a0cd90-knowledge-marketplace` (all work happens here) |
-| Latest commit | Phase 10 completion commit (roadmap record + this handoff); feature chain `dfefc87` → `a031fe1` → `6e637cb` (backend) → `c2471e6` (FE) → `64f75d9` (docs sync) |
-| Latest verified CI | run **`36025183020`** — ✓ 4/4 on `e21a4b5` (Frontend · Docs sync · Backend · Compose smoke; prior: `36007194246` ✓ 4/4 on `f0bff4b`) |
+| Latest commit | Phase 11 completion commit (roadmap record + this handoff); feature chain `5cb067e` → `7187e52` → `b509286` → `57570f1` → e2e repair `941ac41`/`414b039`/`01285ec`/`649e77e` → defect fixes `e89ca44`/`649eba3`/`79f1905`/`f839b62`/`4cecb9c` → `e8517b7` |
+| Latest verified CI | run **`36127464977`** — ✓ 4/4 on `e8517b7` (Backend · Frontend · Docs sync · Compose smoke) |
 | Working tree | Clean & synced with origin at the completion commit; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
-| Test baseline | backend pytest **340 passed** (portal 14: staff authz incl. support-vs-admin config writes, KPI math, moderation idempotency, reconciliation detection); frontend lint/typecheck/vitest **68**/build/bundle-budgets green; ruff+format clean; import-linter 3 kept/0 broken; `makemigrations --check` clean; env-docs gate green |
+| Test baseline | backend pytest **367 passed** (incl. authorization-matrix suite + query budgets); frontend lint/typecheck/vitest **70**/build/bundle-budgets green; Playwright E2E **6/6** over the compose stack (4 golden journeys + smoke); ruff+format clean; import-linter kept; `makemigrations --check` clean; env-docs gate green |
 | Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 10 record has the as-built details + deferred list) |
 
 ---
@@ -63,6 +65,8 @@ Detailed scope, acceptance gates and per-phase records live in `docs/process/roa
 | 9 — Files, Reviews & Disputes | `FILE_STORAGE=r2` adapter (django-storages, private bucket, 5-min presigned GET after `grant_download`; local stays free default); `dispute_evidence` purpose + `legal_hold` + `files.retention_cleanup` q2 job; reviews (student-only per completed order, edit-until-reply, single immutable expert reply + private student rating, staff hide) with BR-39 recency-weighted aggregates into `ExpertProfile`; disputes (BR-40 window, services-only state machine, evidence, dispute threads, Django-admin resolve) whose money outcomes reuse Phase 7 `issue_refund`/payout services — **zero direct ledger writes**; payout freeze via `Order.has_open_dispute` (schedule/settle/sweeper, race-tested); moderation hooks (`MessageReport` + report route, BR-35 grounds-gated audited thread view, FE policy banner + report dialog); backlog absorbed: overdue flagging job, deadline proposals, retention cleanup | `fd90947`, `b8323d4`, `07e8d04`, `8b19135` | ADR-0006 implemented as specified (storage = env swap); layers extended (disputes > reviews > messaging) | **Deferred:** moderation queue/dashboard + analytics → Phase 10; `request_new_matching` fan-out + digest; chat deadline-proposal card (services exist; UI non-goal); order-group WS hints; `expert_rating_of_student` stays private |
 
 | 10 — Admin & Analytics | Operations portal `(portal)`: KPI dashboard (server-side Postgres aggregation, UTC ranges, KPI dictionary in observability.md), moderation report queue (audited dismiss/confirm-hide via the messaging service), dispute triage queue (resolution deep-links Django admin), audit viewer, financial reconciliation (read-only, ledger-identity reuse), users overview, PlatformConfig singleton + audited admin-only config UI, seed operations funnel | `6e637cb`, `c2471e6`, `64f75d9` | ADR-0010 implemented (portal/admin split documented in admin-journey.md) | Recharts deferred (bundle budget — SVG micro-charts); account warning/suspension service not built (business-rule change, recorded); CSV export post-MVP |
+
+| 11 — Security, Testing & Performance | Docs-first security audit (`security-audit-phase11.md`, F-1..F-8 dispositions); authorization-matrix suite (role × endpoint across all apps); backend hardening (ops write-throttles, concurrency race suites); FE security headers (CSP report-only → Phase 12 enforcement gate) + a11y; pip-audit + npm-audit CI gates; Playwright E2E pack — 4 golden journeys over the real compose stack with shared hydration/mail helpers; query budgets (feed/directory ≤12, threads/order ≤14, KPIs ≤40) + bundle budgets + `performance.md`; compose smoke wired to the q2 worker delivery log; **7 real product defects found by E2E and fixed app-side with regressions** (taxonomy contract, first-time apply gate, upload field/response contract, credential_ids JSON, managed `mode` on create, dispute-admin template 500, compose static serving) | `5cb067e`, `7187e52`, `b509286`, `57570f1`, `e89ca44`, `649eba3`, `79f1905`, `f839b62`, `4cecb9c`, `e8517b7` | ADR-0006 unchanged; CSP enforcement deferred with recorded rationale (F-2) | **Deferred:** CSP enforcement + F-7 → Phase 12 gates; F-6 ongoing |
 
 **Major plan changes so far** (all documented before/with implementation): django-tasks → django-q2 (ADR-0002 amendment); payments layering inversion via domain signal (ADR-0005 amendment); no PaymentAttempt/Transaction tables; ledger identity formalized; payout settlement manual-by-design; Stripe explicitly not production-ready until the checklist in `docs/workflows/payments.md` is verified.
 
@@ -110,37 +114,36 @@ Authoritative details live in `docs/architecture/*` — this is the map only.
 
 ## NEXT PHASE
 
-### Phase 11 — Security, Testing & Performance
+### Phase 12 — Production Deployment
 
-**Goal.** Convert the implicit security posture into an explicit, tested one and close the pre-production hardening gaps: a full authorization-matrix suite (every role × every endpoint), CSP/security headers, dependency audit, the E2E pack, and performance budgets — the last engineering phase before deployment.
+**Goal.** Take the verified Phase 0–11 system to a real staging→production deployment: deploy config, CSP enforcement (the deferred F-2 gate), backups + restore drill, monitoring/uptime, legal pages, and the launch checklist.
 
 **Starting point (what exists).**
-- Server-side authorization everywhere (services are the single gate); Phase 10 `/ops/*` surfaces staff-gated (support reads/moderates, admin config-writes — tested).
-- Existing suites: backend 340 (per-app authz incl. cross-account files, IDOR-style 404 masks, moderation grounds), FE 68; CSP/headers NOT yet enforced (deployment.md lists the intent).
-- Threat notes live in `docs/architecture/security.md`; the role matrix in `docs/product/user-roles.md` is the test spec.
+- CI 4/4 including compose smoke with the full E2E journey pack (`36127464977` on `e8517b7`); all security gates green except CSP enforcement (deliberately report-only — `security-audit-phase11.md` F-2).
+- Deployment intent already documented in `docs/architecture/deployment.md` (targets, env contract, headers policy) and `docs/architecture/backup-recovery.md`; prod settings exist (`config/settings/prod.py`) with strict security defaults.
+- Payments: ManualGateway active; StripeGateway is a non-functional seam — activation is a **blocked** owner decision, not a Phase 12 task.
 
 **First tasks (ordered checklist).**
-1. Docs-first: finalize the authorization-matrix table (role × endpoint × expectation) as a test plan doc section, then implement `test_authorization_matrix.py` generating parametrized cases across accounts/experts/requests/bidding/assignments/orders/payments/messaging/reviews/disputes/files/ops.
-2. Security headers: CSP (report-only → enforce), HSTS, X-Frame-Options/frame-ancestors, Referrer-Policy, Permissions-Policy — config via env, verified in prod settings tests.
-3. Dependency audit: `pip-audit` + `npm audit` in CI (fail on high/critical; document suppressions).
-4. E2E pack: Playwright happy-paths over seeded demo data (student funnel, expert funnel, dispute+moderation, portal staff read).
-5. Performance: query-count budgets on the hot paths (order detail, inbox, KPI dashboard — `assertNumQueries`), bundle budgets already enforced; add slow-query logging note for ops.
-6. Rate-limit review (DRF throttles already exist) + JWT reuse-detection tests already exist — extend to /ops surfaces.
-7. Docs sync + handoff update in the same phase (protocol below).
+1. Docs-first: finalize the deployment plan against `deployment.md` (hosting target, domains, TLS, managed Postgres, media/storage env) and record any deviation as an ADR **before** implementing.
+2. Enforce CSP (F-2): nonced inline bootstrap or extracted scripts, remove `unsafe-inline`/`unsafe-eval`, keep report-only canary in staging first; verify all four CI jobs + E2E against enforcing headers.
+3. Staging deploy: clean-checkout compose (or documented equivalent) on the target host, real `SECRET_KEY`/`DJANGO_SETTINGS_MODULE=config.settings.prod`, `COOKIE_SECURE`, HTTPS termination; smoke + E2E pack against staging.
+4. Backups + restore drill: scheduled `pg_dump` + media sync; **prove** a restore into a scratch environment (P12 gate).
+5. Monitoring/uptime: external uptime probe on `/healthz` + error/latency alerting within the free-first constraint; slow-query logging note for ops.
+6. Legal pages: privacy policy + terms of service routes (marketing experience), linked from the footer.
+7. Launch checklist run-through in `deployment.md`; live order cycle with manual-gateway money (P12 acceptance).
 
 **Required files/docs to read first.**
-- `docs/process/PROJECT-HANDOFF.md` (this file) + `docs/process/roadmap-phases.md` (Phase 11 row, Phase 10 record + deferred list)
-- `docs/architecture/security.md`, `docs/architecture/testing.md`, `docs/product/user-roles.md`, `docs/architecture/deployment.md` (headers intent)
-- `backend/pyproject.toml` (import-linter), `.github/workflows/ci.yml` (gates to extend)
+- `docs/process/PROJECT-HANDOFF.md` (this file) + `docs/process/roadmap-phases.md` (Phase 12 row, Phase 11 record)
+- `docs/architecture/deployment.md`, `docs/architecture/backup-recovery.md`, `docs/architecture/environments.md`, `docs/architecture/security-audit-phase11.md` (F-2/F-7 gates)
 
-**Do not implement yet.**
-- Production deploy (staging→prod, backups drill, monitoring, legal pages) → **Phase 12**
-- Stripe activation (needs credentials + verified checklist in payments.md) → blocked until owner verification
-- Redis, Elasticsearch, warehouses (prohibited by cost/architecture rules)
+**Do not implement (standing constraints).**
+- Stripe activation (owner-gated; checklist in `docs/workflows/payments.md` must be verified first)
+- Redis, Elasticsearch, data warehouses, paid SaaS dependencies, microservices (architecture rules)
+- New features, business-rule changes, AI matching, visual redesign (out of Phase 12 scope)
 
-**Acceptance criteria.** Roadmap Phase 11 row + the standard gates: backend pytest all green **including the authorization-matrix suite**, FE lint/typecheck/vitest/build green, Playwright pack green, headers verified in tests, dependency audit clean (or documented), ruff/format/lint-imports clean, `makemigrations --check` clean, env-docs gate green, CI 4/4 on a clean checkout, docs + this handoff updated in the same phase.
+**Acceptance criteria.** Staging + production reachable over HTTPS with enforced security headers; restore drill passed (documented evidence); uptime monitor green; live order cycle completed in manual-payment mode; all standard gates (backend/FE suites, E2E pack, env-docs) green; CI 4/4 on the final commit; roadmap + this handoff updated in the completion commit.
 
-**Expected GitHub workflow.** Work on `arena/01a0cd90-knowledge-marketplace` only; logical commits (docs-first matrix → headers → audit → e2e → perf → docs sync); full suite + gates before every push; push and watch CI; update `PROJECT-HANDOFF.md` + roadmap in the completion commit; report hashes and CI run.
+**Expected GitHub workflow.** Work on `arena/01a0cd90-knowledge-marketplace` only; docs-first deployment plan → CSP enforcement → staging → drills/monitoring → legal → launch checklist → docs sync; full gates before every push; update `PROJECT-HANDOFF.md` + roadmap in the completion commit; report hashes and CI run.
 
 ---
 
