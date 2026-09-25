@@ -17,10 +17,19 @@ const ADMIN = { email: "admin@demo.local", password: "admin-demo-1234" };
 
 async function adminLogin(page: import("@playwright/test").Page) {
   await page.goto("/login");
-  await page.getByLabel("Email").fill(ADMIN.email);
-  await page.getByLabel("Password").fill(ADMIN.password);
-  await page.getByTestId("login-submit").click();
-  await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 15_000 });
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await page.waitForLoadState("networkidle");
+    await page.getByLabel("Email").fill(ADMIN.email);
+    await page.getByLabel("Password").fill(ADMIN.password);
+    await page.getByTestId("login-submit").click();
+    try {
+      await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 10_000 });
+      return;
+    } catch {
+      /* hydration retry — see e2e/helpers.ts */
+    }
+  }
+  throw new Error("admin login never navigated");
 }
 
 test("admin portal: dashboard → moderation → disputes → audit → reconciliation → config", async ({ page }) => {

@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+
+import { ADMIN_BASE, register, verifyEmail } from "../helpers";
 
 /**
  * Cold-route compiles in the compose dev container (Next dev compiles each
@@ -6,6 +8,7 @@ import { expect, test, type Page } from "@playwright/test";
  * 30s global default — journeys get an explicit, documented ceiling.
  */
 test.setTimeout(300_000);
+
 
 
 /**
@@ -20,17 +23,8 @@ test.setTimeout(300_000);
 const stamp = Date.now();
 const studentEmail = `e2e-student-${stamp}@demo.local`;
 const expertEmail = `e2e-expert-${stamp}@demo.local`;
-const PASSWORD = "long-pass-1234";
 const requestTitle = `E2E calculus coaching ${stamp}`;
 
-async function register(page: Page, name: string, email: string) {
-  await page.goto("/register");
-  await page.getByLabel("Full name").fill(name);
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(PASSWORD);
-  await page.getByTestId("register-submit").click();
-  await page.waitForURL(/\/verify-email/, { timeout: 20_000 });
-}
 
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
@@ -43,6 +37,7 @@ test("student funnel: request → offer → select → pay → deliver → appro
 
   // --- student registers and publishes an open request ---
   await register(student, "E2E Student", studentEmail);
+  await verifyEmail(student, studentEmail);
   await student.goto("/requests/new");
   // taxonomy terms load asynchronously — wait for a real subject option
   await student.locator("#subject option").nth(1).waitFor({ state: "attached", timeout: 20_000 });
@@ -55,18 +50,20 @@ test("student funnel: request → offer → select → pay → deliver → appro
   await student.getByLabel("Budget max").fill("60");
   await student.getByRole("button", { name: "Publish request" }).click();
   await student.waitForURL(/\/requests\/[0-9a-f-]{36}/, { timeout: 20_000 });
-  await expect(student.getByText(/open/i).first()).toBeVisible({ timeout: 20_000 });
+  // status copy for `open` is "Receiving offers" (orders/types.ts request copy)
+  await expect(student.getByText("Receiving offers")).toBeVisible({ timeout: 20_000 });
 
   // --- expert applies, admin approves, expert finds the opportunity and offers ---
   const expertContext = await browser.newContext();
   const expert = await expertContext.newPage();
   await register(expert, "E2E Expert", expertEmail);
+  await verifyEmail(expert, expertEmail);
   await expert.goto("/expert/apply");
   await expert.getByLabel("Professional / display name").fill("E2E Coach");
   await expert.getByLabel("Headline").fill("Calculus coach — patient, exam-focused");
   await expert.getByLabel("Bio").fill("I coach students through calculus fundamentals with guided practice.");
   await expert.getByLabel("Expertise summary").fill("Calculus, algebra, exam prep");
-  await expert.getByLabel("Languages").fill("English");
+  await expert.getByLabel("Languages", { exact: true }).fill("English");
   await expert.getByLabel("Qualifications").fill("MSc Mathematics");
   await expert.getByLabel("Availability").fill("Weekday evenings");
   await expert.getByLabel("Credentials").setInputFiles({
@@ -85,12 +82,12 @@ test("student funnel: request → offer → select → pay → deliver → appro
   // caught by the first CI run of this journey).
   const adminContext = await browser.newContext();
   const admin = await adminContext.newPage();
-  await admin.goto("/admin/login/");
+  await admin.goto(`${ADMIN_BASE}/admin/login/`);
   await admin.locator("#id_username").fill("admin@demo.local");
   await admin.locator("#id_password").fill("admin-demo-1234");
   await admin.getByRole("button", { name: /log in/i }).click();
   await admin.waitForURL(/\/admin\//, { timeout: 20_000 });
-  await admin.goto(`/admin/experts/expertapplication/?q=${expertEmail}`);
+  await admin.goto(`${ADMIN_BASE}/admin/experts/expertapplication/?q=${expertEmail}`);
 
   const actionSelect = admin.locator("select[name=action]");
   await admin.locator("#action-toggle").check();
@@ -105,7 +102,8 @@ test("student funnel: request → offer → select → pay → deliver → appro
 
   // --- expert offers on the open request ---
   await expert.goto("/opportunities");
-  await expert.getByRole("link", { name: new RegExp(requestTitle) }).first().click();
+  // the feed card renders the title as an h2; the action link is "View & offer"
+  await expert.getByRole("link", { name: "View & offer" }).first().click();
   await expert.waitForURL(/\/opportunities\/[0-9a-f-]{36}/, { timeout: 20_000 });
   await expert.getByLabel("Your price").fill("55");
   await expert.getByLabel("Proposed schedule").fill("Two sessions per week, starting Monday.");
@@ -120,12 +118,13 @@ test("student funnel: request → offer → select → pay → deliver → appro
   await student.getByRole("link", { name: "Open", exact: true }).first().click();
   await student.waitForURL(/\/requests\/[0-9a-f-]{36}/, { timeout: 20_000 });
   await student.getByRole("button", { name: "Select expert" }).click();
-  await expect(student.getByText(/matched|order/i).first()).toBeVisible({ timeout: 20_000 });
+  // detail shows "Expert selected" after BR-15 acceptance
+  await expect(student.getByText(/expert selected/i).first()).toBeVisible({ timeout: 20_000 });
 
   // --- student pays (manual gateway + dev confirm) → order active ---
   await student.goto("/orders");
   await student.getByRole("link", { name: /ORD-/ }).first().click();
-  await student.getByRole("button", { name: "Start payment" }).click();
+  await student.getByRole("button", { name: "Pay now" }).click();
   await student.getByRole("button", { name: "Confirm payment (dev)" }).click();
   await expect(student.getByText("In progress").first()).toBeVisible({ timeout: 20_000 });
 

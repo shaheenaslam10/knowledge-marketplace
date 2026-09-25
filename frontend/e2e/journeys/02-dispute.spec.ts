@@ -1,11 +1,15 @@
 import { expect, test } from "@playwright/test";
 
+import { ADMIN_BASE, login } from "../helpers";
+
 /**
  * Cold-route compiles in the compose dev container (Next dev compiles each
  * route on first visit, 5–15s) make a full multi-account funnel exceed the
  * 30s global default — journeys get an explicit, documented ceiling.
  */
 test.setTimeout(300_000);
+
+
 
 
 /**
@@ -23,11 +27,7 @@ const STUDENT = { email: "student@demo.local", password: "demo-password-1234" };
 
 test("dispute: open with evidence → owner resolves → refund outcome", async ({ page }) => {
   // --- student opens the dispute from the order workspace ---
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(STUDENT.email);
-  await page.getByLabel("Password").fill(STUDENT.password);
-  await page.getByTestId("login-submit").click();
-  await page.waitForURL(/\/account/, { timeout: 20_000 });
+  await login(page, STUDENT.email, STUDENT.password);
 
   await page.goto("/orders");
   const links = page.getByRole("link", { name: /ORD-/ });
@@ -64,6 +64,7 @@ test("dispute: open with evidence → owner resolves → refund outcome", async 
       "base64",
     ),
   });
+  await page.getByRole("button", { name: "Open dispute", exact: true }).click();
   // dispute created → status card replaces the composer
   const statusCard = page.getByTestId("dispute-status");
   await expect(statusCard).toBeVisible({ timeout: 20_000 });
@@ -75,12 +76,20 @@ test("dispute: open with evidence → owner resolves → refund outcome", async 
   await expect(page.getByText(/dispute/i).first()).toBeVisible({ timeout: 20_000 });
 
   // --- owner (admin) resolves through the Django admin service form ---
-  await page.goto("/admin/login/");
+  await page.goto(`${ADMIN_BASE}/admin/login/`);
   await page.locator("#id_username").fill("admin@demo.local");
   await page.locator("#id_password").fill("admin-demo-1234");
   await page.getByRole("button", { name: /log in/i }).click();
   await page.waitForURL(/\/admin\//, { timeout: 20_000 });
-  await page.goto("/admin/disputes/dispute/?status__exact=open");
+  await page.goto(`${ADMIN_BASE}/admin/disputes/dispute/?status__exact=open`);
+  // resolution only runs from under_review (BR-41) — take the case first
+  await page.locator("#action-toggle").check();
+  await page.locator("select[name=action]").selectOption({ label: "Take case (open → under_review)" });
+  await page.getByRole("button", { name: /go/i }).click();
+  // the bulk action re-renders the changelist; the open filter is now empty
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("#result_list tbody a")).toHaveCount(0, { timeout: 20_000 });
+  await page.goto(`${ADMIN_BASE}/admin/disputes/dispute/?status__exact=under_review`);
   await page.locator("#result_list tbody a").first().click();
   await page.locator("#outcome").selectOption("refund_student_full");
   await page
