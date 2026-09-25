@@ -1,5 +1,8 @@
 {
   "name": "hem-frontend",
+  "overrides": {
+    "postcss": "^8.5.23"
+  },
   "version": "0.1.0",
   "private": true,
   "description": "Hybrid Expert Marketplace — Next.js frontend (domain-oriented)",
