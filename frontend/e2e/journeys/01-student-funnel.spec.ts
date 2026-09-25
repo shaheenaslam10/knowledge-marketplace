@@ -108,6 +108,7 @@ test("student funnel: request → offer → select → pay → deliver → appro
   await expert.getByRole("link", { name: new RegExp(requestTitle) }).first().click();
   await expert.waitForURL(/\/opportunities\/[0-9a-f-]{36}/, { timeout: 20_000 });
   await expert.getByLabel("Your price").fill("55");
+  await expert.getByLabel("Proposed schedule").fill("Two sessions per week, starting Monday.");
   await expert
     .getByLabel("Your plan")
     .fill("We will work through limits and derivatives with guided practice, twice a week.");

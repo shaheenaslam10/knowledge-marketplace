@@ -46,6 +46,26 @@ def _payload(subject, **over):
     return data
 
 
+def test_create_persists_student_chosen_mode(student, subject):
+    """BR-06/BR-19 regression: the student's mode choice must survive
+    create_request (the seed used to patch .mode post-create to work around
+    this dropping it) and a draft may still switch mode before publishing."""
+    managed = services.create_request(
+        student, payload={**_payload(subject), "mode": ServiceRequest.Mode.MANAGED}
+    )
+    assert managed.mode == ServiceRequest.Mode.MANAGED
+
+    switched = services.create_request(student, payload={**_payload(subject), "mode": "open"})
+    updated = services.update_draft(
+        student, switched, payload={"mode": ServiceRequest.Mode.MANAGED}
+    )
+    assert updated.mode == ServiceRequest.Mode.MANAGED
+
+    # publishing a managed request = submitting for owner triage (BR-19)
+    published = services.publish(student, managed, attested=True)
+    assert published.status == ServiceRequest.Status.IN_REVIEW
+
+
 def test_create_creates_draft_and_validates_taxonomy(student, subject, skill):
     req = services.create_request(student, payload=_payload(subject), skill_ids=[skill.pk])
     assert req.status == ServiceRequest.Status.DRAFT

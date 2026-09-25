@@ -40,6 +40,11 @@ WRITABLE_FIELDS = frozenset(
         "currency",
         "deadline",
         "preferred_schedule",
+        # BR-06: mode is part of the student's request (open vs managed, BR-19);
+        # switchable while a draft — publish() routes managed drafts to owner
+        # triage. (Regression: dropping it here silently turned every UI-created
+        # "managed" request into an open request — caught by the Phase 11 E2E.)
+        "mode",
     }
 )
 
