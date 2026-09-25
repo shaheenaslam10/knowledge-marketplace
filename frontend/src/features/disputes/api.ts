@@ -33,11 +33,11 @@ export const disputesApi = {
 export async function uploadDisputeEvidence(file: File): Promise<string> {
   const form = new FormData();
   form.set("purpose", "dispute_evidence");
-  form.set("uploaded_file", file);
-  const response = await apiFetch<{ id: string }>({
+  form.set("file", file); // backend FileUploadView reads request.FILES["file"]
+  const response = await apiFetch<{ attachment: { id: string } }>({
     path: "/api/v1/files",
     method: "POST",
     body: form,
   });
-  return response.id;
+  return response.attachment.id;
 }

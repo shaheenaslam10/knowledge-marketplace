@@ -33,7 +33,9 @@ describe("application edit/submit rules", () => {
     expect(isApplicationEditable("under_review")).toBe(false);
     expect(isApplicationEditable("approved")).toBe(false);
     expect(isApplicationEditable("suspended")).toBe(false);
-    expect(isApplicationEditable("not_applied")).toBe(false);
+    // not_applied is editable — first-time applicants fill the create form (regression:
+  // excluding it hid the apply form from every new expert).
+  expect(isApplicationEditable("not_applied")).toBe(true);
   });
 
   it("is submittable from draft or rejected only", () => {

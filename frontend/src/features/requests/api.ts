@@ -46,6 +46,8 @@ export const feedApi = {
 };
 
 export const taxonomyApi = {
+  // Backend returns {terms: [...]} (see experts/api.ts + api.md §Taxonomy) —
+  // reading {results} here crashed every RequestForm mount (Phase 11 e2e).
   terms: (kind: "subject" | "skill") =>
-    apiFetch<{ results: (TaxonomyRef & { kind: string })[] }>({ path: `/api/v1/taxonomy/terms?kind=${kind}` }),
+    apiFetch<{ terms: (TaxonomyRef & { kind: string })[] }>({ path: `/api/v1/taxonomy/terms?kind=${kind}` }),
 };

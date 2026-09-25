@@ -125,14 +125,14 @@ export function DeliveryComposer({
           for (const file of files) {
             const form = new FormData();
             form.set("purpose", "delivery");
-            form.set("uploaded_file", file);
+            form.set("file", file); // backend FileUploadView reads request.FILES["file"]
             const response = await fetch("/api/v1/files", { method: "POST", body: form });
             if (!response.ok) {
               const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
               throw new Error(body?.error?.message ?? "Upload failed");
             }
-            const body = (await response.json()) as { id: string };
-            ids.push(body.id);
+            const body = (await response.json()) as { attachment: { id: string } };
+            ids.push(body.attachment.id);
           }
           await onSubmit(summary.trim(), ids);
         } catch (uploadError) {

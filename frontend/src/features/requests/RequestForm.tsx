@@ -49,8 +49,14 @@ export function RequestForm({ existing }: { existing?: ServiceRequest }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    taxonomyApi.terms("subject").then((r) => setSubjects(r.results)).catch(() => setSubjects([]));
-    taxonomyApi.terms("skill").then((r) => setSkills(r.results)).catch(() => setSkills([]));
+    taxonomyApi
+      .terms("subject")
+      .then((r) => setSubjects(Array.isArray(r.terms) ? r.terms : []))
+      .catch(() => setSubjects([]));
+    taxonomyApi
+      .terms("skill")
+      .then((r) => setSkills(Array.isArray(r.terms) ? r.terms : []))
+      .catch(() => setSkills([]));
   }, []);
 
   const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));

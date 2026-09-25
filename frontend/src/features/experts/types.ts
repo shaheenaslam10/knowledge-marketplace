@@ -89,7 +89,8 @@ export interface StudentProfile {
 }
 
 export function isApplicationEditable(status: ApplicationStatus): boolean {
-  return status === "draft" || status === "submitted" || status === "rejected";
+  // "not_applied" is editable: a first-time applicant must see the form (create flow).
+  return status === "not_applied" || status === "draft" || status === "submitted" || status === "rejected";
 }
 
 export function canSubmitApplication(status: ApplicationStatus): boolean {
