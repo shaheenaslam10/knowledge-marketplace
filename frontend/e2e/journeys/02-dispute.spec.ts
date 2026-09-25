@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
  */
 const STUDENT = { email: "student@demo.local", password: "demo-password-1234" };
 
-test("dispute: open with evidence → owner resolves → refund outcome", async ({ page, request }) => {
+test("dispute: open with evidence → owner resolves → refund outcome", async ({ page }) => {
   // --- student opens the dispute from the order workspace ---
   await page.goto("/login");
   await page.getByLabel("Email").fill(STUDENT.email);
