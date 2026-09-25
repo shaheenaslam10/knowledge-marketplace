@@ -288,6 +288,17 @@ def expert_is_eligible(user) -> bool:
     )
 
 
+def eligible_experts():
+    """Queryset twin of `expert_is_eligible` — the same rule, for pickers (the
+    owner's direct-assignment form offers exactly the experts the service accepts)."""
+    from django.contrib.auth import get_user_model
+
+    return get_user_model().objects.filter(
+        expert_application__status=ExpertApplication.Status.APPROVED,
+        expert_profile__availability=ExpertProfile.Availability.AVAILABLE,
+    )
+
+
 def user_can_view(user, request: ServiceRequest) -> bool:
     """Owner always; staff sees all; eligible experts see open requests; the
     selected expert keeps access after matching. Never guests (BR-05)."""

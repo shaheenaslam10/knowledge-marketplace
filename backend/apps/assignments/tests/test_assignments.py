@@ -341,3 +341,74 @@ def test_invitation_api_flow(client, admin, managed_request, django_user_model):
     assert body["order"]["source"] == "managed_pool"
     invitation.refresh_from_db()
     assert invitation.expected_amount == 9000  # advisory field captured
+
+
+# --- owner triage form (Django admin, ADR-0010) ---------------------------------
+# Direct-assignment creation goes through `assign_direct`, so the add form must
+# collect ONLY the service inputs and offer ONLY experts the service accepts.
+# Found by the Phase 11 E2E managed journey: the form required four values the
+# service computes (then discarded them) and listed every user as an "expert".
+
+ADMIN_ADD_URL = "/admin/assignments/directassignment/add/"
+
+
+def test_admin_add_form_collects_only_service_inputs(client, admin):
+    client.force_login(admin)
+    form = client.get(ADMIN_ADD_URL).context["adminform"].form
+    assert set(form.fields) == {"request", "expert", "amount", "deadline", "scope_note"}
+
+
+def test_admin_expert_picker_offers_only_service_eligible_experts(
+    client, admin, student, django_user_model
+):
+    from apps.experts.models import ExpertProfile
+    from apps.experts.services import suspend
+
+    eligible = make_expert(django_user_model, "pick-me@demo.local", "Pick Me")
+    paused = make_expert(django_user_model, "paused@demo.local", "Paused Expert")
+    ExpertProfile.objects.filter(pk=paused.pk).update(
+        availability=ExpertProfile.Availability.PAUSED
+    )
+    suspended = make_expert(django_user_model, "suspended@demo.local", "Suspended Expert")
+    suspend(suspended.expert_application.pk, reviewer=admin, reason="Policy violation on record.")
+
+    client.force_login(admin)
+    field = client.get(ADMIN_ADD_URL).context["adminform"].form.fields["expert"]
+    labels = {label for value, label in field.choices if value}
+    # the student, the staff user, paused and suspended experts are all excluded
+    assert labels == {f"expert:{eligible.expert_profile.slug}"}
+
+
+def test_admin_add_creates_the_assignment_through_the_service(
+    client, admin, managed_request, django_user_model
+):
+    from django.contrib.admin.models import LogEntry
+
+    expert = make_expert(django_user_model, "via-admin@demo.local", "Via Admin")
+    client.force_login(admin)
+    before = timezone.now()
+    response = client.post(
+        ADMIN_ADD_URL,
+        {
+            "request": str(managed_request.pk),
+            "expert": str(expert.pk),
+            "amount": "11000",
+            "deadline": "",
+            "scope_note": "Four sessions",
+            "_save": "Save",
+        },
+    )
+    assert response.status_code == 302, response.content.decode()[:500]
+
+    assignment = DirectAssignment.objects.get(request=managed_request)
+    assert assignment.expert == expert
+    assert assignment.status == DirectAssignment.Status.PENDING
+    # service-computed fields
+    assert assignment.expert_name == "Via Admin"
+    assert assignment.decided_by_admin == admin
+    assert assignment.currency == managed_request.currency
+    assert assignment.expires_at >= before + timedelta(hours=services.DIRECT_TTL_HOURS)
+    managed_request.refresh_from_db()
+    assert managed_request.quote_amount == 11000  # BR-22 quote visible to the student
+    # the admin's addition log points at the real row
+    assert LogEntry.objects.get(user=admin).object_id == str(assignment.pk)

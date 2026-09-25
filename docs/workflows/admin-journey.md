@@ -20,6 +20,7 @@ For each `in_review` request:
 - Actions (admin action bar + buttons):
   - **Approve → publish to pool**: sets `pooled`; system creates invitations for matching experts (BR-20).
   - **Approve → direct assignment**: pick expert, set price/deadline → creates `DirectAssignment` (expert has 24h to accept, BR-21).
+    The Django admin add form collects only these inputs (request, expert, amount in minor units, optional deadline and scope note); the expert picker lists exactly the experts the service accepts (approved + available, labelled `expert:<slug>`). The name snapshot, currency, 24h expiry and deciding admin are set by `assign_direct` — never typed (Phase 11: the form used to require them and silently discard the values).
   - **Reject** with reason → student emailed; request closed without charge.
 - If the student's brief is unclear: message via system thread instead of rejecting.
 
