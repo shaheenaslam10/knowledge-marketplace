@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 /**
+ * Cold-route compiles in the compose dev container (Next dev compiles each
+ * route on first visit, 5–15s) make a full multi-account funnel exceed the
+ * 30s global default — journeys get an explicit, documented ceiling.
+ */
+test.setTimeout(300_000);
+
+
+/**
  * Admin journey (brief §7): staff login → KPI dashboard → moderation review
  * (audited dismiss) → dispute triage → audit → reconciliation → config.
  * Exercises the Phase 10 portal over the seeded demo dataset.
@@ -39,7 +47,9 @@ test("admin portal: dashboard → moderation → disputes → audit → reconcil
   // --- dispute queue renders seeded disputes ---
   await page.goto("/portal/disputes");
   await expect(page.getByText(/dispute queue/i)).toBeVisible();
-  await expect(page.locator('[data-testid="dispute-queue"] tbody tr').or(page.getByText(/no disputes match/i))).toBeVisible();
+  await expect(
+    page.locator('[data-testid="dispute-queue"] tbody tr').or(page.getByText(/no disputes match/i)).first(),
+  ).toBeVisible({ timeout: 20_000 });
 
   // --- audit viewer shows append-only events ---
   await page.goto("/portal/audit");

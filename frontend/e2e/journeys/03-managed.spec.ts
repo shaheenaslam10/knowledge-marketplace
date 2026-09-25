@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 /**
+ * Cold-route compiles in the compose dev container (Next dev compiles each
+ * route on first visit, 5–15s) make a full multi-account funnel exceed the
+ * 30s global default — journeys get an explicit, documented ceiling.
+ */
+test.setTimeout(300_000);
+
+
+/**
  * Managed-service journey (brief §7): student submits a managed request →
  * owner triages by creating a direct assignment in the Django admin (the
  * service path: eligibility + quote + audit) → expert accepts → student pays

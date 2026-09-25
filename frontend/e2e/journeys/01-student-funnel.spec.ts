@@ -1,6 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
+ * Cold-route compiles in the compose dev container (Next dev compiles each
+ * route on first visit, 5–15s) make a full multi-account funnel exceed the
+ * 30s global default — journeys get an explicit, documented ceiling.
+ */
+test.setTimeout(300_000);
+
+
+/**
  * Student journey (brief §7): register → request → receive/select offer →
  * payment → order → delivery → approve → review. Two fresh accounts exercise
  * the real hand-offs; payment uses the manual gateway's dev self-confirm

@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 /**
+ * Cold-route compiles in the compose dev container (Next dev compiles each
+ * route on first visit, 5–15s) make a full multi-account funnel exceed the
+ * 30s global default — journeys get an explicit, documented ceiling.
+ */
+test.setTimeout(300_000);
+
+
+/**
  * Dispute journey (brief §7) over seeded demo data: the student opens a
  * dispute on a seeded dispute-eligible order (completed within the BR-40
  * window, no existing dispute — the seed's third scenario order), with
