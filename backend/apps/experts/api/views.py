@@ -3,6 +3,7 @@
 Thin views: authn/authz → services. Business rules never live here.
 """
 
+from django.core import exceptions as django_exceptions
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -124,19 +125,33 @@ def _application_data_from_request(request, *, partial: bool = False) -> tuple[d
         "subjects": resolve_terms(subject_ids, ("subject", "category")),
         "skills": resolve_terms(skill_ids, ("skill",)),
     }
-    credential_ids = (
-        request.data.getlist("credential_ids")
-        if hasattr(request.data, "getlist")
-        else [request.data.get("credential_ids")]
-    )
+    if hasattr(request.data, "getlist"):
+        # multipart/form-data: repeated fields arrive as a list
+        credential_ids = request.data.getlist("credential_ids")
+    else:
+        raw_ids = request.data.get("credential_ids")
+        if isinstance(raw_ids, (list, tuple)):
+            credential_ids = list(raw_ids)  # JSON body: {"credential_ids": ["<uuid>", …]}
+        elif raw_ids:
+            credential_ids = [raw_ids]
+        else:
+            credential_ids = []
     credential_ids = [c for c in (credential_ids or []) if c]
     # Credentials are uploaded FIRST via POST /files (upload-first contract),
     # then referenced here — this endpoint validates ownership.
     from apps.files.models import Attachment
 
     if credential_ids:
-        credentials = Attachment.objects.filter(id__in=credential_ids, uploader=request.user)
-        if credentials.count() != len(set(credential_ids)):
+        try:
+            credentials = Attachment.objects.filter(id__in=credential_ids, uploader=request.user)
+            matched = credentials.count()
+        except (django_exceptions.ValidationError, ValueError):
+            # malformed ids (not UUIDs) must be a 400 envelope, never a 500
+            raise DomainError(
+                "Invalid credential reference (files must be your own uploads).",
+                code="validation_error",
+            ) from None
+        if matched != len(set(credential_ids)):
             raise DomainError(
                 "Invalid credential reference (files must be your own uploads).",
                 code="validation_error",

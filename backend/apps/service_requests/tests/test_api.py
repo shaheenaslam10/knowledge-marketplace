@@ -70,6 +70,25 @@ def test_create_draft_and_publish_flow(client, student, request_payload):
     assert response.json()["expires_at"] is not None
 
 
+def test_create_with_managed_mode_persists_and_publishes_in_review(
+    client, student, request_payload
+):
+    """API-level regression: the view-layer payload allowlist dropped `mode`, so a
+    managed request was silently created as open (BR-06/BR-19 managed funnel)."""
+    api_login(client, student)
+    response = client.post(
+        "/api/v1/me/requests",
+        {**request_payload, "mode": "managed"},
+        content_type="application/json",
+    )
+    assert response.status_code == 201
+    assert response.json()["mode"] == "managed"
+
+    response = _publish(client, response.json()["id"])
+    assert response.status_code == 200
+    assert response.json()["status"] == "in_review"
+
+
 def test_owner_scoping_is_idor_safe(client, student, django_user_model, request_payload, subject):
     stranger = django_user_model.objects.create_user(
         email="stranger@demo.local", password=PASSWORD, name="X"

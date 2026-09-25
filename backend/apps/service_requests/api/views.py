@@ -20,6 +20,7 @@ def _write_payload(data: dict) -> dict:
     return {
         field: payload[field]
         for field in (
+            "mode",
             "category",
             "title",
             "description",

@@ -163,6 +163,42 @@ def test_apply_create_and_get_own_application(client, django_user_model):
     assert response.json()["error"]["code"] == "application_exists"
 
 
+def test_apply_accepts_credential_ids_as_json_list(client, django_user_model):
+    """The UI posts JSON — credential_ids arrives as a list. Regression: the view
+    wrapped the whole list as one element and UUID coercion raised a 500."""
+    user = django_user_model.objects.create_user(
+        email="jsonlist@demo.local", password=PASSWORD, name="J"
+    )
+    user.mark_email_verified()
+    api_login(client, user)
+
+    from apps.files.services import store_upload
+
+    attachment, _ = store_upload(user, purpose="credential", uploaded_file=PNG)
+    response = client.post(
+        "/api/v1/me/expert-application",
+        {**APPLICATION_DATA, "credential_ids": [str(attachment.id)]},
+        content_type="application/json",
+    )
+    assert response.status_code == 201
+    assert len(response.json()["application"]["credentials"]) == 1
+
+
+def test_apply_with_malformed_credential_id_returns_400_not_500(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        email="baduuid@demo.local", password=PASSWORD, name="B"
+    )
+    user.mark_email_verified()
+    api_login(client, user)
+    response = client.post(
+        "/api/v1/me/expert-application",
+        {**APPLICATION_DATA, "credential_ids": ["not-a-uuid"]},
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "validation_error"
+
+
 def test_cannot_reference_someone_elses_credential(client, django_user_model):
     owner = django_user_model.objects.create_user(
         email="own@demo.local", password=PASSWORD, name="O"
