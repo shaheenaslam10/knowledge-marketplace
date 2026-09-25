@@ -9,6 +9,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { portalApi, type ReportRow } from "@/features/portal/api";
 import { DataTable, FadeIn, OpsSelect } from "@/features/portal/components/ops-ui";
@@ -63,17 +65,18 @@ function ReviewDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" role="dialog" aria-label="Review report">
-      <div className="bg-surface h-full w-full max-w-md overflow-y-auto p-5 shadow-xl" data-testid="report-drawer">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-muted text-xs">Report {report.id.slice(0, 8)}…</p>
-            <h2 className="text-base font-semibold">{report.reason_display}</h2>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </div>
+    /* Radix dialog: focus trap, ESC-to-close and aria wiring for free
+       (accessibility pass, Phase 11). */
+    <Sheet open onOpenChange={(next) => (!next ? onClose() : undefined)}>
+      <SheetContent
+        side="right"
+        className="w-full max-w-md overflow-y-auto p-5"
+        data-testid="report-drawer"
+        aria-label={`Review report ${report.reason_display}`}
+      >
+        <DialogPrimitive.Title className="text-base font-semibold">{report.reason_display}</DialogPrimitive.Title>
+        <p className="text-muted text-xs">Report {report.id.slice(0, 8)}…</p>
+        <div />
 
         <div className="border-border bg-surface-2 mt-4 rounded-md p-3 text-sm">
           <p className="text-muted text-xs">
@@ -111,8 +114,8 @@ function ReviewDrawer({
           Hiding uses the audited messaging service; the reporter and sender keep their thread history. Account
           warnings/suspensions are not available from the portal (no such service — recorded decision).
         </p>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
