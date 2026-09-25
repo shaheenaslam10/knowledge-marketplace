@@ -20,10 +20,8 @@ test.setTimeout(300_000);
  * Register always lands on /verify-email?registered=1 (auto-login cookies) —
  * that IS the documented redirect, asserted here as behavior.
  */
-const stamp = Date.now();
-const studentEmail = `e2e-student-${stamp}@demo.local`;
-const expertEmail = `e2e-expert-${stamp}@demo.local`;
-const requestTitle = `E2E calculus coaching ${stamp}`;
+// identities are generated INSIDE the test callback — CI retries (retries: 1)
+// must not reuse emails/titles from a failed attempt
 
 
 const PNG = Buffer.from(
@@ -32,6 +30,10 @@ const PNG = Buffer.from(
 );
 
 test("student funnel: request → offer → select → pay → deliver → approve → review", async ({ browser }) => {
+  const stamp = Date.now();
+  const studentEmail = `e2e-student-${stamp}@demo.local`;
+  const expertEmail = `e2e-expert-${stamp}@demo.local`;
+  const requestTitle = `E2E calculus coaching ${stamp}`;
   const studentContext = await browser.newContext();
   const student = await studentContext.newPage();
 

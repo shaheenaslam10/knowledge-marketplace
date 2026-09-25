@@ -18,11 +18,12 @@ test.setTimeout(300_000);
  * service path: eligibility + quote + audit) → expert accepts → student pays
  * → order in progress.
  */
-const stamp = Date.now();
-const studentEmail = `e2e-managed-${stamp}@demo.local`;
-const title = `E2E managed thesis coaching ${stamp}`;
-
+// identities are generated INSIDE the test callback — CI retries (retries: 1)
+// must not reuse emails/titles from a failed attempt
 test("managed service: submit → assign → expert accepts → payment", async ({ browser }) => {
+  const stamp = Date.now();
+  const studentEmail = `e2e-managed-${stamp}@demo.local`;
+  const title = `E2E managed thesis coaching ${stamp}`;
   const studentContext = await browser.newContext();
   const student = await studentContext.newPage();
 
