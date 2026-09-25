@@ -24,6 +24,7 @@ import {
   type OrderDetail,
   type OrderEventRecord,
 } from "@/features/orders/types";
+import { uploadFile } from "@/features/experts/api";
 import { fileDownloadUrl } from "@/features/orders/api";
 import { MessageThreadButton } from "@/features/messaging/MessageThreadButton";
 import { DisputeSection } from "@/features/disputes/components/dispute-section";
@@ -122,18 +123,9 @@ export function DeliveryComposer({
         try {
           setUploading(true);
           const ids: string[] = [];
-          for (const file of files) {
-            const form = new FormData();
-            form.set("purpose", "delivery");
-            form.set("file", file); // backend FileUploadView reads request.FILES["file"]
-            const response = await fetch("/api/v1/files", { method: "POST", body: form });
-            if (!response.ok) {
-              const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
-              throw new Error(body?.error?.message ?? "Upload failed");
-            }
-            const body = (await response.json()) as { attachment: { id: string } };
-            ids.push(body.attachment.id);
-          }
+          // shared upload client: API origin + credentials + the backend contract
+          // (a relative fetch hit the Next origin — 404 in dev/compose/split deploys)
+          for (const file of files) ids.push((await uploadFile(file, "delivery")).id);
           await onSubmit(summary.trim(), ids);
         } catch (uploadError) {
           setError(uploadError instanceof Error ? uploadError.message : "Could not submit delivery.");
