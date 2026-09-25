@@ -141,9 +141,10 @@ jobs:
         working-directory: frontend
         run: |
           if ! npm run e2e > /tmp/pw.log 2>&1; then
-            curl -s http://localhost:3000/ | grep -oE "<h1[^>]*>[^<]{0,60}|__next_error__|Application error|api-status" | head -4 | while IFS= read -r line; do echo "::error::html: ${line:0:200}"; done
-            grep -E "Error:" /tmp/pw.log | head -3 | while IFS= read -r line; do echo "::error::e2e: ${line:0:200}"; done
-            docker compose logs frontend --tail 60 2>&1 | grep -iE "error|unhandled|failed" | head -3 | while IFS= read -r line; do echo "::error::fe: ${line:0:220}"; done
+            grep -E "✘|✗|failed|Error:" /tmp/pw.log | head -10 | while IFS= read -r line; do echo "::error::e2e: ${line:0:220}"; done
+            curl -s http://localhost:3000/ | grep -oE "<h1[^>]*>[^<]{0,60}|__next_error__|Application error" | head -4 | while IFS= read -r line; do echo "::error::html: ${line:0:200}"; done
+            docker compose logs backend --tail 40 2>&1 | grep -iE "error|traceback|exception" | head -6 | while IFS= read -r line; do echo "::error::be: ${line:0:220}"; done
+            docker compose logs frontend --tail 120 2>&1 | grep -iE "⨯|error|unhandled|failed" | head -12 | while IFS= read -r line; do echo "::error::fe: ${line:0:240}"; done
             exit 1
           fi
       - name: Dump logs on failure
