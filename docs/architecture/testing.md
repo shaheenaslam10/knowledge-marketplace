@@ -55,6 +55,23 @@ Stripe interactions are always behind the gateway adapter — tests use a `FakeG
 
 E2E runs on every PR against seeded data (`scripts/seed_demo.py --e2e` deterministic mode).
 
+### E2E environment contract (journeys 01–04)
+
+- **Stack**: tests assume the compose stack is already up (Next :3000, Django :8000,
+  worker qcluster) — `docker compose up --build -d`, then `cd frontend && npm run e2e`.
+- **Verification emails**: the dev email backend is `console`; the q2 **worker** prints
+  each message to its container stdout. Helpers in `frontend/e2e/helpers.ts` poll the
+  delivery log at `$E2E_DELIVERY_LOG` (default `/tmp/hem-mail.log`) and extract the
+  `verify-email?token=…` link. In CI the compose-smoke job streams the log:
+  `docker compose logs -f worker > /tmp/hem-mail.log &`.
+- **Django admin origin**: the admin lives on the API origin (`http://localhost:8000`,
+  override `E2E_ADMIN_BASE_URL`) — Next never serves `/admin` in dev or compose.
+- **Hydration**: specs retry fill/submit until the client app is interactive
+  (`helpers.register` / `login` loops) — pre-hydration DOM input is wiped on mount.
+- **Seed dependency**: journeys 02/04 consume seeded dispute-eligible orders and the
+  moderation report; `seed_demo` is idempotent, so reruns recreate what a previous
+  journey consumed.
+
 ## CI pipeline (GitHub Actions, free)
 
 1. backend: ruff + import-linter + makemigrations --check + pytest (+coverage)

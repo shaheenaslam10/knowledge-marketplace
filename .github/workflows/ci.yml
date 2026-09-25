@@ -137,6 +137,13 @@ jobs:
         run: docker compose exec -T backend python manage.py worker_smoke --timeout 30
       - name: Seed demo data
         run: docker compose exec -T backend python manage.py seed_demo
+      # The dev email backend is console; the q2 worker prints verification
+      # emails to its container stdout. Stream that log to the host path the
+      # Playwright helpers poll (e2e/helpers.ts E2E_DELIVERY_LOG default).
+      - name: Stream worker output (verification emails) for e2e
+        run: |
+          docker compose logs -f worker > /tmp/hem-mail.log 2>&1 &
+          echo $! > /tmp/mail-tee.pid
       - name: E2E smoke (Playwright)
         working-directory: frontend
         run: |
@@ -161,4 +168,6 @@ jobs:
         run: docker compose logs --tail 100
       - name: Tear down
         if: always()
-        run: docker compose down -v
+        run: |
+          kill "$(cat /tmp/mail-tee.pid)" 2>/dev/null || true
+          docker compose down -v
