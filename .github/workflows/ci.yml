@@ -59,6 +59,10 @@ jobs:
             grep -E "^(FAILED|ERROR)|short test summary|=====" /tmp/pytest.log | tail -8 | while IFS= read -r line; do echo "::error::${line:0:250}"; done
             exit 1
           }
+      - name: Dependency audit (known CVEs)
+        run: |
+          pip install -q pip-audit
+          pip-audit --desc off
 
   frontend:
     name: Frontend (lint, types, unit, build)
@@ -79,6 +83,8 @@ jobs:
         run: npm run lint
       - name: Typecheck
         run: npm run typecheck
+      - name: Dependency audit (prod deps, high+ blocks)
+        run: npm audit --omit=dev --audit-level=high
       - name: Unit tests
         run: npm test
       - name: Build

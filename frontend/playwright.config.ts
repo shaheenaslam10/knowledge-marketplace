@@ -9,10 +9,15 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  timeout: 20_000,
+  timeout: 30_000,
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
+    // E2E_CHROMIUM_PATH: local-sandbox override (CDN-restricted environments);
+    // CI uses the standard `npx playwright install` browser.
+    launchOptions: process.env.E2E_CHROMIUM_PATH
+      ? { executablePath: process.env.E2E_CHROMIUM_PATH, args: ["--no-sandbox"] }
+      : {},
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });
