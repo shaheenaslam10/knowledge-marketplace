@@ -109,10 +109,26 @@ export const profilesApi = {
   },
 };
 
-/** Uploads one file; returns the attachment id for owner objects to reference. */
+/** Every purpose the backend accepts (apps/files `PURPOSE_RULES`). */
+export type UploadPurpose =
+  | "credential"
+  | "avatar"
+  | "request_brief"
+  | "delivery"
+  | "order_attachment"
+  | "message"
+  | "dispute_evidence";
+
+/**
+ * Uploads one file to the API origin (`POST /api/v1/files`, multipart
+ * `purpose` + `file` → `{"attachment": {...}}`); returns the attachment for
+ * owner objects to reference. Use this instead of a raw relative fetch: the
+ * browser app and the API are different origins in dev/compose and in the
+ * split frontend deploy (Phase 11: delivery uploads 404'd on the Next origin).
+ */
 export async function uploadFile(
   file: File,
-  purpose: "credential" | "avatar" | "request_brief",
+  purpose: UploadPurpose,
   baseUrl = API_URL_BROWSER,
 ): Promise<{ id: string; original_name: string }> {
   const form = new FormData();

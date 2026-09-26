@@ -62,7 +62,8 @@ test("managed service: submit → assign → expert accepts → payment", async 
   await admin.locator("#id_username").fill("admin@demo.local");
   await admin.locator("#id_password").fill("admin-demo-1234");
   await admin.getByRole("button", { name: /log in/i }).click();
-  await admin.waitForURL(/\/admin\//, { timeout: 20_000 });
+  // logged-in-only element: a URL match on /admin/ already matches /admin/login/
+  await expect(admin.locator("#user-tools")).toBeVisible({ timeout: 20_000 });
 
   // resolve OUR request's pk from the changelist row (titles are unique per run;
   // option labels in the select are opaque "request:<pk>:<status>")
@@ -86,18 +87,16 @@ test("managed service: submit → assign → expert accepts → payment", async 
 
   await admin.goto(`${ADMIN_BASE}/admin/assignments/directassignment/add/`);
   await admin.locator("select#id_request").selectOption(requestPk);
-  // the admin widget renders users by email — expert@demo.local is the seeded expert
-  await admin.locator("select#id_expert").selectOption({ label: "expert@demo.local" });
+  // The triage form collects ONLY the service inputs (request, expert, amount,
+  // deadline, scope note): the expert-name snapshot, currency, offer expiry and
+  // deciding admin are computed by assign_direct — never typed (they used to be
+  // required inputs whose values were silently discarded). The picker lists
+  // exactly the service-eligible experts, labelled like the ExpertProfile admin.
+  await admin.locator("select#id_expert").selectOption({ label: "expert:ayra-k" });
   await admin.locator("input#id_amount").fill("11000"); // minor units: $110.00
-  // remaining required fields of the model (snapshot + audit + offer expiry)
-  await admin.locator("input#id_expert_name").fill("Ayra K.");
-  await admin.locator("select#id_decided_by_admin").selectOption({ label: "admin@demo.local" });
-  const expires = new Date(Date.now() + 7 * 864e5);
-  await admin.locator("input#id_expires_at_0").fill(expires.toISOString().slice(0, 10));
-  await admin.locator("input#id_expires_at_1").fill("23:59:59");
-  const deadline = admin.locator("input#id_deadline");
-  if (await deadline.count()) {
-    await deadline.fill(new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10));
+  await admin.locator("input#id_deadline").fill(new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10));
+  for (const computed of ["expert_name", "currency", "expires_at_0", "decided_by_admin"]) {
+    await expect(admin.locator(`[name="${computed}"]`)).toHaveCount(0);
   }
   await admin.getByRole("button", { name: /save/i }).first().click();
   await expect(admin.locator(".messagelist")).toContainText(/added|success/i, { timeout: 20_000 });

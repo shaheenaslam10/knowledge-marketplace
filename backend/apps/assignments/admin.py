@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from apps.assignments import services
 from apps.assignments.models import DirectAssignment, PoolInvitation
+from apps.service_requests import services as request_services
 
 
 @admin.register(PoolInvitation)
@@ -52,12 +53,38 @@ class DirectAssignmentAdmin(admin.ModelAdmin):
             done += 1
         messages.info(request, f"Superseded {done} assignment(s).")
 
+    # Creation = owner triage through the service, so the add form collects ONLY
+    # the service inputs. expert_name / currency / expires_at / decided_by_admin
+    # are computed by assign_direct — they used to be required-but-discarded
+    # inputs, and the expert picker listed every user (Phase 11 E2E finding).
+    add_fields = ("request", "expert", "amount", "deadline", "scope_note")
+
+    def get_fields(self, request, obj=None):
+        if obj is None:
+            return self.add_fields
+        return super().get_fields(request, obj)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if obj is None:
+            # Triage picker: exactly the experts the service accepts, labelled
+            # like the ExpertProfile admin (expert:<slug>). The change form keeps
+            # the plain FK so existing rows stay editable.
+            field = form.base_fields["expert"]
+            field.queryset = (
+                request_services.eligible_experts()
+                .select_related("expert_profile")
+                .order_by("expert_profile__slug")
+            )
+            field.label_from_instance = lambda user: str(user.expert_profile)
+        return form
+
     def save_model(self, request, obj, form, change):
         if change:
             super().save_model(request, obj, form, change)
             return
         # Creation = owner triage → through the service (eligibility, quote, audit, email).
-        services.assign_direct(
+        assignment = services.assign_direct(
             request.user,
             obj.request,
             expert=obj.expert,
@@ -65,3 +92,5 @@ class DirectAssignmentAdmin(admin.ModelAdmin):
             deadline=obj.deadline,
             scope_note=obj.scope_note,
         )
+        # the admin's success message + LogEntry must reference the real row
+        obj.pk = assignment.pk

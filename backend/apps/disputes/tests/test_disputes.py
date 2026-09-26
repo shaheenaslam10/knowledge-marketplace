@@ -522,3 +522,53 @@ class TestOrderDisputeGetEmbed:
         )
         api_login(client, stranger)
         assert client.get(f"/api/v1/me/orders/{order.pk}/dispute").status_code == 404
+
+
+class TestAdminResolutionForm:
+    """The owner resolves disputes from the Django admin change form (BR-41,
+    ADR-0010). Phase 11 E2E finding: an invalid template expression made the
+    change page a 500 — no dispute could be resolved through the admin."""
+
+    def _under_review(self, django_user_model):
+        order, student, _expert = _order(django_user_model, status="completed")
+        owner = django_user_model.objects.create_superuser(
+            email="owner-dsp@demo.local", password=PASSWORD, name="Owner"
+        )
+        dispute = disputes.open_dispute(
+            order,
+            actor=student,
+            reason="quality_below_expectations",
+            description="Deliverable quality is far below the agreed scope.",
+        )
+        disputes.take_case(dispute, actor=owner)
+        return dispute, owner
+
+    def test_change_page_renders_the_resolution_form(self, client, django_user_model):
+        dispute, owner = self._under_review(django_user_model)
+        client.force_login(owner)
+        response = client.get(f"/admin/disputes/dispute/{dispute.pk}/change/")
+        assert response.status_code == 200
+        html = response.content.decode()
+        assert 'id="outcome"' in html
+        assert 'id="resolution_notes"' in html
+        assert 'name="_resolve"' in html
+
+    def test_execute_resolution_from_the_admin_form(self, client, django_user_model):
+        dispute, owner = self._under_review(django_user_model)
+        client.force_login(owner)
+        response = client.post(
+            f"/admin/disputes/dispute/{dispute.pk}/change/",
+            {
+                "outcome": "refund_student_full",
+                "resolution_notes": "Delivery never matched the brief; full refund granted.",
+                "refund_amount_minor": "0",
+                "_resolve": "1",
+            },
+            follow=True,
+        )
+        assert response.status_code == 200
+        assert "Dispute resolved" in response.content.decode()
+        dispute.refresh_from_db()
+        assert dispute.status == Dispute.Status.RESOLVED
+        assert dispute.outcome == "refund_student_full"
+        assert Payment.objects.get(order=dispute.order).status == Payment.Status.REFUNDED

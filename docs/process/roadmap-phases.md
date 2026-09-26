@@ -325,3 +325,17 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 | Deferred (recorded, not silent) | CSP enforcement (Phase 12 pre-launch gate, needs nonced inline bootstrap); audit F-7 items (Phase 12); ongoing F-6 |
 | Key commits | `5cb067e` (audit docs-first) → `7187e52` (backend hardening) → `b509286` (FE headers/a11y) → `57570f1` (E2E+perf+audits) → `941ac41`/`414b039`/`01285ec`/`649e77e` (e2e repair chain) → `e89ca44`/`649eba3`/`79f1905`/`f839b62`/`4cecb9c`/`e8517b7` (e2e-exposed defect fixes + wiring) → completion commit (roadmap + handoff) |
 | CI | run **`36127464977`** — ✓ 4/4 on `e8517b7` (Backend · Frontend · Docs sync · Compose smoke) |
+
+### Phase 11 follow-up fixes — branch `arena/01a0d790-knowledge-marketplace` (PR → `arena/01a0cd90-knowledge-marketplace`)
+
+Found while verifying the E2E pack against real application behavior; each fixed at the root with regressions, on top of `0e20b75`.
+
+| Area | Fix |
+|---|---|
+| Owner triage form (Django admin, ADR-0010) | The direct-assignment add form required four values `assign_direct` computes (expert-name snapshot, currency, 24h expiry, deciding admin) and silently discarded what the owner typed (typed EUR / a 2030 expiry / another admin → stored USD / now+24h / the acting admin, reported success); the expert picker listed every user. Now: service inputs only (request, expert, amount, deadline, scope note); picker = `service_requests.eligible_experts()` (approved + available, labelled `expert:<slug>`); admin LogEntry + message reference the created row. Journey 03 no longer fakes those inputs. |
+| Delivery file uploads | Still posted with a raw relative `fetch("/api/v1/files")` → the Next origin in dev/compose and the split deploy (`POST :3000/api/v1/files` → 404): every delivery with a file failed. Now uses the shared `uploadFile` client (API origin + credentials + backend contract). |
+| Regression coverage | Dispute resolution form renders and executes from the admin (the `e89ca44` template fix had no test); every registered admin page renders for the owner over the seeded dataset. |
+| Tests | backend pytest **373 passed** (+6); FE vitest **71 passed** (+1); ruff/format/import-linter/`makemigrations --check`/env-docs green; build + bundle budgets green; Playwright **6/6** locally on the runserver compose mirror (`CI=1`) |
+| Deferred (recorded) | `SessionProvider` maps any `/api/v1/me` failure (429 / 5xx / network) to signed-out, so the app layout redirects to login. Observed under the dev per-user throttle during back-to-back E2E attempts; needs a UX decision (retry/backoff vs. error state) → Phase 12 hardening. |
+| Commits | `1f6b415` (triage form) → `6d83225` (admin regressions) → `7916549` (delivery upload) → `4ef2353` (journey 03) |
+| CI | run **`36128869883`** — ✓ 4/4 on `4ef2353` (Backend · Frontend · Docs sync · Compose smoke) |
