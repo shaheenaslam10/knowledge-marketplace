@@ -2,7 +2,7 @@
 
 > **Permanent project rule:** this file is the single continuation document for any new AI agent or developer (Arena, ChatGPT, Gemini, human). It is updated at every phase completion and whenever a plan/architecture/business-rule change is discovered — **before or with** the implementation, never silently. Detailed evidence lives in the linked documents; this file stays a fast, accurate map.
 >
-> Last updated: **2026-09-25 (Phase 11 completion)**
+> Last updated: **2026-09-26 (Phase 11 final integration — PR #1 merged as `3bd92b7`, canonical CI 4/4)**
 
 ---
 
@@ -10,17 +10,19 @@
 
 ```text
 Current phase:      Phase 11 — Security, Testing & Performance ✅ COMPLETE
-Latest commit:      Phase 11 completion commit (this one — roadmap record + handoff).
+Latest commit:      3bd92b7 — final Phase 11 integration (merge of PR #1: follow-up fixes onto
+                    da043cb), canonical CI 36224637860 ✓ 4/4; only this docs record (PR #2)
+                    sits on top of it.
                     Feature chain: 5cb067e (docs-first audit) → 7187e52 (backend hardening)
                     → b509286 (FE headers/a11y) → 57570f1 (E2E+perf+audit gates)
                     → e2e repair chain 941ac41/414b039/01285ec/649e77e
                     → e2e-exposed defect fixes e89ca44/649eba3/79f1905/f839b62/4cecb9c
-                    → e8517b7 (retry-safe e2e, CI 4/4)
-Follow-up (PR):     arena/01a0d790-knowledge-marketplace — 1f6b415 → 4ef2353 (+ docs record),
-                    CI 36128869883 ✓ 4/4: triage-form + delivery-upload defect fixes, admin
-                    regression tests (roadmap Phase 11 follow-up). Merge into
-                    arena/01a0cd90 and start Phase 12 from the merged head.
-Next phase:         Phase 12 — Production Deployment  (see "NEXT PHASE" below)
+                    → e8517b7 (retry-safe e2e, CI 4/4) → 0e20b75/da043cb (completion record)
+                    → follow-up fixes 1f6b415/6d83225/7916549/4ef2353 (+ cf47dbd docs) → 3bd92b7
+Follow-up:          ✅ merged (PR #1 → 3bd92b7): triage-form + delivery-upload defect fixes,
+                    admin regression tests (roadmap "Phase 11 follow-up fixes"). Nothing pending.
+Next phase:         Phase 12 — Production Deployment  (see "NEXT PHASE" below) — NOT started;
+                    begin from the canonical head.
 Read first:         docs/process/roadmap-phases.md (Phase 11 completion record + Phase 12 row),
                     docs/architecture/deployment.md, docs/architecture/security.md,
                     docs/architecture/security-audit-phase11.md (F-2/F-7 = Phase 12 gates)
@@ -42,10 +44,10 @@ Do not start:       Stripe activation (credentials do not exist; seam stays), Re
 | Current phase | **Phase 11 — Security, Testing & Performance ✅ complete** |
 | Next phase | **Phase 12 — Production Deployment** (scope below) |
 | Branch | `arena/01a0cd90-knowledge-marketplace` (all work happens here) |
-| Latest commit | Phase 11 completion commit (roadmap record + this handoff); feature chain `5cb067e` → `7187e52` → `b509286` → `57570f1` → e2e repair `941ac41`/`414b039`/`01285ec`/`649e77e` → defect fixes `e89ca44`/`649eba3`/`79f1905`/`f839b62`/`4cecb9c` → `e8517b7` |
-| Latest verified CI | run **`36128437178`** — ✓ 4/4 on `0e20b75` (completion commit); content run **`36127464977`** — ✓ 4/4 on `e8517b7` (Backend · Frontend · Docs sync · Compose smoke) |
-| Working tree | Clean & synced with origin at the completion commit; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
-| Test baseline | backend pytest **367 passed** (incl. authorization-matrix suite + query budgets); frontend lint/typecheck/vitest **70**/build/bundle-budgets green; Playwright E2E **6/6** over the compose stack (4 golden journeys + smoke); ruff+format clean; import-linter kept; `makemigrations --check` clean; env-docs gate green |
+| Latest commit | **`3bd92b7`** — merge of PR #1 (Phase 11 follow-up fixes `1f6b415` → `6d83225` → `7916549` → `4ef2353` + docs `cf47dbd`) into `da043cb`; only this docs record (PR #2) is on top. Feature chain `5cb067e` → `7187e52` → `b509286` → `57570f1` → e2e repair `941ac41`/`414b039`/`01285ec`/`649e77e` → defect fixes `e89ca44`/`649eba3`/`79f1905`/`f839b62`/`4cecb9c` → `e8517b7` → completion record `0e20b75`/`da043cb` → `3bd92b7` |
+| Latest verified CI | run **`36224637860`** — ✓ 4/4 on `3bd92b7` (final Phase 11 canonical integration: Backend · Frontend · Docs sync · Compose smoke); history: `36128437178` ✓ 4/4 on `0e20b75` (completion commit), `36127464977` ✓ 4/4 on `e8517b7` (content run) |
+| Working tree | Clean & synced with origin at the canonical head; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
+| Test baseline | backend pytest **373 passed** (incl. authorization-matrix suite, query budgets, admin-page + triage-form regressions); frontend lint/typecheck/vitest **71**/build/bundle-budgets green; Playwright E2E **6/6** over the compose stack (4 golden journeys + smoke); ruff+format clean; import-linter kept; `makemigrations --check` clean; env-docs gate green |
 | Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 10 record has the as-built details + deferred list) |
 
 ---
@@ -70,7 +72,7 @@ Detailed scope, acceptance gates and per-phase records live in `docs/process/roa
 
 | 10 — Admin & Analytics | Operations portal `(portal)`: KPI dashboard (server-side Postgres aggregation, UTC ranges, KPI dictionary in observability.md), moderation report queue (audited dismiss/confirm-hide via the messaging service), dispute triage queue (resolution deep-links Django admin), audit viewer, financial reconciliation (read-only, ledger-identity reuse), users overview, PlatformConfig singleton + audited admin-only config UI, seed operations funnel | `6e637cb`, `c2471e6`, `64f75d9` | ADR-0010 implemented (portal/admin split documented in admin-journey.md) | Recharts deferred (bundle budget — SVG micro-charts); account warning/suspension service not built (business-rule change, recorded); CSV export post-MVP |
 
-| 11 — Security, Testing & Performance | Docs-first security audit (`security-audit-phase11.md`, F-1..F-8 dispositions); authorization-matrix suite (role × endpoint across all apps); backend hardening (ops write-throttles, concurrency race suites); FE security headers (CSP report-only → Phase 12 enforcement gate) + a11y; pip-audit + npm-audit CI gates; Playwright E2E pack — 4 golden journeys over the real compose stack with shared hydration/mail helpers; query budgets (feed/directory ≤12, threads/order ≤14, KPIs ≤40) + bundle budgets + `performance.md`; compose smoke wired to the q2 worker delivery log; **7 real product defects found by E2E and fixed app-side with regressions** (taxonomy contract, first-time apply gate, upload field/response contract, credential_ids JSON, managed `mode` on create, dispute-admin template 500, compose static serving) | `5cb067e`, `7187e52`, `b509286`, `57570f1`, `e89ca44`, `649eba3`, `79f1905`, `f839b62`, `4cecb9c`, `e8517b7` | ADR-0006 unchanged; CSP enforcement deferred with recorded rationale (F-2) | **Deferred:** CSP enforcement + F-7 → Phase 12 gates; F-6 ongoing; `SessionProvider` treats non-401 `/me` failures (429/5xx) as signed-out → Phase 12 hardening. Follow-up fixes on `arena/01a0d790` (PR; CI `36128869883`) |
+| 11 — Security, Testing & Performance | Docs-first security audit (`security-audit-phase11.md`, F-1..F-8 dispositions); authorization-matrix suite (role × endpoint across all apps); backend hardening (ops write-throttles, concurrency race suites); FE security headers (CSP report-only → Phase 12 enforcement gate) + a11y; pip-audit + npm-audit CI gates; Playwright E2E pack — 4 golden journeys over the real compose stack with shared hydration/mail helpers; query budgets (feed/directory ≤12, threads/order ≤14, KPIs ≤40) + bundle budgets + `performance.md`; compose smoke wired to the q2 worker delivery log; **7 real product defects found by E2E and fixed app-side with regressions** (taxonomy contract, first-time apply gate, upload field/response contract, credential_ids JSON, managed `mode` on create, dispute-admin template 500, compose static serving) | `5cb067e`, `7187e52`, `b509286`, `57570f1`, `e89ca44`, `649eba3`, `79f1905`, `f839b62`, `4cecb9c`, `e8517b7`, `3bd92b7` (PR #1 follow-up merge) | ADR-0006 unchanged; CSP enforcement deferred with recorded rationale (F-2) | **Deferred:** CSP enforcement + F-7 → Phase 12 gates; F-6 ongoing; `SessionProvider` treats non-401 `/me` failures (429/5xx) as signed-out → Phase 12 hardening. Follow-up fixes (triage form, delivery upload, admin regressions) merged via PR #1 → `3bd92b7` (canonical CI `36224637860` ✓ 4/4) |
 
 **Major plan changes so far** (all documented before/with implementation): django-tasks → django-q2 (ADR-0002 amendment); payments layering inversion via domain signal (ADR-0005 amendment); no PaymentAttempt/Transaction tables; ledger identity formalized; payout settlement manual-by-design; Stripe explicitly not production-ready until the checklist in `docs/workflows/payments.md` is verified.
 
@@ -123,7 +125,7 @@ Authoritative details live in `docs/architecture/*` — this is the map only.
 **Goal.** Take the verified Phase 0–11 system to a real staging→production deployment: deploy config, CSP enforcement (the deferred F-2 gate), backups + restore drill, monitoring/uptime, legal pages, and the launch checklist.
 
 **Starting point (what exists).**
-- CI 4/4 including compose smoke with the full E2E journey pack (`36127464977` on `e8517b7`); all security gates green except CSP enforcement (deliberately report-only — `security-audit-phase11.md` F-2).
+- CI 4/4 including compose smoke with the full E2E journey pack (`36224637860` on `3bd92b7`, the final Phase 11 canonical integration); all security gates green except CSP enforcement (deliberately report-only — `security-audit-phase11.md` F-2).
 - Deployment intent already documented in `docs/architecture/deployment.md` (targets, env contract, headers policy) and `docs/architecture/backup-recovery.md`; prod settings exist (`config/settings/prod.py`) with strict security defaults.
 - Payments: ManualGateway active; StripeGateway is a non-functional seam — activation is a **blocked** owner decision, not a Phase 12 task.
 

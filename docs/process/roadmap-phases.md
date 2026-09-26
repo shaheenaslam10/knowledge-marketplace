@@ -1,6 +1,6 @@
 # Development Phases, Dependencies & Acceptance Criteria
 
-> Status: **Phase 11 ✅ complete · Next: Phase 12 (Production Deployment)** · Last updated: Phase 11 completion
+> Status: **Phase 11 ✅ complete · Next: Phase 12 (Production Deployment)** · Last updated: Phase 11 final integration (PR #1 merged as `3bd92b7`; canonical CI `36224637860` ✓ 4/4)
 > **Single source of truth.** The table below reflects what the system actually contains after each phase. Renumbered at Phase 5 kickoff (owner direction): the marketplace foundation (requests + open bidding + selection + order creation) shipped together in Phase 4, so the former "Bidding & Selection" phase no longer exists and later phases shifted down one. Per-phase completion records live at the bottom of this file.
 
 ## Phase overview
@@ -19,7 +19,7 @@
 | 8 | Messaging & Notifications | 5 | ✅ threads+WS realtime (optimistic send, offline REST fallback), read receipts, notification center + preferences, realtime toasts, email funnel, unsubscribe, prune; digest deferred (see record) |
 | 9 | Files, Reviews & Disputes | 6,7 | ✅ R2 storage adapter + presigned downloads, retention job; review flows + BR-39 weighted aggregates; dispute lifecycle + resolution reusing Phase 7 money services; moderation hooks (report + grounds-gated view); overdue flagging + deadline proposals |
 | 10 | Admin & Analytics | 5–9 | ✅ `(portal)` operations surfaces: KPI dashboard (server-side Postgres aggregation, UTC ranges), moderation report queue (audited review/dismiss/hide), dispute triage queue (resolution deep-links Django admin), audit viewer, PlatformConfig singleton + audited config UI, read-only financial reconciliation, users overview, seed operations funnel |
-| 11 | Security, Testing & Performance | all | ✅ docs-first security audit (F-1..F-8, dispositions recorded), authorization-matrix suite, backend hardening (ops throttles, concurrency races), CSP/headers (CSP report-only; enforcement = Phase 12 gate), pip-audit + npm-audit CI gates, Playwright E2E pack (4 journeys + smoke over compose), query-count budgets + bundle budgets + `docs/architecture/performance.md`, compose smoke 4/4 |
+| 11 | Security, Testing & Performance | all | ✅ docs-first security audit (F-1..F-8, dispositions recorded), authorization-matrix suite, backend hardening (ops throttles, concurrency races), CSP/headers (CSP report-only; enforcement = Phase 12 gate), pip-audit + npm-audit CI gates, Playwright E2E pack (4 journeys + smoke over compose), query-count budgets + bundle budgets + `docs/architecture/performance.md`, compose smoke 4/4; follow-up fixes (triage form, delivery upload) merged via PR #1 → `3bd92b7` |
 | 12 | Production Deployment | 11 | staging→prod deploy, backups+restore drill, monitoring, legal pages, launch checklist |
 
 Notes on ordering: payments after orders (an order must exist to pay for); messaging at 8 (marketplace usable without realtime chat); files core landed in 3 (credentials) + 4 (`request_brief`), delivery-file extensions in 6/9; the operations portal stays scaffolding until Phase 10 (Django admin remains the ops tool, ADR-0010). Sequence rationale (Phase 3.5 refinement): design system ✅ → marketplace domain → managed service → orders/delivery → payments → communication → files/reviews/disputes → admin → hardening → launch.
@@ -326,9 +326,9 @@ See `git log` — Phase 2 lands as: (1) accounts app + settings + tests, (2) doc
 | Key commits | `5cb067e` (audit docs-first) → `7187e52` (backend hardening) → `b509286` (FE headers/a11y) → `57570f1` (E2E+perf+audits) → `941ac41`/`414b039`/`01285ec`/`649e77e` (e2e repair chain) → `e89ca44`/`649eba3`/`79f1905`/`f839b62`/`4cecb9c`/`e8517b7` (e2e-exposed defect fixes + wiring) → completion commit (roadmap + handoff) |
 | CI | run **`36127464977`** — ✓ 4/4 on `e8517b7` (Backend · Frontend · Docs sync · Compose smoke) |
 
-### Phase 11 follow-up fixes — branch `arena/01a0d790-knowledge-marketplace` (PR → `arena/01a0cd90-knowledge-marketplace`)
+### Phase 11 follow-up fixes — merged into `arena/01a0cd90-knowledge-marketplace` via PR #1 (`3bd92b7`)
 
-Found while verifying the E2E pack against real application behavior; each fixed at the root with regressions, on top of `0e20b75`.
+Found while verifying the E2E pack against real application behavior; each fixed at the root with regressions, on top of `0e20b75`. Developed on `arena/01a0d790-knowledge-marketplace` and integrated by PR #1 as merge commit `3bd92b7` (parents `da043cb` + `cf47dbd`; commit history preserved, nothing force-pushed).
 
 | Area | Fix |
 |---|---|
@@ -337,5 +337,7 @@ Found while verifying the E2E pack against real application behavior; each fixed
 | Regression coverage | Dispute resolution form renders and executes from the admin (the `e89ca44` template fix had no test); every registered admin page renders for the owner over the seeded dataset. |
 | Tests | backend pytest **373 passed** (+6); FE vitest **71 passed** (+1); ruff/format/import-linter/`makemigrations --check`/env-docs green; build + bundle budgets green; Playwright **6/6** locally on the runserver compose mirror (`CI=1`) |
 | Deferred (recorded) | `SessionProvider` maps any `/api/v1/me` failure (429 / 5xx / network) to signed-out, so the app layout redirects to login. Observed under the dev per-user throttle during back-to-back E2E attempts; needs a UX decision (retry/backoff vs. error state) → Phase 12 hardening. |
-| Commits | `1f6b415` (triage form) → `6d83225` (admin regressions) → `7916549` (delivery upload) → `4ef2353` (journey 03) |
-| CI | run **`36128869883`** — ✓ 4/4 on `4ef2353` (Backend · Frontend · Docs sync · Compose smoke) |
+| Commits | `1f6b415` (triage form) → `6d83225` (admin regressions) → `7916549` (delivery upload) → `4ef2353` (journey 03) → `cf47dbd` (docs record) → merged as `3bd92b7` |
+| CI (branch) | run **`36128869883`** — ✓ 4/4 on `4ef2353`; PR #1 merge-result run `36222723033` — ✓ 4/4 |
+| Integration | Pre-merge audit: canonical already held every other Phase 11 fix (security, performance, E2E repairs); its only commit not on the branch (`da043cb`) was docs — no duplicate or obsolete implementation, no conflicts. The exact merge tree was verified locally before merging: backend **373 passed** + ruff/format/import-linter/migrations/pip-audit; FE lint/typecheck/audit/vitest **71**/build/bundle budgets; env-docs; Playwright **6/6** on the compose-smoke mirror. `3bd92b7` landed with that identical tree. |
+| CI (final canonical) | run **`36224637860`** — ✓ 4/4 on `3bd92b7` (Backend · Frontend · Docs sync · Compose smoke) |
