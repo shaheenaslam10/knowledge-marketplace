@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
  * security boundary.
  */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { status, user, logout } = useSession();
+  const { status, user, logout, refresh } = useSession();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -37,6 +37,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace("/login?next=/account");
     }
   }, [status, router]);
+
+  // The API is unreachable (rate-limited, restarting, offline) — the session may
+  // well be valid, so offer a retry instead of bouncing the user to /login.
+  if (status === "unreachable") {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-md space-y-4 text-center" data-testid="session-unreachable">
+          <h1 className="text-lg font-semibold">We can&apos;t reach the server</h1>
+          <p className="text-sm text-muted">
+            Your session is probably fine — the connection is not. Check your network and try again.
+          </p>
+          <Button onClick={() => void refresh()}>Try again</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (status !== "authenticated") {
     return (
