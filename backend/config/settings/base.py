@@ -28,6 +28,14 @@ ALLOWED_HOSTS = [
 ]
 APP_VERSION = env.str("APP_VERSION", default="0.1.0")
 
+# Which deployment this process IS, independent of which settings module it
+# loaded. `prod.py` is used by BOTH staging and production, so DEBUG/settings
+# module cannot distinguish them — this can (Phase 12, ADR-0016). It drives the
+# production safety checks (apps.core.checks), the seed guard and the
+# noindex/robots behaviour that keeps staging out of search results.
+DEPLOY_ENV = env.str("DEPLOY_ENV", default="local")  # local | ci | staging | production
+DEPLOYED_ENVIRONMENTS = ("staging", "production")
+
 # --- Applications ---
 # NOTE: `accounts` (custom user) lands in Phase 2; until then Django's default
 # user model is used deliberately — swapping AUTH_USER_MODEL must happen before
