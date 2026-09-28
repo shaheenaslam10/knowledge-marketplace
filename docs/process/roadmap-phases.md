@@ -20,7 +20,7 @@
 | 9 | Files, Reviews & Disputes | 6,7 | ✅ R2 storage adapter + presigned downloads, retention job; review flows + BR-39 weighted aggregates; dispute lifecycle + resolution reusing Phase 7 money services; moderation hooks (report + grounds-gated view); overdue flagging + deadline proposals |
 | 10 | Admin & Analytics | 5–9 | ✅ `(portal)` operations surfaces: KPI dashboard (server-side Postgres aggregation, UTC ranges), moderation report queue (audited review/dismiss/hide), dispute triage queue (resolution deep-links Django admin), audit viewer, PlatformConfig singleton + audited config UI, read-only financial reconciliation, users overview, seed operations funnel |
 | 11 | Security, Testing & Performance | all | ✅ docs-first security audit (F-1..F-8, dispositions recorded), authorization-matrix suite, backend hardening (ops throttles, concurrency races), CSP/headers (CSP report-only; enforcement = Phase 12 gate), pip-audit + npm-audit CI gates, Playwright E2E pack (4 journeys + smoke over compose), query-count budgets + bundle budgets + `docs/architecture/performance.md`, compose smoke 4/4; follow-up fixes (triage form, delivery upload) merged via PR #1 → `3bd92b7` |
-| 12 | Production Deployment | 11 | staging→prod deploy, backups+restore drill, monitoring, legal pages, launch checklist |
+| 12 | Production Deployment | 11 | ✅ **deployment architecture prepared and verified; not yet deployed to a host** — `docker-compose.prod.yml` + `deploy/Caddyfile` (ADR-0016), prod-only image stage + fail-closed `entrypoint.prod.sh`, `deploy.sh`/`rollback.sh`/`smoke_test.sh` (22 checks, run green against a real prod-settings stack), encrypted backups + **restore drill passed incl. BR-33 on restored rows**, production safety checks `hem.E001-E012`/`W001-W006`, `ops_report` CLI signals, **enforced nonce CSP (closes audit F-2)**, legal pages, host-aware routing (ADR-0013), CD workflow + CI `deploy-config` job. Blocked on owner actions only: host, domain, R2, email, uptime monitor |
 
 Notes on ordering: payments after orders (an order must exist to pay for); messaging at 8 (marketplace usable without realtime chat); files core landed in 3 (credentials) + 4 (`request_brief`), delivery-file extensions in 6/9; the operations portal stays scaffolding until Phase 10 (Django admin remains the ops tool, ADR-0010). Sequence rationale (Phase 3.5 refinement): design system ✅ → marketplace domain → managed service → orders/delivery → payments → communication → files/reviews/disputes → admin → hardening → launch.
 
@@ -341,3 +341,81 @@ Found while verifying the E2E pack against real application behavior; each fixed
 | CI (branch) | run **`36128869883`** — ✓ 4/4 on `4ef2353`; PR #1 merge-result run `36222723033` — ✓ 4/4 |
 | Integration | Pre-merge audit: canonical already held every other Phase 11 fix (security, performance, E2E repairs); its only commit not on the branch (`da043cb`) was docs — no duplicate or obsolete implementation, no conflicts. The exact merge tree was verified locally before merging: backend **373 passed** + ruff/format/import-linter/migrations/pip-audit; FE lint/typecheck/audit/vitest **71**/build/bundle budgets; env-docs; Playwright **6/6** on the compose-smoke mirror. `3bd92b7` landed with that identical tree. |
 | CI (final canonical) | run **`36224637860`** — ✓ 4/4 on `3bd92b7` (Backend · Frontend · Docs sync · Compose smoke) |
+
+---
+
+## Phase 12 — Production Deployment (record)
+
+> **Status: deployment architecture prepared, verified and committed. Nothing is
+> deployed.** No hosting, DNS, object-storage, email or payment credentials
+> exist in this project, so staging and production remain unreached. Every
+> claim below was executed locally in this repository; nothing is inferred from
+> a commit message, and no external service was activated.
+
+### The three states, kept apart deliberately
+
+| Stage | State |
+|---|---|
+| Deployment architecture prepared | ✅ done and verified |
+| Staging deployed | ❌ blocked on owner actions (host + domain) |
+| Production deployed | ❌ blocked on the same |
+
+| Area | What shipped |
+|---|---|
+| Docs-first | **ADR-0016** (single-host Caddy + compose, Postgres swappable to Neon, staging = same compose + a different env file) and **ADR-0017** (nonce CSP in middleware, `style-src 'unsafe-inline'` residual) written and committed **before** any implementation, per the handoff's Phase 12 item 1 |
+| Topology | `docker-compose.prod.yml` — db/api/worker/web behind `caddy`. Caddy is the only service publishing ports; **Postgres publishes none**, closing audit F-7's exposure item structurally. `name: hem-${DEPLOY_ENV}` gives staging and production separate volumes/networks on one host. `${VAR:?}` guards fail the deploy on a missing secret instead of at runtime |
+| Ingress/TLS | `deploy/Caddyfile` — automatic Let's Encrypt, static files served straight off the collectstatic volume with immutable caching, 3600 s proxy timeouts on the API host for long-lived WebSockets (ADR-0004), apex→www redirect |
+| Image | `backend/Dockerfile` gains a `deps-prod` stage installing without the `[dev]` extra — pytest/ruff are no longer shipped to production |
+| Boot gate | `backend/docker/entrypoint.prod.sh`: wait for DB → `check --deploy --tag production --fail-level WARNING` → `migrate` → `collectstatic` → exec. **Fail-closed**: a misconfigured container refuses to boot |
+| Safety checks | `apps/core/checks.py` — `hem.E001`–`E012`, `hem.W001`–`W006`. Gated on `DEPLOY_ENV`, because `config.settings.prod` is loaded by staging *and* production and cannot tell them apart |
+| Deploy/rollback | `scripts/deploy.sh` (refuse dirty tree → record release → pre-deploy backup → build → health → smoke → **auto-rollback on failure**), `scripts/rollback.sh` (code only; forward-only/additive-first migration policy documented — a bad migration is a restore, not a rollback) |
+| Smoke | `scripts/smoke_test.sh` — 22 assertions incl. **CSP enforcing, nonce present, header nonce matching the rendered document**, no `unsafe-inline`/`unsafe-eval`, auth boundary on `/api/v1/me` + `/api/v1/ops/kpis`, legal pages. Exit 1 ⇒ roll back |
+| CSP (audit **F-2 CLOSED**) | `frontend/src/middleware.ts` mints a per-request nonce and sets the policy on **both** the request and the response — Next reads the nonce from the request header. `SECURITY_HEADERS_CSP_REPORT_ONLY` now defaults to **False** |
+| Backups | `scripts/backup_db.sh` (`pg_dump -Fc` → AES-256 → SHA256 sidecar → retention → off-host hook) and `scripts/restore_backup.sh` (checksum **before** decrypt → restore → row counts → **BR-33 ledger identity on restored rows**) |
+| Monitoring | `manage.py ops_report` implemented (it had been documented for two phases without existing), reusing `reconciliation_report()` so CLI and portal cannot disagree; nine signals, **non-zero exit** when any needs attention. Uptime/Sentry wiring documented as owner actions |
+| Legal | `/terms`, `/privacy`, `/academic-integrity` on the marketing experience, linked from the footer |
+| Host routing | ADR-0013's three-experience host map implemented in middleware; redirects only when all three host vars are set, so dev/CI keep serving every path from one origin |
+| CD | `.github/workflows/deploy.yml` — refuses commits CI has not passed, runs inside a GitHub Environment (required reviewers = the approval gate), external smoke over real DNS/TLS, auto-rollback. Stops at preflight with an explicit error when deployment secrets are absent rather than appearing to succeed |
+| CI | new **`deploy-config`** job (compose + Caddy validation, every shell script parsed); the Backend job now asserts the production safety checks **in both directions** so the fail-closed gate cannot be quietly neutered |
+| Phase 11 carry-over fixed | `SessionProvider` mapped *any* `/api/v1/me` failure to signed-out, so a 429/5xx/network blip ejected a live session. Now 401/403 sign out immediately while transient failures retry with backoff and surface an `unreachable` state with a retry action |
+
+### Verification actually performed
+
+| Check | Result |
+|---|---|
+| Backend pytest | **407 passed** (373 baseline + 34 new) |
+| ruff / format / import-linter / `makemigrations --check` | ✅ / ✅ / 2 contracts kept / no changes |
+| Frontend eslint / tsc / vitest | ✅ / ✅ / **102 passed** (19 files) |
+| Production build + bundle budgets | ✅ |
+| env-docs gate | ✅ 37 vars |
+| **Smoke test against a real stack** under `config.settings.prod` | **22 passed, 0 failed** |
+| **Safety checks, dangerous config** | refused — `hem.E001/E008/E010/E011`, `W002×2`, `W006`, exit 1 |
+| **Safety checks, correct config** | passed, exit 0 |
+| **Safety checks, local dev** | inert, exit 0 |
+| **Restore drill** | **passed** — 541 objects, BR-33 `identity_violations 0`; negative paths (wrong passphrase / corrupted archive / missing file) each fail distinctly with 0 leftover databases |
+| `ops_report` live run | 9 signals, `payouts.failed 1 [ALERT]`, non-zero exit — the alert path fired on a real anomaly |
+| Playwright E2E, compose-smoke | ❌ not runnable locally (Docker absent, apt blocked); rely on CI |
+
+### Acceptance criteria — honest status
+
+| Criterion | Status |
+|---|---|
+| Staging + production reachable over HTTPS with enforced headers | ❌ **not met** — no host exists. The configuration that produces it is complete and its header posture is verified locally |
+| Restore drill passed with documented evidence | ✅ met — [backup-recovery](../architecture/backup-recovery.md#restore-drill-evidence) |
+| Uptime monitor green | ❌ not met — needs a public URL; probe + runbook documented |
+| Live order cycle in manual-payment mode | ⚠️ exercised end-to-end by the Phase 11 Playwright journeys and the backend suite, **not** against a deployed environment |
+| All standard gates green | ✅ locally; CI authoritative |
+| Roadmap + handoff updated in the completion commit | ✅ |
+
+**Phase 12 is therefore not complete.** What remains is not code: it is
+provisioning a host, a domain, R2, an email sender and an uptime monitor — the
+owner actions listed in [deployment.md](../architecture/deployment.md#owner-actions-required-before-a-real-deploy).
+Marking it done would misrepresent the state of the product.
+
+### Deviations from the Phase 0 plan (recorded, not silent)
+
+| Plan | Reality | Why |
+|---|---|---|
+| `scripts/reset_prod.py` to strip seed data | Not built; the guard lives **inside** `seed_demo`, which refuses `DEPLOY_ENV=production` | A cleanup script only helps if someone remembers to run it; a refusal cannot be forgotten |
+| Stripe live keys + webhook in the launch checklist | Manual gateway remains the payment path | ADR-0005: no credentials exist, and none were fabricated |
+| Restore drill "on staging data" | Drilled on seeded development data | No staging host exists yet. Script path, encryption, checksum, restore and money-integrity verification are all real; only the off-host copy is unproven |

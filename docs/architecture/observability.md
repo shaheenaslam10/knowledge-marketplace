@@ -1,6 +1,6 @@
 # Observability — Logging, Error Handling, Audit Logs, Monitoring
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23
+> Status: ✅ implemented (Phases 10 & 12) · Last updated: Phase 12 · Related: [deployment](deployment.md)
 
 ## Error handling (backend)
 
@@ -32,6 +32,59 @@
 | Money sanity | daily ledger balance-check task (charge = commission + credit) | email to admin |
 
 Deliberately absent in MVP: APM tracing, metrics stacks (Prometheus/Grafana), pagerduty — documented upgrade path in costs; structured logs + Sentry cover diagnosis at this scale.
+
+### Health endpoints (implemented)
+
+| Endpoint | Answers | Use |
+|---|---|---|
+| `/healthz` | process up **and** database reachable | external uptime monitor; compose healthcheck; `deploy.sh` gate |
+| `/readyz` | migrations applied, ready for traffic | worker startup gate; post-deploy verification |
+
+Both are exempt from the CSP and auth, and Caddy passes them through without
+rewriting — a health probe that needs a login is not a health probe.
+
+### `manage.py ops_report` (implemented, Phase 12)
+
+The CLI signal sweep this document has referenced since Phase 0. It reuses
+`apps/portal/services/reconciliation.py` rather than reimplementing the ledger
+identity, so the CLI and the portal can never disagree.
+
+```bash
+docker compose -f docker-compose.prod.yml exec api \
+  python manage.py ops_report --hours 24          # --json for machines
+```
+
+Nine signals: `finance.reconciliation_findings`, `webhooks.failed`,
+`payouts.failed`, `payouts.stuck_in_transit`, `orders.overdue`,
+`orders.awaiting_payment`, `orders.open_disputes`, `tasks.failed`,
+`tasks.schedules_overdue`.
+
+**Exits non-zero when any signal needs attention**, which is what makes it
+usable from cron without parsing its output:
+
+```cron
+30 6 * * * cd /srv/hem && set -a && . ./.env.production && set +a && \
+  docker compose -f docker-compose.prod.yml exec -T api \
+  python manage.py ops_report --hours 24 || mail -s "HEM ops alert" "$OPS_EMAIL"
+```
+
+Verified run (seeded dev database, 24 h window): 9 signals evaluated,
+`payouts.failed 1 [ALERT]`, all others ok → "1 signal(s) need attention",
+non-zero exit. The alert path works because a real anomaly triggered it.
+
+### Uptime monitoring — owner setup
+
+Free tier, per ADR-0002. Not configurable from this repository:
+
+1. UptimeRobot → new **HTTP(s)** monitor on `https://api.<domain>/healthz`,
+   5-minute interval, alert to the ops email.
+2. A second monitor on `https://app.<domain>/` catches a frontend-only outage —
+   the API can be perfectly healthy while the web container is down.
+3. Optional: Sentry free tier, set `SENTRY_DSN` in the env file.
+
+Keyword check: `/healthz` returns `"database": true` — alert when that string
+disappears, not merely on a non-200, so a degraded-but-answering process is
+still caught.
 
 
 ---

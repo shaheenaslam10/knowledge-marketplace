@@ -2,35 +2,34 @@
 
 > **Permanent project rule:** this file is the single continuation document for any new AI agent or developer (Arena, ChatGPT, Gemini, human). It is updated at every phase completion and whenever a plan/architecture/business-rule change is discovered — **before or with** the implementation, never silently. Detailed evidence lives in the linked documents; this file stays a fast, accurate map.
 >
-> Last updated: **2026-09-26 (Phase 11 final integration — PR #1 merged as `3bd92b7`, canonical CI 4/4)**
+> Last updated: **2026-09-28 (Phase 12 — production deployment architecture prepared and verified; NOT deployed)**
 
 ---
 
 ## START HERE
 
 ```text
-Current phase:      Phase 11 — Security, Testing & Performance ✅ COMPLETE
-Latest commit:      3bd92b7 — final Phase 11 integration (merge of PR #1: follow-up fixes onto
-                    da043cb), canonical CI 36224637860 ✓ 4/4; only this docs record (PR #2)
-                    sits on top of it.
-                    Feature chain: 5cb067e (docs-first audit) → 7187e52 (backend hardening)
-                    → b509286 (FE headers/a11y) → 57570f1 (E2E+perf+audit gates)
-                    → e2e repair chain 941ac41/414b039/01285ec/649e77e
-                    → e2e-exposed defect fixes e89ca44/649eba3/79f1905/f839b62/4cecb9c
-                    → e8517b7 (retry-safe e2e, CI 4/4) → 0e20b75/da043cb (completion record)
-                    → follow-up fixes 1f6b415/6d83225/7916549/4ef2353 (+ cf47dbd docs) → 3bd92b7
-Follow-up:          ✅ merged (PR #1 → 3bd92b7): triage-form + delivery-upload defect fixes,
-                    admin regression tests (roadmap "Phase 11 follow-up fixes"). Nothing pending.
-Next phase:         Phase 12 — Production Deployment  (see "NEXT PHASE" below) — NOT started;
-                    begin from the canonical head.
-Read first:         docs/process/roadmap-phases.md (Phase 11 completion record + Phase 12 row),
-                    docs/architecture/deployment.md, docs/architecture/security.md,
-                    docs/architecture/security-audit-phase11.md (F-2/F-7 = Phase 12 gates)
-First implementation task:  staging deploy config + CSP enforcement sweep
-                    (security-audit-phase11.md F-2 — nonced inline bootstrap), then the
-                    Phase 12 launch checklist (backups drill, monitoring, legal pages)
-Do not start:       Stripe activation (credentials do not exist; seam stays), Redis/
-                    Elasticsearch (prohibited), new features/modes/providers
+Current phase:      Phase 12 — Production Deployment  ⚠️ PARTIALLY COMPLETE
+                    Deployment architecture is prepared, verified and committed.
+                    NOTHING IS DEPLOYED. Staging and production do not exist.
+                    Remaining work is OWNER ACTION (host, domain, R2, email,
+                    uptime monitor), not code — see "BLOCKED ON OWNER" below.
+Working branch:     arena/01a0e69d-knowledge-marketplace  (this session's branch)
+                    NOTE: earlier handoffs named arena/01a0cd90-…; that branch is an
+                    ancestor. This branch fast-forwarded from it — no work was lost.
+Latest commit:      see `git log -1` (Phase 12 chain listed in roadmap-phases.md)
+Read first:         docs/process/roadmap-phases.md  → "Phase 12 — Production Deployment
+                                                       (record)" — honest acceptance status
+                    docs/architecture/deployment.md → runbook + owner actions
+                    docs/architecture/backup-recovery.md → restore-drill evidence
+Next task:          Owner provisions a host + domain, then:
+                      ./scripts/deploy.sh --env staging     (smoke must pass)
+                      ./scripts/deploy.sh --env production
+                    Then run one live order cycle in manual-payment mode and
+                    mark Phase 12 complete in the roadmap.
+Do not start:       Stripe activation (no credentials; seam stays non-functional),
+                    Redis/Elasticsearch (prohibited), new features/modes/providers,
+                    rebuilding Phases 0-11
 ```
 
 
@@ -41,13 +40,13 @@ Do not start:       Stripe activation (credentials do not exist; seam stays), Re
 | Field | Value |
 |---|---|
 | Project | Hybrid Expert Marketplace (`knowledge-marketplace`) — three-experience marketplace: open bidding, managed service, one shared order/payment pipeline |
-| Current phase | **Phase 11 — Security, Testing & Performance ✅ complete** |
-| Next phase | **Phase 12 — Production Deployment** (scope below) |
-| Branch | `arena/01a0cd90-knowledge-marketplace` (all work happens here) |
-| Latest commit | **`3bd92b7`** — merge of PR #1 (Phase 11 follow-up fixes `1f6b415` → `6d83225` → `7916549` → `4ef2353` + docs `cf47dbd`) into `da043cb`; only this docs record (PR #2) is on top. Feature chain `5cb067e` → `7187e52` → `b509286` → `57570f1` → e2e repair `941ac41`/`414b039`/`01285ec`/`649e77e` → defect fixes `e89ca44`/`649eba3`/`79f1905`/`f839b62`/`4cecb9c` → `e8517b7` → completion record `0e20b75`/`da043cb` → `3bd92b7` |
-| Latest verified CI | run **`36224637860`** — ✓ 4/4 on `3bd92b7` (final Phase 11 canonical integration: Backend · Frontend · Docs sync · Compose smoke); history: `36128437178` ✓ 4/4 on `0e20b75` (completion commit), `36127464977` ✓ 4/4 on `e8517b7` (content run) |
-| Working tree | Clean & synced with origin at the canonical head; verify with `git status` + `git fetch && git log origin/arena/01a0cd90-knowledge-marketplace -1` on takeover |
-| Test baseline | backend pytest **373 passed** (incl. authorization-matrix suite, query budgets, admin-page + triage-form regressions); frontend lint/typecheck/vitest **71**/build/bundle-budgets green; Playwright E2E **6/6** over the compose stack (4 golden journeys + smoke); ruff+format clean; import-linter kept; `makemigrations --check` clean; env-docs gate green |
+| Current phase | **Phase 12 — Production Deployment ⚠️ architecture prepared, NOT deployed** |
+| Next phase | Complete Phase 12 by deploying — blocked on owner-provided infrastructure (scope below) |
+| Branch | `arena/01a0e69d-knowledge-marketplace`. Earlier handoffs named `arena/01a0cd90-…`; this branch fast-forwarded from its head (`5decba4`), so that history is fully contained here. `arena/01a0d790-…` is a byte-identical spent PR branch. |
+| Latest commit | Phase 12 chain on top of `5decba4`: `f2e0958` (ADR-0016/0017, docs-first) → `d30ec9e` (enforced CSP + legal pages) → `ac38165` (safety checks, ops_report, host routing) → `96d09bf` (backup/restore) → `3dd45cd` (compose + Caddy + prod image) → `30495d5` (deploy/rollback/smoke + CD + CI gate) → completion commit |
+| Latest verified CI | Phase 11 canonical: run `36224637860` ✓ 4/4 on `3bd92b7`. **Phase 12 CI run recorded in the final report / roadmap.** CI now has **5** jobs (Backend · Frontend · Docs sync · Deploy config · Compose smoke) |
+| Working tree | Verify on takeover: `git status` + `git fetch && git log origin/arena/01a0e69d-knowledge-marketplace -1` |
+| Test baseline | backend pytest **407 passed**; frontend vitest **102 passed** (19 files); ruff+format clean; import-linter 2/2; `makemigrations --check` clean; env-docs gate green (37 vars); production build + bundle budgets green. **Smoke test 22/22 against a real `config.settings.prod` stack.** Playwright E2E **6/6** as of Phase 11 (not re-runnable in the current sandbox — no Docker) |
 | Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 10 record has the as-built details + deferred list) |
 
 ---
@@ -72,7 +71,9 @@ Detailed scope, acceptance gates and per-phase records live in `docs/process/roa
 
 | 10 — Admin & Analytics | Operations portal `(portal)`: KPI dashboard (server-side Postgres aggregation, UTC ranges, KPI dictionary in observability.md), moderation report queue (audited dismiss/confirm-hide via the messaging service), dispute triage queue (resolution deep-links Django admin), audit viewer, financial reconciliation (read-only, ledger-identity reuse), users overview, PlatformConfig singleton + audited admin-only config UI, seed operations funnel | `6e637cb`, `c2471e6`, `64f75d9` | ADR-0010 implemented (portal/admin split documented in admin-journey.md) | Recharts deferred (bundle budget — SVG micro-charts); account warning/suspension service not built (business-rule change, recorded); CSV export post-MVP |
 
-| 11 — Security, Testing & Performance | Docs-first security audit (`security-audit-phase11.md`, F-1..F-8 dispositions); authorization-matrix suite (role × endpoint across all apps); backend hardening (ops write-throttles, concurrency race suites); FE security headers (CSP report-only → Phase 12 enforcement gate) + a11y; pip-audit + npm-audit CI gates; Playwright E2E pack — 4 golden journeys over the real compose stack with shared hydration/mail helpers; query budgets (feed/directory ≤12, threads/order ≤14, KPIs ≤40) + bundle budgets + `performance.md`; compose smoke wired to the q2 worker delivery log; **7 real product defects found by E2E and fixed app-side with regressions** (taxonomy contract, first-time apply gate, upload field/response contract, credential_ids JSON, managed `mode` on create, dispute-admin template 500, compose static serving) | `5cb067e`, `7187e52`, `b509286`, `57570f1`, `e89ca44`, `649eba3`, `79f1905`, `f839b62`, `4cecb9c`, `e8517b7`, `3bd92b7` (PR #1 follow-up merge) | ADR-0006 unchanged; CSP enforcement deferred with recorded rationale (F-2) | **Deferred:** CSP enforcement + F-7 → Phase 12 gates; F-6 ongoing; `SessionProvider` treats non-401 `/me` failures (429/5xx) as signed-out → Phase 12 hardening. Follow-up fixes (triage form, delivery upload, admin regressions) merged via PR #1 → `3bd92b7` (canonical CI `36224637860` ✓ 4/4) |
+| 11 — Security, Testing & Performance | Docs-first security audit (`security-audit-phase11.md`, F-1..F-8 dispositions); authorization-matrix suite (role × endpoint across all apps); backend hardening (ops write-throttles, concurrency race suites); FE security headers (CSP report-only → Phase 12 enforcement gate) + a11y; pip-audit + npm-audit CI gates; Playwright E2E pack — 4 golden journeys over the real compose stack with shared hydration/mail helpers; query budgets (feed/directory ≤12, threads/order ≤14, KPIs ≤40) + bundle budgets + `performance.md`; compose smoke wired to the q2 worker delivery log; **7 real product defects found by E2E and fixed app-side with regressions** (taxonomy contract, first-time apply gate, upload field/response contract, credential_ids JSON, managed `mode` on create, dispute-admin template 500, compose static serving) | `5cb067e`, `7187e52`, `b509286`, `57570f1`, `e89ca44`, `649eba3`, `79f1905`, `f839b62`, `4cecb9c`, `e8517b7`, `3bd92b7` (PR #1 follow-up merge) | ADR-0006 unchanged; CSP enforcement deferred with recorded rationale (F-2) | **Deferred:** CSP enforcement + F-7 → Phase 12 gates; F-6 ongoing; ~~`SessionProvider` treats non-401 `/me` failures (429/5xx) as signed-out~~ **fixed in Phase 12** (401/403 sign out; 429/5xx/network retry with backoff then an `unreachable` state). Follow-up fixes (triage form, delivery upload, admin regressions) merged via PR #1 → `3bd92b7` (canonical CI `36224637860` ✓ 4/4) |
+
+| 12 — Production Deployment | ⚠️ **architecture prepared and verified; NOT deployed.** `docker-compose.prod.yml` (db/api/worker/web/caddy; Postgres publishes no port) + `deploy/Caddyfile` (auto-TLS, static volume, WS timeouts); `deps-prod` image stage (no dev deps in prod) + fail-closed `entrypoint.prod.sh`; `apps/core/checks.py` (`hem.E001`–`E012`/`W001`–`W006`) refusing dev-grade config at boot; `deploy.sh`/`rollback.sh` (auto-rollback; forward-only additive-first migration policy) and `smoke_test.sh` (22 checks, **22/22 against a real prod-settings stack**); encrypted backups + **restore drill passed incl. BR-33 on restored rows**; `ops_report` CLI (9 signals, non-zero exit); **enforced nonce CSP — closes audit F-2**; legal pages + footer; host-aware routing (ADR-0013); `deploy.yml` CD with a GitHub-Environment approval gate; CI `deploy-config` job + both-directions assertion of the safety gate; `SessionProvider` transient-failure fix | `f2e0958`, `d30ec9e`, `ac38165`, `96d09bf`, `3dd45cd`, `30495d5` | **ADR-0016** (single-host Caddy + compose; staging = same compose, different env file), **ADR-0017** (nonce CSP in middleware) | **Blocked on owner actions only** — host, domain, R2, email sender, uptime monitor. Residual: `style-src 'unsafe-inline'` (styled-jsx, ADR-0017); `scripts/reset_prod.py` intentionally not built (guard moved inside `seed_demo`); restore drilled on seeded dev data, not staging data; Playwright + compose-smoke not runnable in the sandbox (no Docker) |
 
 **Major plan changes so far** (all documented before/with implementation): django-tasks → django-q2 (ADR-0002 amendment); payments layering inversion via domain signal (ADR-0005 amendment); no PaymentAttempt/Transaction tables; ledger identity formalized; payout settlement manual-by-design; Stripe explicitly not production-ready until the checklist in `docs/workflows/payments.md` is verified.
 
@@ -114,42 +115,76 @@ Authoritative details live in `docs/architecture/*` — this is the map only.
 | Expert access requires application + admin approval; suspended experts excluded | product rule | ADR-0012 |
 | Academic-integrity rules BR-10..14 authoritative | owner mandate | `docs/product/business-rules.md` |
 | On-platform communication + report-driven moderation (BR-34/35) | BR-34 participant-only chat shipped in Phase 8; report button/policy banner + dispute linkage land in Phase 9 (recorded as deferred, not skipped) | `docs/product/business-rules.md` |
+| Single host, Docker Compose + Caddy; no PaaS lock-in; Postgres swappable to Neon by changing `DATABASE_URL` | free-first; auto-TLS with no cert management; one compose file is the whole deploy | ADR-0016 |
+| Staging = the **same** compose file with a different env file; `DEPLOY_ENV` separates volumes/networks | staging only predicts production if it is the same code path | ADR-0016 |
+| CSP is **enforcing** with a per-request nonce (middleware sets it on request *and* response) | closes audit F-2; report-only is a canary, not a destination | ADR-0017 |
+| Migrations are **forward-only and additive-first**; rollback restores code, not data | makes a code rollback safe against a newer schema | `docs/architecture/deployment.md` |
+| A deployment **fails closed**: dev-grade config refuses to boot | a broken production is worse than a refused one | `apps/core/checks.py` |
 | Docs-as-source-of-truth; Discover → Document → Implement → Test → Update handoff → Commit → Push | process rule | `docs/process/development-workflow.md`, this file |
 
 ---
 
 ## NEXT PHASE
 
-### Phase 12 — Production Deployment
+### Finish Phase 12 — the remaining work is provisioning, not programming
 
-**Goal.** Take the verified Phase 0–11 system to a real staging→production deployment: deploy config, CSP enforcement (the deferred F-2 gate), backups + restore drill, monitoring/uptime, legal pages, and the launch checklist.
+**State.** The deployment architecture is built, committed and verified.
+Staging and production have **never been deployed**, because no hosting,
+domain, object-storage, email or payment credentials exist in this project.
+Those three states are tracked separately on purpose — see
+`docs/architecture/deployment.md` §Deployment status. Do not report this phase
+as complete until a real environment is reachable.
 
-**Starting point (what exists).**
-- CI 4/4 including compose smoke with the full E2E journey pack (`36224637860` on `3bd92b7`, the final Phase 11 canonical integration); all security gates green except CSP enforcement (deliberately report-only — `security-audit-phase11.md` F-2).
-- Deployment intent already documented in `docs/architecture/deployment.md` (targets, env contract, headers policy) and `docs/architecture/backup-recovery.md`; prod settings exist (`config/settings/prod.py`) with strict security defaults.
-- Payments: ManualGateway active; StripeGateway is a non-functional seam — activation is a **blocked** owner decision, not a Phase 12 task.
+**What already exists (verify, do not rebuild).**
 
-**First tasks (ordered checklist).**
-1. Docs-first: finalize the deployment plan against `deployment.md` (hosting target, domains, TLS, managed Postgres, media/storage env) and record any deviation as an ADR **before** implementing.
-2. Enforce CSP (F-2): nonced inline bootstrap or extracted scripts, remove `unsafe-inline`/`unsafe-eval`, keep report-only canary in staging first; verify all four CI jobs + E2E against enforcing headers.
-3. Staging deploy: clean-checkout compose (or documented equivalent) on the target host, real `SECRET_KEY`/`DJANGO_SETTINGS_MODULE=config.settings.prod`, `COOKIE_SECURE`, HTTPS termination; smoke + E2E pack against staging.
-4. Backups + restore drill: scheduled `pg_dump` + media sync; **prove** a restore into a scratch environment (P12 gate).
-5. Monitoring/uptime: external uptime probe on `/healthz` + error/latency alerting within the free-first constraint; slow-query logging note for ops.
-6. Legal pages: privacy policy + terms of service routes (marketing experience), linked from the footer.
-7. Launch checklist run-through in `deployment.md`; live order cycle with manual-gateway money (P12 acceptance).
+| Piece | File |
+|---|---|
+| Topology | `docker-compose.prod.yml` (db/api/worker/web/caddy; Postgres publishes no port) |
+| Ingress + TLS | `deploy/Caddyfile` |
+| Prod image + boot gate | `backend/Dockerfile` (`deps-prod`, `prod`), `backend/docker/entrypoint.prod.sh` |
+| Fail-closed config checks | `backend/apps/core/checks.py` (`hem.E001`–`E012`, `hem.W001`–`W006`) |
+| Deploy / rollback | `scripts/deploy.sh`, `scripts/rollback.sh` |
+| Post-deploy verification | `scripts/smoke_test.sh` (22 checks; 22/22 locally) |
+| Backups | `scripts/backup_db.sh`, `scripts/restore_backup.sh` (**drill passed**) |
+| Ops signals | `manage.py ops_report` (9 signals, non-zero exit on anomaly) |
+| CD | `.github/workflows/deploy.yml` |
+| Env template | `.env.prod.example` |
 
-**Required files/docs to read first.**
-- `docs/process/PROJECT-HANDOFF.md` (this file) + `docs/process/roadmap-phases.md` (Phase 12 row, Phase 11 record)
-- `docs/architecture/deployment.md`, `docs/architecture/backup-recovery.md`, `docs/architecture/environments.md`, `docs/architecture/security-audit-phase11.md` (F-2/F-7 gates)
+### BLOCKED ON OWNER — nothing below can be done from inside this repository
+
+| # | Action | Unblocks |
+|---|---|---|
+| 1 | Provision a host (Hetzner CX22 ≈ €4/mo, or Oracle Always Free) | everything |
+| 2 | Register a domain; point `www`/`app`/`admin`/`api` at the host **before** the first deploy (Caddy needs resolving DNS for ACME) | TLS, CORS, cookies |
+| 3 | Create a Cloudflare R2 bucket + API token | `hem.E011` blocks boot on `FILE_STORAGE=local` |
+| 4 | Verify an email sender domain (SPF/DKIM) at Brevo or Resend | `hem.E010` blocks boot on console email |
+| 5 | Fill `.env.staging` / `.env.production` from `.env.prod.example` (every `CHANGE_ME`), `chmod 600` | the deploy |
+| 6 | Repo secrets `DEPLOY_HOST`/`DEPLOY_USER`/`DEPLOY_SSH_KEY`/`DEPLOY_PATH`, vars `API_DOMAIN`/`APP_DOMAIN`, and `staging`+`production` Environments with required reviewers on production | CD + the approval gate |
+| 7 | UptimeRobot monitor on `https://api.<domain>/healthz` (keyword `"database": true`) | acceptance criterion |
+| 8 | Backup cron + store `BACKUP_PASSPHRASE` in a password manager | durability |
+
+**Then, in order.**
+
+1. `./scripts/deploy.sh --env staging` — must end with `SMOKE PASSED`.
+2. Run the Playwright pack against staging.
+3. `./scripts/deploy.sh --env production`.
+4. Confirm the uptime monitor is green.
+5. **Live order cycle in manual-payment mode** (P12 acceptance): request → offer
+   → selection → manual payment confirm → delivery → approval → ledger check via
+   `manage.py ops_report`.
+6. Re-run the restore drill against a real backup from the deployed database.
+7. Update the roadmap's Phase 12 acceptance table and this file; commit; CI green.
 
 **Do not implement (standing constraints).**
-- Stripe activation (owner-gated; checklist in `docs/workflows/payments.md` must be verified first)
-- Redis, Elasticsearch, data warehouses, paid SaaS dependencies, microservices (architecture rules)
-- New features, business-rule changes, AI matching, visual redesign (out of Phase 12 scope)
+- Stripe activation (owner-gated; no credentials exist, the seam stays non-functional)
+- Redis, Elasticsearch, data warehouses, paid SaaS, microservices
+- New features, business-rule changes, AI matching, visual redesign
 
-**Acceptance criteria.** Staging + production reachable over HTTPS with enforced security headers; restore drill passed (documented evidence); uptime monitor green; live order cycle completed in manual-payment mode; all standard gates (backend/FE suites, E2E pack, env-docs) green; CI 4/4 on the final commit; roadmap + this handoff updated in the completion commit.
-
-**Expected GitHub workflow.** Work on `arena/01a0cd90-knowledge-marketplace` only; docs-first deployment plan → CSP enforcement → staging → drills/monitoring → legal → launch checklist → docs sync; full gates before every push; update `PROJECT-HANDOFF.md` + roadmap in the completion commit; report hashes and CI run.
+**Acceptance criteria (unchanged).** Staging + production reachable over HTTPS
+with enforced security headers; restore drill passed with documented evidence
+(✅ already met); uptime monitor green; live order cycle completed in
+manual-payment mode; all standard gates green; CI green on the final commit;
+roadmap + this handoff updated in the completion commit.
 
 ---
 
@@ -157,7 +192,7 @@ Authoritative details live in `docs/architecture/*` — this is the map only.
 
 1. Read `docs/process/PROJECT-HANDOFF.md` (this file) — START HERE box first.
 2. Read `docs/process/roadmap-phases.md`: header status + the current-phase completion record + the next-phase row.
-3. Read the architecture/ADR documents listed in the NEXT PHASE section.
+3. Read the architecture/ADR documents listed in the NEXT PHASE section (ADR-0016 deployment topology and ADR-0017 nonce CSP are the newest).
 4. Inspect the branch and latest commit: `git status`, `git log --oneline -5`, compare with the "Latest commit" above.
 5. Verify where possible: CI run for the tip commit (`gh run list`), backend `pytest`, frontend `npm run lint && npm run typecheck && npm run test`.
 6. Compare code against this handoff and the roadmap; if they disagree, **the repository is the source of truth** — reconcile the handoff first (document the discrepancy), then proceed.
