@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildContentSecurityPolicy,
+  experienceForPath,
+  experienceHosts,
+  resolveHostRedirect,
   imageSources,
   inRedirectScope,
   resolveRoute,
@@ -129,5 +132,72 @@ describe("CSP construction (audit F-2 / ADR-0017)", () => {
       "https://cdn.example.com",
     );
     expect(imageSources({})).toEqual(["'self'", "data:", "blob:"]);
+  });
+});
+
+describe("three-experience host mapping (ADR-0013 / web-experiences.md)", () => {
+  const HOSTS = {
+    marketing: "www.example.com",
+    app: "app.example.com",
+    portal: "admin.example.com",
+  };
+
+  it("classifies paths to the right experience", () => {
+    expect(experienceForPath("/")).toBe("marketing");
+    expect(experienceForPath("/how-it-works")).toBe("marketing");
+    expect(experienceForPath("/terms")).toBe("marketing");
+    expect(experienceForPath("/privacy")).toBe("marketing");
+    expect(experienceForPath("/academic-integrity")).toBe("marketing");
+    // public expert directory is marketing, the expert workspace is the app
+    expect(experienceForPath("/experts")).toBe("marketing");
+    expect(experienceForPath("/experts/ayra-k")).toBe("marketing");
+    expect(experienceForPath("/expert/apply")).toBe("app");
+    expect(experienceForPath("/login")).toBe("app");
+    expect(experienceForPath("/orders/abc")).toBe("app");
+    expect(experienceForPath("/messages")).toBe("app");
+    expect(experienceForPath("/portal")).toBe("portal");
+    expect(experienceForPath("/portal/finance")).toBe("portal");
+  });
+
+  it("redirects a path served on the wrong experience host", () => {
+    expect(resolveHostRedirect("www.example.com", "/portal", HOSTS)).toBe("admin.example.com");
+    expect(resolveHostRedirect("app.example.com", "/how-it-works", HOSTS)).toBe("www.example.com");
+    expect(resolveHostRedirect("admin.example.com", "/login", HOSTS)).toBe("app.example.com");
+  });
+
+  it("leaves correctly-routed requests alone", () => {
+    expect(resolveHostRedirect("www.example.com", "/", HOSTS)).toBeNull();
+    expect(resolveHostRedirect("app.example.com", "/orders", HOSTS)).toBeNull();
+    expect(resolveHostRedirect("admin.example.com", "/portal/audit", HOSTS)).toBeNull();
+  });
+
+  it("ignores the port and is case-insensitive", () => {
+    expect(resolveHostRedirect("WWW.example.com:443", "/portal", HOSTS)).toBe("admin.example.com");
+    expect(resolveHostRedirect("APP.EXAMPLE.COM", "/orders", HOSTS)).toBeNull();
+  });
+
+  it("is a no-op in dev/CI where the mapping is not configured", () => {
+    expect(resolveHostRedirect("localhost:3000", "/portal", {})).toBeNull();
+    expect(resolveHostRedirect("localhost:3000", "/portal", experienceHosts({}))).toBeNull();
+    // partial configuration must not start redirecting half the site
+    expect(
+      resolveHostRedirect("www.example.com", "/portal", { marketing: "www.example.com" }),
+    ).toBeNull();
+  });
+
+  it("never touches hosts outside the mapping (previews, probes, IPs)", () => {
+    expect(resolveHostRedirect("staging-preview.fly.dev", "/portal", HOSTS)).toBeNull();
+    expect(resolveHostRedirect("10.0.0.5:3000", "/portal", HOSTS)).toBeNull();
+    expect(resolveHostRedirect(null, "/portal", HOSTS)).toBeNull();
+  });
+
+  it("reads the mapping from env", () => {
+    expect(
+      experienceHosts({
+        NEXT_PUBLIC_MARKETING_HOST: "www.example.com",
+        NEXT_PUBLIC_APP_HOST: "app.example.com",
+        NEXT_PUBLIC_PORTAL_HOST: "admin.example.com",
+      }),
+    ).toEqual(HOSTS);
   });
 });

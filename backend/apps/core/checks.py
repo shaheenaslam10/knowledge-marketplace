@@ -41,7 +41,7 @@ def _is_production() -> bool:
 
 
 @register("production")
-def check_production_safety(app_configs, **kwargs):  # noqa: C901 - a flat list of guards
+def check_production_safety(app_configs, **kwargs):
     if not _is_deployed():
         return []
 
@@ -54,7 +54,7 @@ def check_production_safety(app_configs, **kwargs):  # noqa: C901 - a flat list 
         issues.append(
             Error(
                 "SECRET_KEY is the development default.",
-                hint="Generate one: python -c \"import secrets; print(secrets.token_urlsafe(64))\"",
+                hint='Generate one: python -c "import secrets; print(secrets.token_urlsafe(64))"',
                 id="hem.E001",
             )
         )

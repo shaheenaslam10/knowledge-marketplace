@@ -57,6 +57,76 @@ export function inRedirectScope(pathname: string): boolean {
   return REDIRECT_SCOPE.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+/* ------------------------------------------------------------------ *
+ * Three-experience host mapping (ADR-0013 / web-experiences.md)
+ *
+ * "URLs are the contract; subdomains are a deploy-time mapping." The docs have
+ * always specified that production pins www./app./admin. to the three route
+ * groups and that middleware redirects mismatched host+path pairs — it was
+ * never implemented. Phase 12 closes that gap, because the reverse proxy alone
+ * cannot do it: Caddy sends every host to the same Next origin, so only the
+ * app knows that /portal on www. is the wrong door.
+ *
+ * Strictly opt-in: with the host vars unset (dev, CI, compose, E2E) this is a
+ * no-op and every path keeps working on localhost:3000.
+ * ------------------------------------------------------------------ */
+export type Experience = "marketing" | "app" | "portal";
+
+const APP_PREFIXES = [
+  "/login",
+  "/register",
+  "/verify-email",
+  "/reset-password",
+  "/account",
+  "/onboarding",
+  "/expert",
+  "/requests",
+  "/offers",
+  "/opportunities",
+  "/assignments",
+  "/orders",
+  "/messages",
+];
+
+export function experienceForPath(pathname: string): Experience {
+  if (pathname === "/portal" || pathname.startsWith("/portal/")) return "portal";
+  // NB: /expert/* is the app; /experts and /experts/[slug] are the public
+  // directory and stay on marketing. Exact-match first, prefix second.
+  if (APP_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return "app";
+  return "marketing";
+}
+
+export type ExperienceHosts = Partial<Record<Experience, string>>;
+
+export function experienceHosts(env: Record<string, string | undefined>): ExperienceHosts {
+  const hosts: ExperienceHosts = {};
+  if (env.NEXT_PUBLIC_MARKETING_HOST) hosts.marketing = env.NEXT_PUBLIC_MARKETING_HOST;
+  if (env.NEXT_PUBLIC_APP_HOST) hosts.app = env.NEXT_PUBLIC_APP_HOST;
+  if (env.NEXT_PUBLIC_PORTAL_HOST) hosts.portal = env.NEXT_PUBLIC_PORTAL_HOST;
+  return hosts;
+}
+
+/**
+ * Returns the host this path should be served from, or null to serve it here.
+ * Null whenever the mapping is not fully configured, the host is unknown to
+ * us, or the request is already on the right host.
+ */
+export function resolveHostRedirect(
+  host: string | null,
+  pathname: string,
+  hosts: ExperienceHosts,
+): string | null {
+  const configured = Object.values(hosts).filter(Boolean);
+  // Need all three to reason about "wrong host": with a partial map we cannot
+  // tell a misrouted request from an unmanaged one (previews, health probes).
+  if (configured.length < 3 || !host) return null;
+  const bare = host.split(":")[0].toLowerCase();
+  if (!configured.some((h) => h!.toLowerCase() === bare)) return null;
+  const expected = hosts[experienceForPath(pathname)];
+  if (!expected || expected.toLowerCase() === bare) return null;
+  return expected;
+}
+
 /** `https://api.example.com/v1/` → `https://api.example.com`; junk → null. */
 export function toOrigin(value: string | undefined | null): string | null {
   if (!value) return null;
@@ -143,6 +213,25 @@ export function middleware(request: NextRequest) {
   const cspHeader = enforce ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only";
 
   const { pathname } = request.nextUrl;
+
+  // Wrong experience host? Move the user to the right one, keeping the path.
+  const targetHost = resolveHostRedirect(
+    request.headers.get("host"),
+    pathname,
+    experienceHosts(process.env),
+  );
+  if (targetHost) {
+    const url = request.nextUrl.clone();
+    url.host = targetHost;
+    url.port = "";
+    url.protocol = "https:";
+    // 308: permanent AND method/body preserving, so a POST to the wrong host
+    // is not silently downgraded to a GET.
+    const moved = NextResponse.redirect(url, 308);
+    moved.headers.set(cspHeader, csp);
+    return moved;
+  }
+
   const redirectTarget = inRedirectScope(pathname)
     ? resolveRoute(pathname, Boolean(request.cookies.get(ACCESS_COOKIE)?.value))
     : null;
