@@ -14,9 +14,13 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <p>Hybrid Expert Marketplace — intelligent learning, human experts.</p>
             <nav className="flex gap-4">
               <Link href="/experts" className="hover:text-foreground">Find an expert</Link>
+              <Link href="/subjects" className="hover:text-foreground">Subjects</Link>
               <Link href="/how-it-works" className="hover:text-foreground">How it works</Link>
               <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
-              <Link href="/register" className="hover:text-foreground">Become an expert</Link>
+              {/* Was /register — the expert pitch now has a page of its own,
+                  so send prospective experts there rather than to a bare form. */}
+              <Link href="/for-experts" className="hover:text-foreground">Become an expert</Link>
+              <Link href="/about" className="hover:text-foreground">About</Link>
             </nav>
           </div>
           {/* Legal pages are a launch gate (Phase 12) — reachable from every marketing page. */}

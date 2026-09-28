@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
-import { API_URL_SERVER, SITE_URL } from "@/lib/config";
+import { SITE_URL } from "@/lib/config";
+import { getPricing } from "@/lib/api/public";
 
 /**
  * Public pricing (seo-ux.md, frontend.md — listed since Phase 0, never built).
@@ -23,61 +24,25 @@ import { API_URL_SERVER, SITE_URL } from "@/lib/config";
  * state into the HTML and, with ISR, keep serving it. Verified: the first
  * build of this page shipped exactly that.
  *
- * The data is still cached for an hour (below), so being dynamic costs one
- * config read per hour, not one per visitor.
+ * The data is still cached (see lib/api/public.ts), so being dynamic costs
+ * one config read per TTL, not one per visitor.
  */
 export const dynamic = "force-dynamic";
-
-/**
- * 60s, not the 1h used for static marketing copy. Commission is fixed at the
- * moment an order is booked, so every second this page shows a stale rate is
- * a second where a student can book at a rate the page never advertised.
- * A minute still absorbs crawlers and traffic bursts; an hour is too long to
- * be wrong about money.
- */
-const PRICING_TTL_SECONDS = 60;
 
 export const metadata: Metadata = {
   title: "Pricing — what the platform charges",
   description:
     "Transparent marketplace pricing: students pay the agreed price, experts pay a commission on completed work. No subscriptions, no listing fees.",
   alternates: { canonical: `${SITE_URL}/pricing` },
+  openGraph: {
+    type: "website",
+    url: `${SITE_URL}/pricing`,
+    title: "Pricing — what the platform charges",
+    description:
+      "Students pay the agreed price. Experts pay commission only on completed work. No subscriptions, no listing fees.",
+  },
 };
 
-interface PricingTier {
-  rate: string;
-  percent: string;
-  label: string;
-  description: string;
-}
-
-interface Pricing {
-  currency: string;
-  commission: { open_bid: PricingTier; managed: PricingTier };
-  min_offer: { minor: number; display: string };
-  payout_min: { minor: number; display: string };
-  dispute_window_days: number;
-}
-
-/**
- * Cached at the data layer, not the route layer: an explicit per-fetch
- * `revalidate` survives `force-dynamic`, so repeat visitors are served from
- * the data cache. A failed request is deliberately *not* cached — a transient
- * API blip recovers on the very next request instead of pinning the degraded
- * state for an hour.
- */
-async function getPricing(): Promise<Pricing | null> {
-  try {
-    const res = await fetch(`${API_URL_SERVER}/api/v1/platform/pricing`, {
-      next: { revalidate: PRICING_TTL_SECONDS },
-      headers: { Accept: "application/json" },
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as Pricing;
-  } catch {
-    return null;
-  }
-}
 
 const FAQ = [
   {
@@ -99,7 +64,7 @@ const FAQ = [
 ];
 
 export default async function PricingPage() {
-  const pricing = await getPricing();
+  const { data: pricing } = await getPricing();
 
   return (
     <div className="space-y-12">

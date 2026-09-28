@@ -24,6 +24,8 @@ from apps.experts.services import (
     directory_queryset,
     get_application_for,
     get_public_expert,
+    get_public_subject,
+    list_public_subjects,
     submit_application,
     update_application,
     update_expert_profile,
@@ -383,6 +385,91 @@ class ExpertApplyInfoView(APIView):
         )
 
 
-class ExpertApplyInfoResponseSerializer(serializers.Serializer):
-    requirements = serializers.DictField(child=serializers.JSONField())
-    taxonomy = TaxonomyRefSerializer(many=True)
+# ---------------------------------------------------------------------------
+# Public subject pages (seo-ux.md `/subjects/[slug]`)
+# ---------------------------------------------------------------------------
+
+
+class SubjectRefSerializer(serializers.Serializer):
+    name = serializers.CharField(read_only=True)
+    slug = serializers.CharField(read_only=True)
+
+
+class RelatedSubjectSerializer(SubjectRefSerializer):
+    pass
+
+
+class SubjectDetailSerializer(serializers.Serializer):
+    name = serializers.CharField(read_only=True)
+    slug = serializers.CharField(read_only=True)
+    description = serializers.CharField(read_only=True)
+
+
+class SubjectDetailResponseSerializer(serializers.Serializer):
+    subject = SubjectDetailSerializer()
+    parent = SubjectRefSerializer(allow_null=True)
+    expert_count = serializers.IntegerField()
+    related = RelatedSubjectSerializer(many=True)
+
+
+class SubjectListItemSerializer(SubjectRefSerializer):
+    expert_count = serializers.IntegerField()
+
+
+class SubjectListResponseSerializer(serializers.Serializer):
+    subjects = SubjectListItemSerializer(many=True)
+
+
+class PublicSubjectListView(APIView):
+    """`GET /api/v1/subjects` — active subjects + public expert counts."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        responses={200: SubjectListResponseSerializer},
+        description="Active subject terms with the number of publicly visible experts "
+        "teaching each. Powers the sitemap and subject hub links.",
+    )
+    def get(self, request):
+        rows = list_public_subjects()
+        return Response(
+            {
+                "subjects": [
+                    {
+                        "name": row["term"].name,
+                        "slug": row["term"].slug,
+                        "expert_count": row["expert_count"],
+                    }
+                    for row in rows
+                ]
+            }
+        )
+
+
+class PublicSubjectDetailView(APIView):
+    """`GET /api/v1/subjects/{slug}` — subject landing data (404 when retired)."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        responses={200: SubjectDetailResponseSerializer},
+        description="Public subject detail: the term, its parent category, how many "
+        "visible experts teach it, and sibling subjects for internal linking. "
+        "Unknown or deactivated subjects return 404.",
+    )
+    def get(self, request, slug: str):
+        data = get_public_subject(slug)
+        subject = data["subject"]
+        parent = data["parent"]
+        return Response(
+            {
+                "subject": {
+                    "name": subject.name,
+                    "slug": subject.slug,
+                    "description": subject.description,
+                },
+                "parent": {"name": parent.name, "slug": parent.slug} if parent else None,
+                "expert_count": data["expert_count"],
+                "related": [{"name": t.name, "slug": t.slug} for t in data["related"]],
+            }
+        )

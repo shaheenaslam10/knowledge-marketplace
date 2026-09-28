@@ -60,7 +60,17 @@ Current (Phase 1–3): `(marketing)`: `/`, `/how-it-works`, `/experts`, `/expert
 
 Arrives with Phase 4+ (roadmap): student `/dashboard`, `/requests/*`, `/offers/*`, `/orders/*`, `/messages/*`, `/files`, `/reviews`, `/settings`; expert opportunities/earnings views; `(portal)` shell + first operations screens (Admin operations phase); marketing `/pricing`, `/for-experts`, `/about`, `/legal/*`, `/blog/*`.
 
-**Status (Phase 12 audit).** Shipped: `/`, `/how-it-works`, `/experts`, `/experts/[slug]`, `/pricing`, and the legal set (`/terms`, `/privacy`, `/academic-integrity`). Still unbuilt and explicitly *not* launch blockers: `/for-experts`, `/about`, `/subjects/[slug]`, `/blog/*` — marketing/SEO surface area, no product behaviour behind them.
+**Status (Phase 12, marketing completion).** The public surface is now complete
+except for the blog. Shipped: `/`, `/how-it-works`, `/experts`,
+`/experts/[slug]`, `/pricing`, `/subjects`, `/subjects/[slug]`, `/for-experts`,
+`/about`, and the legal set (`/terms`, `/privacy`, `/academic-integrity`).
+
+`/blog/*` is **not** built, and deliberately so: `docs/product/mvp-scope.md`
+lists "Blog/CMS for SEO content" in the *out-of-MVP* table (rationale:
+"Directory + subject pages first"), and no blog model, content API, CMS
+integration or markdown pipeline exists anywhere in the repository. Building
+one would mean inventing a content system the product has explicitly deferred.
+The route and design stay reserved, as seo-ux.md already records.
 
 ## Mobile-first requirement
 

@@ -113,10 +113,12 @@ export default function ExpertPublicProfilePage({ params }: { params: Promise<{ 
           <dd className="text-slate-900 dark:text-slate-100">{expert.timezone}</dd>
         </dl>
         <div className="mt-4 flex flex-wrap gap-1.5">
+          {/* Subjects link to their landing page — this is the "spoke" half of
+              the hub-and-spoke internal linking seo-ux.md asks for. */}
           {expert.subjects.map((s) => (
-            <Badge key={s.id} tone="info">
-              {s.name}
-            </Badge>
+            <Link key={s.id} href={`/subjects/${s.slug}`}>
+              <Badge tone="info">{s.name}</Badge>
+            </Link>
           ))}
           {expert.skills.map((s) => (
             <Badge key={s.id}>{s.name}</Badge>

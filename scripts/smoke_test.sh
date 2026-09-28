@@ -87,16 +87,35 @@ grep -q "nonce-" <<<"$ACTIVE_CSP" && ok "CSP carries a per-request nonce" || bad
 SCRIPT_SRC="$(sed -n 's/.*script-src \([^;]*\).*/\1/p' <<<"$ACTIVE_CSP")"
 grep -q "unsafe-inline" <<<"$SCRIPT_SRC" && bad "script-src still allows unsafe-inline" || ok "script-src forbids unsafe-inline"
 grep -q "unsafe-eval"   <<<"$SCRIPT_SRC" && bad "script-src still allows unsafe-eval"   || ok "script-src forbids unsafe-eval"
-# The nonce in the policy must authorise the scripts in the document.
-PAGE="$(body "$WEB_URL/" -D /tmp/.smoke-h)"
-H_NONCE="$(tr -d '\r' < /tmp/.smoke-h | sed -n 's/.*nonce-\([A-Za-z0-9+/=]*\).*/\1/p' | head -1)"
-B_NONCE="$(grep -o 'nonce="[^"]*"' <<<"$PAGE" | head -1 | sed 's/nonce="//; s/"//')"
-rm -f /tmp/.smoke-h
-if [[ -n "$H_NONCE" && "$H_NONCE" == "$B_NONCE" ]]; then
-  ok "policy nonce matches the rendered document"
-else
-  bad "nonce mismatch (header=${H_NONCE:-none} html=${B_NONCE:-none})"
-fi
+# The nonce in the policy must authorise EVERY executable script in the
+# document, on every document route.
+#
+# Sampling one route is not enough. A statically prerendered page is built
+# without a request, so Next cannot stamp the per-request nonce onto its
+# bootstrap scripts; the header is still perfect but the HTML no longer
+# matches it, and under 'strict-dynamic' ('self' is ignored) the browser then
+# refuses every chunk and the page ships with no JavaScript at all. That
+# failure is invisible to a header-only check and to curl, which is how it
+# reached a release gate once already — so probe an auth route and a marketing
+# route too, not just the home page.
+for ROUTE in "/" "/login" "/about"; do
+  PAGE="$(body "$WEB_URL$ROUTE" -D /tmp/.smoke-h)"
+  H_NONCE="$(tr -d '\r' < /tmp/.smoke-h | sed -n 's/.*nonce-\([A-Za-z0-9+/=]*\).*/\1/p' | head -1)"
+  rm -f /tmp/.smoke-h
+  if [[ -z "$H_NONCE" ]]; then
+    bad "no nonce in policy for $ROUTE"
+    continue
+  fi
+  # Executable scripts only — JSON-LD data blocks are never run, so
+  # script-src does not gate them and they are deliberately un-nonced.
+  TOTAL="$(grep -o '<script[^>]*>' <<<"$PAGE" | grep -cv 'application/ld+json')"
+  NONCED="$(grep -o '<script[^>]*>' <<<"$PAGE" | grep -v 'application/ld+json' | grep -c "nonce=\"$H_NONCE\"")"
+  if [[ "$TOTAL" -gt 0 && "$TOTAL" == "$NONCED" ]]; then
+    ok "policy nonce authorises all $TOTAL scripts on $ROUTE"
+  else
+    bad "un-nonced scripts on $ROUTE ($NONCED/$TOTAL nonced) — is the route statically prerendered?"
+  fi
+done
 
 note "Production hygiene"
 grep -qi '^x-frame-options: *DENY' <<<"$WEB_HEADERS" && ok "X-Frame-Options: DENY" || bad "X-Frame-Options missing"

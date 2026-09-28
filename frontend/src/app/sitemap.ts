@@ -7,9 +7,6 @@ import { API_URL_SERVER, SITE_URL } from "@/lib/config";
  *
  * Deviations from that line, both deliberate:
  *
- * - **No subjects.** `/subjects/[slug]` does not exist yet. Listing URLs that
- *   return 404 actively harms crawl budget, so subjects join the sitemap when
- *   the route does.
  * - **`approved_at`, not `updated_at`.** The public expert serializer does not
  *   expose `updated_at` (it is not public data), and widening a public payload
  *   to decorate a sitemap is the wrong trade. `approved_at` is the honest
@@ -36,6 +33,11 @@ interface DirectoryPage {
   next?: string | null;
 }
 
+interface SubjectListItem {
+  slug: string;
+  expert_count: number;
+}
+
 const STATIC_ROUTES: Array<{
   path: string;
   changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
@@ -45,6 +47,9 @@ const STATIC_ROUTES: Array<{
   { path: "/how-it-works", changeFrequency: "monthly", priority: 0.8 },
   { path: "/pricing", changeFrequency: "monthly", priority: 0.8 },
   { path: "/experts", changeFrequency: "daily", priority: 0.7 },
+  { path: "/subjects", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/for-experts", changeFrequency: "monthly", priority: 0.8 },
+  { path: "/about", changeFrequency: "yearly", priority: 0.5 },
   { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
   { path: "/academic-integrity", changeFrequency: "yearly", priority: 0.3 },
@@ -78,6 +83,16 @@ async function fetchExperts(): Promise<DirectoryExpert[]> {
   return experts;
 }
 
+async function fetchSubjects(): Promise<SubjectListItem[]> {
+  const res = await fetch(`${API_URL_SERVER}/api/v1/subjects`, {
+    next: { revalidate },
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) return [];
+  const body = (await res.json()) as { subjects?: SubjectListItem[] };
+  return body.subjects ?? [];
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
@@ -102,5 +117,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     expertEntries = [];
   }
 
-  return [...staticEntries, ...expertEntries];
+  // Subjects with no expert are excluded: the page renders (it has a real
+  // empty state) but carries `noindex`, and sitemapping a noindex URL is a
+  // contradictory signal.
+  let subjectEntries: MetadataRoute.Sitemap = [];
+  try {
+    subjectEntries = (await fetchSubjects())
+      .filter((subject) => subject.expert_count > 0)
+      .map((subject) => ({
+        url: `${SITE_URL}/subjects/${subject.slug}`,
+        lastModified: now,
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      }));
+  } catch {
+    subjectEntries = [];
+  }
+
+  return [...staticEntries, ...subjectEntries, ...expertEntries];
 }

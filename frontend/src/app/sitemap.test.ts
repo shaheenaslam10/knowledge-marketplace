@@ -23,6 +23,26 @@ function mockFetch(impl: (url: string) => unknown) {
   );
 }
 
+const SUBJECTS = {
+  subjects: [
+    { name: "Mathematics", slug: "mathematics", expert_count: 3 },
+    { name: "Physics", slug: "physics", expert_count: 0 },
+  ],
+};
+
+/** Routes by URL so expert and subject calls can be stubbed independently. */
+function mockApi(opts: { experts?: unknown; subjects?: unknown; subjectsOk?: boolean } = {}) {
+  mockFetch((url) => {
+    if (url.includes("/api/v1/subjects")) {
+      return {
+        ok: opts.subjectsOk ?? true,
+        json: async () => opts.subjects ?? SUBJECTS,
+      };
+    }
+    return { ok: true, json: async () => opts.experts ?? { results: [], next: null } };
+  });
+}
+
 describe("sitemap.ts", () => {
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => vi.unstubAllGlobals());
@@ -90,6 +110,42 @@ describe("sitemap.ts", () => {
 
     expect(seen.some((u) => u.includes("evil.example"))).toBe(false);
     expect(seen.some((u) => u.includes("cursor=cD0y"))).toBe(true);
+  });
+
+  it("includes the new marketing routes", async () => {
+    mockApi();
+
+    const urls = (await sitemap()).map((e) => e.url);
+
+    expect(urls).toContain(`${SITE_URL}/subjects`);
+    expect(urls).toContain(`${SITE_URL}/for-experts`);
+    expect(urls).toContain(`${SITE_URL}/about`);
+  });
+
+  it("lists subjects that have experts", async () => {
+    mockApi();
+
+    const urls = (await sitemap()).map((e) => e.url);
+
+    expect(urls).toContain(`${SITE_URL}/subjects/mathematics`);
+  });
+
+  it("omits empty subjects, because their pages are noindex", async () => {
+    // Sitemapping a noindex URL is a contradictory signal to crawlers.
+    mockApi();
+
+    const urls = (await sitemap()).map((e) => e.url);
+
+    expect(urls).not.toContain(`${SITE_URL}/subjects/physics`);
+  });
+
+  it("degrades to the rest of the sitemap when the subject API fails", async () => {
+    mockApi({ subjectsOk: false });
+
+    const urls = (await sitemap()).map((e) => e.url);
+
+    expect(urls).toContain(`${SITE_URL}/pricing`);
+    expect(urls.some((u) => u.includes("/subjects/"))).toBe(false);
   });
 
   it("still returns the static routes when the expert API is down", async () => {
