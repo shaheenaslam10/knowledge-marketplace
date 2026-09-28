@@ -28,6 +28,14 @@ playwright-report/
 .env
 .env.*
 !.env.example
+!.env.prod.example
+# Filled-in deployment env files live only on the deploy host.
+.env.staging
+.env.production
+
+# ---- Deploy state (records the running release for rollback) ----
+.deploy-state-*
+staticfiles/
 
 # ---- Local data / media ----
 var/

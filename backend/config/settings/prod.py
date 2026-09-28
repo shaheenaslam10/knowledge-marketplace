@@ -70,7 +70,11 @@ LOGGING = {
     "root": {"handlers": ["console_json"], "level": env.str("LOG_LEVEL", default="INFO")},
 }
 
-# Static files with manifest storage (collectstatic runs at deploy).
+# Static files with manifest storage (collectstatic runs in the entrypoint).
+# STATIC_ROOT is a volume shared with Caddy, which serves /static/* directly
+# instead of proxying it through the single ASGI worker (ADR-0016).
+STATIC_ROOT = env.str("STATIC_ROOT", default=str(BASE_DIR / "staticfiles"))
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"},

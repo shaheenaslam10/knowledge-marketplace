@@ -1,0 +1,126 @@
+# Caddy — the single ingress for the whole platform (ADR-0016).
+#
+# Caddy does three jobs and nothing else:
+#   1. terminates TLS (automatic Let's Encrypt, auto-renewing)
+#   2. maps the four production hostnames onto two upstreams
+#   3. serves Django's collected static files directly, so the single ASGI
+#      worker never spends a request on a CSS file
+#
+# The three *experiences* (www / app / admin) are one Next.js origin — the
+# split is a route-group concern handled inside the app (ADR-0013), and
+# src/middleware.ts redirects host/path mismatches. Caddy just needs to make
+# all three hostnames resolve to the same place with the right Host header.
+#
+# Hostnames come from the environment so the same file serves staging and
+# production unchanged:
+#   SITE_DOMAIN   www.example.com
+#   APP_DOMAIN    app.example.com
+#   ADMIN_DOMAIN  admin.example.com
+#   API_DOMAIN    api.example.com
+#   ACME_EMAIL    ops@example.com
+
+{
+	email {$ACME_EMAIL}
+	# Staging deployments can point this at Let's Encrypt's staging CA to avoid
+	# burning rate limits while DNS is being sorted out:
+	#   acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+	servers {
+		# Trust no forwarded headers except our own — this proxy IS the edge.
+		trusted_proxies static private_ranges
+	}
+}
+
+(common_headers) {
+	header {
+		# Belt and braces: the apps set these too, but a misconfigured upstream
+		# must not be able to silently drop them.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Caddy's own identity is not useful to an attacker.
+		-Server
+	}
+}
+
+(compression) {
+	encode zstd gzip
+}
+
+# ---------------------------------------------------------------------------
+# API + Django admin + WebSockets
+# ---------------------------------------------------------------------------
+{$API_DOMAIN} {
+	import common_headers
+	import compression
+
+	# Collected static assets (Django admin CSS/JS, DRF browsable API).
+	# Served from the shared volume; uvicorn does not serve static files.
+	handle_path /static/* {
+		root * /srv/static
+		file_server
+		header Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	# Health probes: no logging noise, no compression, straight through.
+	handle /healthz {
+		reverse_proxy api:8000
+	}
+	handle /readyz {
+		reverse_proxy api:8000
+	}
+
+	# Everything else — REST, admin, and the WebSocket upgrade. Caddy passes
+	# Upgrade/Connection through automatically, so /ws/* needs no special case.
+	handle {
+		reverse_proxy api:8000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+			# The channel layer is in-memory in ONE process (ADR-0003): long
+			# timeouts keep chat sockets alive instead of churning them.
+			transport http {
+				read_timeout 3600s
+				write_timeout 3600s
+			}
+		}
+	}
+
+	log {
+		output file /var/log/caddy/api.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+	}
+}
+
+# ---------------------------------------------------------------------------
+# The three web experiences — one Next.js upstream, three hostnames
+# ---------------------------------------------------------------------------
+{$SITE_DOMAIN}, {$APP_DOMAIN}, {$ADMIN_DOMAIN} {
+	import common_headers
+	import compression
+
+	# Next's immutable build output. Hashed filenames, safe to cache hard.
+	handle /_next/static/* {
+		reverse_proxy web:3000
+		header Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	handle {
+		reverse_proxy web:3000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	log {
+		output file /var/log/caddy/web.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+	}
+}
+
+# Apex -> www, so the bare domain is never a dead end.
+example.com {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}

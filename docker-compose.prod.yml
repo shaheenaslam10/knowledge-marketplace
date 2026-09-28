@@ -1,0 +1,199 @@
+# Production / staging stack (ADR-0016) — docs/architecture/deployment.md
+#
+#   cp .env.prod.example .env.prod   # then fill it in, NEVER commit it
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# This is the SAME topology CI already exercises in the compose smoke, with the
+# dev affordances removed: no bind mounts, no autoreload, no exposed database
+# port, prod image targets, restart policies, resource limits and log rotation.
+#
+# Staging and production use this identical file — they differ only by
+# --env-file. That is the point: an environment that drifts from production is
+# not a rehearsal (ADR-0016).
+#
+# Not here on purpose: Redis (ADR-0002/0003 — the ORM is the broker and the
+# channel layer is in-process), and any second ASGI worker, which would silently
+# break WebSocket delivery.
+
+name: hem-${DEPLOY_ENV:-staging}
+
+x-backend-env: &backend_env
+  DJANGO_SETTINGS_MODULE: config.settings.prod
+  DEPLOY_ENV: ${DEPLOY_ENV:?DEPLOY_ENV must be staging or production}
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+  DEBUG: "False"
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:?ALLOWED_HOSTS is required}
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+  APP_VERSION: ${APP_VERSION:-0.1.0}
+  FRONTEND_URL: ${FRONTEND_URL:?}
+  BACKEND_URL: ${BACKEND_URL:?}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?}
+  ADMIN_URL: ${ADMIN_URL:?set an unguessable admin path}
+  COOKIE_SECURE: "True"
+  CSP_REPORT_ONLY: ${CSP_REPORT_ONLY:-False}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  # Payments — manual rails until a provider is activated (ADR-0005)
+  PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-manual}
+  MANUAL_PAYMENT_INSTRUCTIONS: ${MANUAL_PAYMENT_INSTRUCTIONS:-}
+  MANUAL_WEBHOOK_SECRET: ${MANUAL_WEBHOOK_SECRET:?}
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+  # Email
+  EMAIL_BACKEND_MODE: ${EMAIL_BACKEND_MODE:?console is refused in deployments}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:?}
+  EMAIL_HOST: ${EMAIL_HOST:-}
+  EMAIL_PORT: ${EMAIL_PORT:-587}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+  BREVO_API_KEY: ${BREVO_API_KEY:-}
+  # Object storage
+  FILE_STORAGE: ${FILE_STORAGE:-r2}
+  R2_BUCKET: ${R2_BUCKET:-}
+  R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+  R2_ACCESS_KEY: ${R2_ACCESS_KEY:-}
+  R2_SECRET_KEY: ${R2_SECRET_KEY:-}
+  R2_REGION: ${R2_REGION:-auto}
+  # Worker
+  WORKERS: ${WORKERS:-2}
+  STATIC_ROOT: /app/staticfiles
+
+x-logging: &default_logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  # PostgreSQL. Comment this service out and point DATABASE_URL at Neon to move
+  # to managed PITR with zero code change (ADR-0016, backup-recovery.md).
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # NOTE: no `ports:` — the database is reachable only on the compose network.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    logging: *default_logging
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  api:
+    build:
+      context: ./backend
+      target: prod
+    environment: *backend_env
+    volumes:
+      - staticfiles:/app/staticfiles
+    # Single ASGI process — the in-memory channel layer lives here (ADR-0003).
+    command:
+      ["uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
+    restart: unless-stopped
+    logging: *default_logging
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  worker:
+    build:
+      context: ./backend
+      target: prod
+    entrypoint: ["/app/docker/entrypoint.worker.sh"]
+    environment:
+      <<: *backend_env
+      READYZ_URL: http://api:8000/readyz
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default_logging
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  web:
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        # NEXT_PUBLIC_* are inlined at BUILD time — they must be passed here,
+        # not only at runtime, or the browser bundle keeps localhost URLs.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:?}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?}
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      SERVER_API_URL: http://api:8000
+      # Three-experience host mapping (ADR-0013) — middleware redirects
+      # host/path mismatches once all three are set.
+      NEXT_PUBLIC_MARKETING_HOST: ${SITE_DOMAIN}
+      NEXT_PUBLIC_APP_HOST: ${APP_DOMAIN}
+      NEXT_PUBLIC_PORTAL_HOST: ${ADMIN_DOMAIN}
+      NEXT_PUBLIC_CSP_CONNECT_EXTRA: ${NEXT_PUBLIC_CSP_CONNECT_EXTRA:-}
+      NEXT_PUBLIC_CSP_IMG_EXTRA: ${NEXT_PUBLIC_CSP_IMG_EXTRA:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default_logging
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?}
+      APP_DOMAIN: ${APP_DOMAIN:?}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?}
+      API_DOMAIN: ${API_DOMAIN:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - staticfiles:/srv/static:ro
+      - caddy_data:/data       # certificates — losing this re-issues from ACME
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+    logging: *default_logging
+
+volumes:
+  pgdata:
+  staticfiles:
+  caddy_data:
+  caddy_config:
+  caddy_logs:
