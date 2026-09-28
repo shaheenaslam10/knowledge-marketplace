@@ -419,3 +419,43 @@ Marking it done would misrepresent the state of the product.
 | `scripts/reset_prod.py` to strip seed data | Not built; the guard lives **inside** `seed_demo`, which refuses `DEPLOY_ENV=production` | A cleanup script only helps if someone remembers to run it; a refusal cannot be forgotten |
 | Stripe live keys + webhook in the launch checklist | Manual gateway remains the payment path | ADR-0005: no credentials exist, and none were fabricated |
 | Restore drill "on staging data" | Drilled on seeded development data | No staging host exists yet. Script path, encryption, checksum, restore and money-integrity verification are all real; only the off-host copy is unproven |
+
+---
+
+## Post-Phase-12 completeness audit (record)
+
+**Why:** Phase 12 ended blocked on owner provisioning. Instead of idling, the whole
+codebase was audited against the four experiences to find work that was genuinely
+incomplete rather than merely unreported. Full narrative in
+[PROJECT-HANDOFF.md](PROJECT-HANDOFF.md#post-phase-12-audit-2026-09-28--two-real-gaps-found-and-closed).
+
+**Came back clean:** 0 TODO/FIXME/HACK markers across 18 backend apps and 37
+frontend pages · 7 `ops/*` routes ↔ 7 portal pages, no orphans · 4 Playwright
+journeys + smoke matching the docs · commission rates correctly `PlatformConfig`-backed
+(`0.1500` / `0.2000`, unchanged — verified, not modified).
+
+**Fixed:**
+
+| # | Finding | Resolution | Commit |
+|---|---|---|---|
+| 1 | 4 of 24 declared notification types had no emit site — the feature was dead | `request_new_offer`, `payout_scheduled`, `payout_failed` wired at their service call sites; `order_auto_approve_warning` added as an hourly job (migration `0008`), deduped via a persisted `auto_approve_warned` event | `7e97faf` |
+| 2 | 15%/20% commission charged but disclosed on no public page; `/pricing` specified since Phase 0, never built | `GET /api/v1/platform/pricing` (`AllowAny`, `PlatformConfig`-backed) + `/pricing` with FAQPage JSON-LD + `sitemap.ts` (also never built) + `robots.ts` hardened to exclude authenticated surfaces | this commit |
+
+**Test deltas:** backend pytest 407 → **426**; frontend vitest 102 → **115**.
+
+**Three defects were caught only by live end-to-end verification**, not by unit
+tests — recorded because the pattern will recur in this codebase:
+
+1. Any marketing route that fetches from the API **must not be prerendered**. The web
+   image builds with no API reachable, so a build-time fetch bakes the degraded state
+   into the HTML and ISR keeps serving it. `/pricing` and `sitemap.ts` are both
+   `force-dynamic` for this reason.
+2. Cache TTL on a price disclosure is a correctness question, not a performance one.
+   Commission is fixed at booking time, so a 1h cache meant orders could book at a
+   rate the page never advertised. 60s.
+3. `to_major()` returns a float suitable for arithmetic, not display. Use
+   `format_money()` for anything a user reads.
+
+**Still deliberately unbuilt** (marketing surface only, docs place them in Phase 4+):
+`/for-experts`, `/about`, `/subjects/[slug]`, `/blog/*`, OG image generation, and
+`request_new_matching` (needs matching fan-out + daily digest).

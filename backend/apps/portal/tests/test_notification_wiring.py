@@ -12,6 +12,10 @@ The user-visible consequence was silence at exactly the moments that matter:
                                released their money at 72h
 
 These tests pin the wiring so the catalog cannot drift back into fiction.
+
+Lives in `apps.portal` (the top layer) rather than `apps.notifications`:
+verifying the funnel end to end means importing bidding, payments and orders,
+and the import-linter layer contract forbids a lower layer reaching upward.
 """
 
 from datetime import timedelta

@@ -60,6 +60,8 @@ Current (Phase 1–3): `(marketing)`: `/`, `/how-it-works`, `/experts`, `/expert
 
 Arrives with Phase 4+ (roadmap): student `/dashboard`, `/requests/*`, `/offers/*`, `/orders/*`, `/messages/*`, `/files`, `/reviews`, `/settings`; expert opportunities/earnings views; `(portal)` shell + first operations screens (Admin operations phase); marketing `/pricing`, `/for-experts`, `/about`, `/legal/*`, `/blog/*`.
 
+**Status (Phase 12 audit).** Shipped: `/`, `/how-it-works`, `/experts`, `/experts/[slug]`, `/pricing`, and the legal set (`/terms`, `/privacy`, `/academic-integrity`). Still unbuilt and explicitly *not* launch blockers: `/for-experts`, `/about`, `/subjects/[slug]`, `/blog/*` — marketing/SEO surface area, no product behaviour behind them.
+
 ## Mobile-first requirement
 
 All three experiences are designed **mobile-first** (see design-system.md §Responsive): marketing sections stack with reduced ambient motion; the app uses bottom-nav + sheet patterns on small screens (drawers over modals, sticky primary actions); the portal prioritizes card-wrapped tables with horizontal scroll containment and filters-as-drawers. No surface is designed desktop-first and shrunk.

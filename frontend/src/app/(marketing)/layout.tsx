@@ -15,6 +15,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <nav className="flex gap-4">
               <Link href="/experts" className="hover:text-foreground">Find an expert</Link>
               <Link href="/how-it-works" className="hover:text-foreground">How it works</Link>
+              <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
               <Link href="/register" className="hover:text-foreground">Become an expert</Link>
             </nav>
           </div>

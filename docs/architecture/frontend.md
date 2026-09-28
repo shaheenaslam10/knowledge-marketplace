@@ -74,8 +74,27 @@ frontend/
 
 | Route type | Strategy |
 |---|---|
-| `/`, `/how-it-works`, `/pricing` | SSG (+ revalidate) |
+| `/`, `/how-it-works` | SSG (+ revalidate) |
+| `/pricing` | **On-demand render + 60s data cache**, *not* SSG — see note below |
 | `/experts`, `/experts/[slug]`, `/subjects/[slug]` | SSR/ISR with `generateMetadata`, JSON-LD, canonical, `sitemap.ts` fed by backend public endpoints |
+
+**Why `/pricing` is not SSG (Phase 12).** It renders live commission rates from
+`GET /api/v1/platform/pricing`, and two things ruled prerendering out:
+
+1. The web image is built independently of the API container (`docker-compose.prod.yml`
+   builds `./frontend` with no API reachable). A prerendered page therefore bakes the
+   degraded "rates unavailable" state into the HTML and ISR keeps serving it. This was
+   observed, not theorised — the first build of the page shipped exactly that.
+2. Commission is fixed at the moment an order is booked. Every second the page shows a
+   stale rate is a second a student can book at a rate the page never advertised, so the
+   data cache is 60s rather than the 1h used for static marketing copy.
+
+Net cost is one config read per minute; `next: { revalidate }` on the fetch keeps repeat
+visitors on the data cache. A failed fetch is deliberately *not* cached, so a transient
+API blip recovers on the next request instead of pinning the degraded state.
+
+`sitemap.ts` is `force-dynamic` for reason (1) as well — a build-time fetch would ship a
+sitemap with no expert profiles in it.
 | dashboards/flows | CSR behind auth, `noindex` |
 
 ## UX system

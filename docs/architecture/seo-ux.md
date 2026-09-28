@@ -12,10 +12,29 @@
 | Expert directory | `/experts` (+filters via `?`, canonical to base) | yes | internal linking hub |
 | Expert profile | `/experts/[slug]` | yes (if `list_in_directory`) | JSON-LD `Person` + `AggregateRating` (when ≥3 reviews); otherwise `noindex` |
 | Subject pages | `/subjects/[slug]` | yes | "Find help in {subject}" — directory of experts + how-it-works snippet; hub-and-spoke internal links |
-| How it works / Pricing | `/how-it-works`, `/pricing` | yes | FAQPage JSON-LD; trust content targeting long-tail queries |
+| How it works / Pricing | `/how-it-works`, `/pricing` ✅ | yes | FAQPage JSON-LD; trust content targeting long-tail queries. **Pricing shipped Phase 12** — commission rates render from `GET /api/v1/platform/pricing` (PlatformConfig-backed), never hard-coded, so the published rate cannot drift from the rate actually charged. Rendered on demand with a 60s data cache, not prerendered (see frontend.md). |
 | Dashboards/API | everything else | `noindex, follow` | robots + meta |
 
 Mechanics: `generateMetadata` per route (title templates, descriptions, canonical, OG/Twitter cards with generated OG images for profiles), `sitemap.ts` (static routes + experts + subjects, `Last-Modified` from updated_at), `robots.ts`, 404/410 handling, `hreflang` deferred (single-locale MVP). Performance is an SEO feature: budgets below.
+
+**Status (Phase 12).** `sitemap.ts` and `robots.ts` are implemented and covered by
+`frontend/src/app/sitemap.test.ts` (8 tests).
+
+- `sitemap.ts` lists the seven public marketing routes plus every approved expert
+  profile, walking the directory's cursor pages (capped at 25 × 100). Two deliberate
+  deviations from the line above: **subjects are omitted** because `/subjects/[slug]`
+  does not exist yet and sitemapping 404s wastes crawl budget; and `Last-Modified`
+  uses **`approved_at`**, because the public expert serializer intentionally does not
+  expose `updated_at` and widening a public payload to decorate a sitemap is the wrong
+  trade. If the directory API is unreachable the sitemap degrades to the static routes
+  rather than 500-ing.
+- `robots.ts` previously allowed `/` and nothing else, which advertised every
+  authenticated surface as crawlable. It now disallows the `(app)` and `(portal)`
+  route groups, `/api/`, and the auth screens, and points at `/sitemap.xml`. Those
+  surfaces redirect anonymous crawlers to login rather than leaking data, so this is
+  crawl-budget and SERP hygiene, not a confidentiality fix; per-route `noindex` meta
+  remains the authoritative control.
+- OG image generation for profiles remains unbuilt (Phase 4+ marketing scope).
 
 **Content roadmap note (post-MVP):** blog/study-guides CMS is the planned authority play (see mvp-scope) — routes and design reserved.
 

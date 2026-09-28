@@ -2,7 +2,7 @@
 
 > **Permanent project rule:** this file is the single continuation document for any new AI agent or developer (Arena, ChatGPT, Gemini, human). It is updated at every phase completion and whenever a plan/architecture/business-rule change is discovered — **before or with** the implementation, never silently. Detailed evidence lives in the linked documents; this file stays a fast, accurate map.
 >
-> Last updated: **2026-09-28 (Phase 12 — production deployment architecture prepared and verified; NOT deployed)**
+> Last updated: **2026-09-28 (Phase 12 deployment architecture prepared & verified — NOT deployed; plus a post-Phase-12 completeness audit that closed four dead notification types and the missing public pricing/SEO surface)**
 
 ---
 
@@ -22,6 +22,11 @@ Read first:         docs/process/roadmap-phases.md  → "Phase 12 — Production
                                                        (record)" — honest acceptance status
                     docs/architecture/deployment.md → runbook + owner actions
                     docs/architecture/backup-recovery.md → restore-drill evidence
+Since then:         A full-codebase completeness audit ran against the four
+                    experiences. It found and FIXED two real gaps (details in
+                    "Post-Phase-12 audit" below): four declared-but-never-emitted
+                    notification types, and a platform that charged 15%/20%
+                    commission while disclosing it on no public page.
 Next task:          Owner provisions a host + domain, then:
                       ./scripts/deploy.sh --env staging     (smoke must pass)
                       ./scripts/deploy.sh --env production
@@ -46,7 +51,7 @@ Do not start:       Stripe activation (no credentials; seam stays non-functional
 | Latest commit | Phase 12 chain on top of `5decba4`: `f2e0958` (ADR-0016/0017, docs-first) → `d30ec9e` (enforced CSP + legal pages) → `ac38165` (safety checks, ops_report, host routing) → `96d09bf` (backup/restore) → `3dd45cd` (compose + Caddy + prod image) → `30495d5` (deploy/rollback/smoke + CD + CI gate) → completion commit |
 | Latest verified CI | Phase 11 canonical: run `36224637860` ✓ 4/4 on `3bd92b7`. **Phase 12 CI run recorded in the final report / roadmap.** CI now has **5** jobs (Backend · Frontend · Docs sync · Deploy config · Compose smoke) |
 | Working tree | Verify on takeover: `git status` + `git fetch && git log origin/arena/01a0e69d-knowledge-marketplace -1` |
-| Test baseline | backend pytest **407 passed**; frontend vitest **102 passed** (19 files); ruff+format clean; import-linter 2/2; `makemigrations --check` clean; env-docs gate green (37 vars); production build + bundle budgets green. **Smoke test 22/22 against a real `config.settings.prod` stack.** Playwright E2E **6/6** as of Phase 11 (not re-runnable in the current sandbox — no Docker) |
+| Test baseline | backend pytest **426 passed**; frontend vitest **115 passed** (21 files); ruff+format clean; import-linter 2/2; `makemigrations --check` clean; env-docs gate green (37 vars); production build + bundle budgets green. **Smoke test 22/22 against a real `config.settings.prod` stack.** Playwright E2E **6/6** as of Phase 11 (not re-runnable in the current sandbox — no Docker) |
 | Roadmap | `docs/process/roadmap-phases.md` — the ONE source of truth for what exists (header + per-phase completion records; Phase 10 record has the as-built details + deferred list) |
 
 ---
@@ -76,6 +81,84 @@ Detailed scope, acceptance gates and per-phase records live in `docs/process/roa
 | 12 — Production Deployment | ⚠️ **architecture prepared and verified; NOT deployed.** `docker-compose.prod.yml` (db/api/worker/web/caddy; Postgres publishes no port) + `deploy/Caddyfile` (auto-TLS, static volume, WS timeouts); `deps-prod` image stage (no dev deps in prod) + fail-closed `entrypoint.prod.sh`; `apps/core/checks.py` (`hem.E001`–`E012`/`W001`–`W006`) refusing dev-grade config at boot; `deploy.sh`/`rollback.sh` (auto-rollback; forward-only additive-first migration policy) and `smoke_test.sh` (22 checks, **22/22 against a real prod-settings stack**); encrypted backups + **restore drill passed incl. BR-33 on restored rows**; `ops_report` CLI (9 signals, non-zero exit); **enforced nonce CSP — closes audit F-2**; legal pages + footer; host-aware routing (ADR-0013); `deploy.yml` CD with a GitHub-Environment approval gate; CI `deploy-config` job + both-directions assertion of the safety gate; `SessionProvider` transient-failure fix | `f2e0958`, `d30ec9e`, `ac38165`, `96d09bf`, `3dd45cd`, `30495d5` | **ADR-0016** (single-host Caddy + compose; staging = same compose, different env file), **ADR-0017** (nonce CSP in middleware) | **Blocked on owner actions only** — host, domain, R2, email sender, uptime monitor. Residual: `style-src 'unsafe-inline'` (styled-jsx, ADR-0017); `scripts/reset_prod.py` intentionally not built (guard moved inside `seed_demo`); restore drilled on seeded dev data, not staging data; Playwright + compose-smoke not runnable in the sandbox (no Docker) |
 
 **Major plan changes so far** (all documented before/with implementation): django-tasks → django-q2 (ADR-0002 amendment); payments layering inversion via domain signal (ADR-0005 amendment); no PaymentAttempt/Transaction tables; ledger identity formalized; payout settlement manual-by-design; Stripe explicitly not production-ready until the checklist in `docs/workflows/payments.md` is verified.
+
+---
+
+## Post-Phase-12 audit (2026-09-28) — two real gaps found and closed
+
+Phase 12 left the deployment architecture ready but nothing deployed. Rather than
+idle on owner action, a read-only completeness audit ran over the whole codebase
+(18 backend apps, 37 frontend pages, all `ops/*` routes, the E2E suite, every
+`notify()` call site). Most of it came back clean: **0 TODO/FIXME markers**, 7
+`ops/*` routes matched to 7 portal pages with no orphans, 4 E2E journeys matching
+the docs, and commission rates correctly `PlatformConfig`-backed. Two findings were
+real, and both are now fixed.
+
+### Finding 1 — four notification types were declared but never emitted (commit `7e97faf`)
+
+`CATEGORY_FOR_TYPE` declared 24 notification types. Four had no emit site anywhere,
+so the feature was dead: users simply never received them. Naive grepping is
+misleading here — `_EVENT_COPY` maps *event keys* to *notification types*, so the
+alias map has to be resolved before calling a type dead.
+
+| Type | Now emitted from | Recipient |
+|---|---|---|
+| `request_new_offer` | `bidding/services.py::submit()` | student — no amount in the payload (BR-15) |
+| `payout_scheduled` | `payments/services.py::schedule_payout()` | expert |
+| `payout_failed` | `payments/services.py::mark_payout_failed()` | expert |
+| `order_auto_approve_warning` | `orders/services.py::auto_approve_warning()`, hourly | student, T-24h before the 72h auto-approve (BR-24) |
+
+The auto-approve warning is a new hourly job following the existing
+`deadline_reminder()` template, deduped through a persisted `auto_approve_warned`
+`OrderEvent` so a restart or overlapping run cannot double-notify. Migration `0008`.
+12 wiring tests live in **`apps/portal/tests/`**, not `apps/notifications/tests/` —
+import-linter enforces layering on test files too, and cross-app tests must sit in
+the top layer.
+
+`request_new_matching` remains the one genuine deferral: it needs matching fan-out
+plus a daily digest, which is post-MVP scope.
+
+### Finding 2 — commission was charged but never publicly disclosed
+
+The platform takes 15% (open bid) / 20% (managed) and disclosed it **nowhere a
+prospective user could see**. `/pricing` was specified in `seo-ux.md`,
+`frontend.md` and `web-experiences.md` since Phase 0 but never built, and
+`/how-it-works` never mentions fees. For a marketplace this is a trust and
+arguably a consumer-disclosure problem, not a missing nice-to-have.
+
+Shipped:
+
+- **`GET /api/v1/platform/pricing`** (`AllowAny`) — rates and money floors read live
+  through `apps.core.services`, so the published number cannot drift from the number
+  charged. Operational config (auto-approve windows, reminder schedules) is
+  deliberately excluded; a test asserts it does not leak.
+- **`/pricing`** — commission cards, thresholds, FAQ, FAQPage JSON-LD, and an honest
+  degraded state that invents no numbers when the API is unreachable.
+- **`sitemap.ts`** — specified since Phase 0, never built. Static routes + every
+  approved expert profile via cursor pagination.
+- **`robots.ts`** — previously allowed `/` and nothing else, advertising every
+  authenticated surface as crawlable. Now disallows the `(app)`/`(portal)` groups,
+  `/api/` and the auth screens, and points at the sitemap.
+
+**Three bugs were caught by live end-to-end verification that the unit tests could
+not see** — worth remembering, because the pattern will recur:
+
+1. `/pricing` was prerendered at build time. The web image builds with no API
+   reachable, so the build baked the "rates unavailable" state into the HTML and ISR
+   kept serving it. The page is now `force-dynamic` with a data-layer cache.
+2. The 1h cache meant an operator's rate change stayed invisible for an hour while
+   orders booked at the new rate. TTL is now 60s — commission is fixed at booking
+   time, so an hour is too long to be wrong about money.
+3. `min_offer.display` returned a bare float (`5.0`, rendering as "5"). It now uses
+   the project's canonical `format_money()` (`"5.00 USD"`).
+
+A fourth apparent bug — `robots.txt` baking `localhost:3000` — turned out to be a
+local-build artifact only: `docker-compose.prod.yml` passes `NEXT_PUBLIC_SITE_URL`
+as a required (`:?`) build arg. Verified by rebuilding with the arg set.
+
+Still absent and deliberately **not** built (marketing surface, no product behaviour,
+docs place them in "Phase 4+"): `/for-experts`, `/about`, `/subjects/[slug]`,
+`/blog/*`, and OG image generation.
 
 ---
 
