@@ -59,6 +59,33 @@ jobs:
             grep -E "^(FAILED|ERROR)|short test summary|=====" /tmp/pytest.log | tail -8 | while IFS= read -r line; do echo "::error::${line:0:250}"; done
             exit 1
           }
+      # Phase 12: the production safety checks are only useful if they still
+      # fire. Assert both directions — a dangerous config is refused, and a
+      # correct one passes — so nobody can quietly neuter the deploy gate.
+      - name: Production safety gate (apps/core/checks.py)
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.prod
+          ALLOWED_HOSTS: api.example.com
+        run: |
+          echo "--- a dangerous production config must be REFUSED ---"
+          if DEPLOY_ENV=production SECRET_KEY=dev-only-insecure-key-change-me \
+             python manage.py check --deploy --tag production --fail-level WARNING 2>/dev/null; then
+            echo "::error::production safety checks did NOT refuse a dev SECRET_KEY"
+            exit 1
+          fi
+          echo "refused, as expected"
+
+          echo "--- a correct production config must PASS ---"
+          DEPLOY_ENV=production \
+          SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')" \
+          ADMIN_URL="ops-ci-path/" \
+          EMAIL_BACKEND_MODE=brevo BREVO_API_KEY=ci-placeholder \
+          DEFAULT_FROM_EMAIL=no-reply@example.com \
+          FILE_STORAGE=r2 R2_BUCKET=b R2_ACCOUNT_ID=a R2_ACCESS_KEY=k R2_SECRET_KEY=s \
+          MANUAL_WEBHOOK_SECRET="ci-random-secret" \
+          FRONTEND_URL=https://app.example.com BACKEND_URL=https://api.example.com \
+          python manage.py check --deploy --tag production --fail-level WARNING
+
       - name: Dependency audit (known CVEs)
         run: |
           pip install -q pip-audit
@@ -99,6 +126,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 scripts/check_env_docs.py
+
+  deploy-config:
+    name: Deployment config (compose, Caddy, scripts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Phase 12 ships executable deployment artifacts. A typo in a shell
+      # script is only discovered during an incident unless CI parses it.
+      - name: Shell scripts parse and are executable
+        run: |
+          for s in scripts/*.sh backend/docker/*.sh; do
+            test -x "$s" || { echo "::error::$s is not executable"; exit 1; }
+            bash -n "$s" || { echo "::error::$s has a syntax error"; exit 1; }
+            echo "ok $s"
+          done
+      - name: Production compose file is valid
+        run: |
+          # Placeholders only — this validates structure/interpolation, and the
+          # `:?` guards prove every required variable is actually declared.
+          set -a
+          DEPLOY_ENV=staging SECRET_KEY=x ALLOWED_HOSTS=a DATABASE_URL=postgres://u@h/d
+          FRONTEND_URL=https://a BACKEND_URL=https://b
+          CORS_ALLOWED_ORIGINS=https://a CSRF_TRUSTED_ORIGINS=https://a
+          ADMIN_URL=ops/ MANUAL_WEBHOOK_SECRET=s EMAIL_BACKEND_MODE=brevo
+          DEFAULT_FROM_EMAIL=no-reply@example.com
+          POSTGRES_USER=u POSTGRES_PASSWORD=p POSTGRES_DB=d
+          NEXT_PUBLIC_API_URL=https://api NEXT_PUBLIC_WS_URL=wss://api
+          NEXT_PUBLIC_SITE_URL=https://www
+          SITE_DOMAIN=www.example.com APP_DOMAIN=app.example.com
+          ADMIN_DOMAIN=admin.example.com API_DOMAIN=api.example.com
+          ACME_EMAIL=ops@example.com
+          set +a
+          docker compose -f docker-compose.prod.yml config --quiet
+          echo "docker-compose.prod.yml is valid"
+      - name: Caddyfile is valid
+        run: |
+          docker run --rm -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            -e SITE_DOMAIN=www.example.com -e APP_DOMAIN=app.example.com \
+            -e ADMIN_DOMAIN=admin.example.com -e API_DOMAIN=api.example.com \
+            -e ACME_EMAIL=ops@example.com \
+            caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+      - name: No real secrets in the committed env template
+        run: |
+          # Every secret-ish line in .env.prod.example must still be a placeholder.
+          if grep -nE '^(SECRET_KEY|POSTGRES_PASSWORD|MANUAL_WEBHOOK_SECRET|BACKUP_PASSPHRASE|ADMIN_URL)=' \
+               .env.prod.example | grep -v 'CHANGE_ME'; then
+            echo "::error::.env.prod.example contains a non-placeholder secret"
+            exit 1
+          fi
+          echo "env template is placeholder-only"
 
   compose-smoke:
     name: Compose smoke (clean checkout → up → seed → worker → e2e)

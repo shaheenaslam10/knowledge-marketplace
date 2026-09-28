@@ -1,6 +1,6 @@
 # Environments & Configuration
 
-> Status: ✅ implemented (Phase 1; Phase 9 R2 file-storage vars) · Last updated: Phase 9
+> Status: ✅ implemented (Phase 1; Phase 9 R2 file-storage vars; Phase 12 deployment/backup/CSP vars) · Last updated: Phase 12
 > **Sync rule:** every name in `/.env.example` must appear here — CI enforces it (`scripts/check_env_docs.py`). Add new variables to both in the same commit.
 
 ## Settings strategy
@@ -11,13 +11,17 @@
 
 | | local dev | CI | staging (optional) | production |
 |---|---|---|---|---|
-| Backend | uvicorn (`--reload`, compose) or `runserver` (daphne) | pytest | uvicorn | uvicorn (single ASGI proc) |
+| `DEPLOY_ENV` | `local` | `ci` | `staging` | `production` |
+| Backend | uvicorn (`--reload`, compose) or `runserver` (daphne) | pytest | uvicorn (single ASGI proc) | uvicorn (single ASGI proc) |
 | Worker | `qcluster` (compose `worker` service) | inline (django-q2 `sync=True`) | qcluster | qcluster |
 | Frontend | `next dev` | build + unit + e2e | `next start` | `next start` (standalone) or Vercel |
 | DB | docker postgres:16 | services postgres:16 | managed (Neon free) | managed (Neon) or VM container |
 | Files | local disk (`MEDIA_ROOT`) | local disk | R2 staging bucket | R2 prod bucket |
 | Email | console | locmem (tests) | Brevo test/sandbox | Brevo/SMTP |
-| Payments | `PAYMENT_GATEWAY=manual` (full lifecycle simulation) | manual | Stripe test (when credentials exist) | Stripe live or manual |
+| Payments | `PAYMENT_GATEWAY=manual` (full lifecycle simulation) | manual | manual (Stripe test when credentials exist) | manual until a provider is activated (ADR-0005) |
+| CSP | report-only (React Refresh needs eval) | report-only | **enforcing**, nonced | **enforcing**, nonced |
+| Ingress | none (direct ports) | none | Caddy, auto-TLS | Caddy, auto-TLS |
+| Safety checks | inert | inert | `check --tag production` at boot | `check --tag production` at boot |
 | Realtime | in-memory channel layer (1 ASGI proc) | in-memory | in-memory (1 proc) | in-memory (1 proc) → Redis later |
 
 ## Environment variables (canonical — mirrored in `/.env.example`)
@@ -30,8 +34,9 @@
 | `DEBUG` | `False` | never true in prod |
 | `ALLOWED_HOSTS` | `api.example.com` | host header allowlist (**required in prod**) |
 | `APP_VERSION` | `0.1.0` | API metadata / OpenAPI version |
-| `ADMIN_URL` | `admin/` | obfuscated admin path |
+| `ADMIN_URL` | `admin/` | obfuscated admin path (**a deployment must not leave this default** — `hem.W006`) |
 | `LOG_LEVEL` | `INFO` | root log level |
+| `DEPLOY_ENV` | `local` \| `ci` \| `staging` \| `production` | **Phase 12.** Which deployment this process *is*. `prod.py` is loaded by both staging and production, so the settings module cannot distinguish them; this can. Drives `apps/core/checks.py`, the `seed_demo` production refusal, and staging isolation (ADR-0016). |
 
 ### Database
 | Variable | Example |
@@ -85,6 +90,31 @@
 |---|---|
 | `SECURE_SSL_REDIRECT` | `True` (default) |
 | `SECURE_HSTS_SECONDS` | `31536000` (default) |
+| `CSP` | full Content-Security-Policy override for **Django-served** responses (API, admin exempt). Default in `prod.py`. |
+| `CSP_REPORT_ONLY` | `False` (default since Phase 12 — CSP is **enforcing**). `True` drops back to report-only for a deliberate canary; the production check warns (`hem.W003`). |
+| `PERMISSIONS_POLICY` | `camera=(), microphone=(), geolocation=(), payment=(), usb=()` |
+| `STATIC_ROOT` | `/app/staticfiles` — `collectstatic` target, a volume Caddy serves at `/static/*` (ADR-0016). |
+
+> The **Next.js** CSP is *not* read from these: it carries a per-request nonce
+> and is generated in `frontend/src/middleware.ts` (ADR-0017).
+
+### Deployment: domains, TLS, worker (Phase 12 — `docker-compose.prod.yml`, `deploy/Caddyfile`)
+| Variable | Example | Used for |
+|---|---|---|
+| `SITE_DOMAIN` | `www.example.com` | `(marketing)` hostname |
+| `APP_DOMAIN` | `app.example.com` | `(auth)`+`(app)` hostname |
+| `ADMIN_DOMAIN` | `admin.example.com` | `(portal)` hostname |
+| `API_DOMAIN` | `api.example.com` | Django/API hostname |
+| `ACME_EMAIL` | `ops@example.com` | Let's Encrypt registration for automatic TLS |
+| `READYZ_URL` | `http://api:8000/readyz` | worker entrypoint's readiness target (compose sets it; defaults to the dev service name) |
+
+### Backups (Phase 12 — `scripts/backup_db.sh`, `scripts/restore_backup.sh`)
+| Variable | Example | Used for |
+|---|---|---|
+| `BACKUP_PASSPHRASE` | (long random) | AES-256 key for the encrypted dump. **Losing it loses every backup** — it belongs in the owner's password manager, never on the host only. |
+| `BACKUP_DIR` | `./var/backups` | local output directory |
+| `BACKUP_RETENTION_DAYS` | `30` | local pruning window |
+| `BACKUP_REMOTE_CMD` | `rclone copy` | off-host upload hook. A backup that dies with the machine is not a backup. |
 
 ### Files
 | Variable | Example |
@@ -106,6 +136,19 @@
 | Variable | Example |
 |---|---|
 | `SENTRY_DSN` | optional; wired when error tracking is enabled |
+
+### Frontend build/runtime (`NEXT_PUBLIC_*`)
+| Variable | Example | Used for |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `https://api.example.com` | browser → API base. **Also feeds the CSP `connect-src`** (ADR-0017). Inlined at build time. |
+| `NEXT_PUBLIC_WS_URL` | `wss://api.example.com` | browser → WebSocket base; also in `connect-src`. |
+| `NEXT_PUBLIC_SITE_URL` | `https://www.example.com` | canonical site URL (SEO/metadata) |
+| `SERVER_API_URL` | `http://api:8000` | server-side (RSC) fetch target inside compose |
+| `NEXT_PUBLIC_MARKETING_HOST` | `www.example.com` | three-experience host mapping (ADR-0013). Middleware redirects host/path mismatches **only when all three are set** — unset in dev/CI so every path works on `localhost:3000`. |
+| `NEXT_PUBLIC_APP_HOST` | `app.example.com` | as above |
+| `NEXT_PUBLIC_PORTAL_HOST` | `admin.example.com` | as above |
+| `NEXT_PUBLIC_CSP_CONNECT_EXTRA` | `https://o.sentry.io` | comma-separated extra `connect-src` origins |
+| `NEXT_PUBLIC_CSP_IMG_EXTRA` | `https://cdn.example.com` | comma-separated extra `img-src` origins |
 
 ### Feature flags
 | Variable | Example |
