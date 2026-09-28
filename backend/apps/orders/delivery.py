@@ -70,6 +70,9 @@ class OrderEvent(TimeStampedModel):
         # hourly T-24h reminder; the workspace timeline renders it as a plain
         # "deadline reminder sent" row.
         DEADLINE_REMINDED = "deadline_reminded", "Deadline reminder sent"
+        # Dedupes the T-24h warning before an unreviewed delivery auto-approves
+        # and releases money to the expert (BR-24).
+        AUTO_APPROVE_WARNED = "auto_approve_warned", "Auto-approval warning sent"
 
     id = models.UUIDField(primary_key=True, default=uuid_lib.uuid4, editable=False)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="events")

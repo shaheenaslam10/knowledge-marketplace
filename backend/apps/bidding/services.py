@@ -51,6 +51,20 @@ def submit(expert, request: ServiceRequest, *, payload: dict[str, Any]) -> Offer
         ServiceRequest.objects.filter(pk=request.pk).update(offer_count=request.offer_count + 1)
         audit_log(expert, action="offer.submit", obj=offer, detail={"amount": amount})
     offer.refresh_from_db(fields=["request"])
+
+    # The student is the whole point of an offer: without this they would have
+    # to poll their own request to discover a bid arrived (BR-15 blind bidding
+    # means the amount stays hidden until they open it).
+    from apps.notifications.services import notify
+
+    notify(
+        request.student_id,
+        "request_new_offer",
+        title="You have a new offer",
+        body="An expert submitted an offer on your request.",
+        url=f"/requests/{request.pk}",
+        context={"request_id": str(request.pk)},
+    )
     return offer
 
 

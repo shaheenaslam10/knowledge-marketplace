@@ -37,6 +37,15 @@ def deadline_reminder() -> int:
     return services.deadline_reminder()
 
 
+def auto_approve_warning() -> int:
+    """T-24h student warning before auto-approval releases money (BR-24).
+    Deduped by the persisted auto_approve_warned event.
+    Schedule: hourly (django-q2 Scheduled tasks, ops setup)."""
+    from apps.orders import services
+
+    return services.auto_approve_warning()
+
+
 def send_order_event_email(order_id: str, event: str, extra_email: int | None = None) -> dict:
     """Backward-compatible shim: queued tasks from before the Phase 8 funnel
     land here and are translated into notifications (idempotent)."""
