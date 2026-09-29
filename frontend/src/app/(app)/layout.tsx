@@ -1,10 +1,11 @@
 "use client";
 
-import { Menu, Sparkles } from "lucide-react";
+import { Menu, Sparkles, GraduationCap, Zap, Search, LogOut, User, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import {
   DropdownMenu,
@@ -15,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useSession } from "@/features/auth/SessionProvider";
 import { NotificationBell } from "@/features/notifications/NotificationBell";
 import { NotificationToasts } from "@/features/notifications/NotificationToasts";
@@ -31,6 +33,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { status, user, logout, refresh } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const [roleMode, setRoleMode] = useState<"student" | "expert">("student");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -38,8 +41,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [status, router]);
 
-  // The API is unreachable (rate-limited, restarting, offline) — the session may
-  // well be valid, so offer a retry instead of bouncing the user to /login.
+  // Sync mode with route if navigating to expert surfaces
+  useEffect(() => {
+    if (
+      pathname.startsWith("/opportunities") ||
+      pathname.startsWith("/assignments") ||
+      pathname.startsWith("/expert") ||
+      pathname.startsWith("/offers")
+    ) {
+      setRoleMode("expert");
+    } else if (pathname.startsWith("/requests") || pathname.startsWith("/orders")) {
+      setRoleMode("student");
+    }
+  }, [pathname]);
+
+  // The API is unreachable (rate-limited, restarting, offline)
   if (status === "unreachable") {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
@@ -72,95 +88,226 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </>
   );
 
-  const nav = [
-    { href: "/requests", label: "My requests", show: true },
-    { href: "/messages", label: "Messages", show: true },
-    { href: "/opportunities", label: "Opportunities", show: Boolean(user?.roles?.expert) },
-    { href: "/offers", label: "My offers", show: Boolean(user?.roles?.expert) },
-    { href: "/assignments", label: "Assignments", show: Boolean(user?.roles?.expert) },
-    { href: "/expert/reviews", label: "Reviews", show: Boolean(user?.roles?.expert) },
-    { href: "/expert/profile", label: "Expert profile", show: Boolean(user?.roles?.expert) },
-    { href: "/account", label: "Account", show: true },
-  ].filter((item) => item.show);
+  // Student vs Expert dynamic navigation
+  const studentNav = [
+    { href: "/requests", label: "Learning Dashboard" },
+    { href: "/requests/new", label: "New Task Brief" },
+    { href: "/orders", label: "My Orders" },
+    { href: "/messages", label: "Messages" },
+    { href: "/account", label: "Account" },
+  ];
 
+  const expertNav = [
+    { href: "/opportunities", label: "Opportunity Feed" },
+    { href: "/assignments", label: "Managed Assignments" },
+    { href: "/orders", label: "Active Orders" },
+    { href: "/expert/reviews", label: "Reviews & Ratings" },
+    { href: "/expert/profile", label: "Specialist Cockpit" },
+    { href: "/messages", label: "Messages" },
+    { href: "/account", label: "Account" },
+  ];
+
+  const nav = roleMode === "expert" ? expertNav : studentNav;
   const active = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <NotificationsProvider>
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <Sparkles className="size-4 text-primary" aria-hidden />
-            <span>Expert Marketplace</span>
-          </Link>
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active(item.href) ? "page" : undefined}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm transition-colors",
-                  active(item.href) ? "bg-primary-soft text-primary" : "text-muted hover:bg-surface-2 hover:text-foreground",
-                )}
-              >
-                {item.label}
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
+        <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur">
+          <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                  <Sparkles className="size-4" aria-hidden />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-foreground">Marketplace</span>
+                  <span className="hidden text-[10px] font-semibold text-primary tracking-wider uppercase sm:inline-block">
+                    {roleMode === "student" ? "Student Workspace" : "Specialist Workspace"}
+                  </span>
+                </div>
               </Link>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-2">
-            <NotificationBell />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" aria-label="Account menu">
-                  {user?.email?.split("@")[0] ?? "Account"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => router.push("/account")}>Account</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={async () => {
-                    await logout();
-                    router.push("/");
+
+              {/* Mode Switcher Pill */}
+              <div className="hidden sm:flex items-center p-0.5 rounded-full border border-border/70 bg-surface-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoleMode("student");
+                    router.push("/requests");
                   }}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
+                    roleMode === "student"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted hover:text-foreground"
+                  }`}
                 >
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
-                  <Menu className="size-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="md:hidden">
-                <nav className="mt-6 flex flex-col gap-1" aria-label="Mobile">
-                  {nav.map((item) => (
-                    <SheetClose asChild key={item.href}>
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          "rounded-md px-3 py-2 text-sm",
-                          active(item.href) ? "bg-primary-soft text-primary" : "hover:bg-surface-2",
-                        )}
-                      >
-                        {item.label}
-                      </Link>
-                    </SheetClose>
-                  ))}
-                </nav>
-              </SheetContent>
-            </Sheet>
+                  <GraduationCap className="size-3.5" />
+                  <span>Student</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoleMode("expert");
+                    router.push("/opportunities");
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
+                    roleMode === "expert"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  <Zap className="size-3.5" />
+                  <span>Specialist</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Desktop Navigation Links */}
+            <nav className="hidden lg:flex items-center gap-1" aria-label="Main">
+              {nav.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active(item.href) ? "page" : undefined}
+                  className={cn(
+                    "rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors",
+                    active(item.href)
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted hover:bg-surface-2 hover:text-foreground",
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            {/* Right Utilities */}
+            <div className="flex items-center gap-2.5">
+              <ThemeToggle />
+              <NotificationBell />
+
+              {/* User Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" aria-label="Account menu" className="h-8 gap-2 px-2 text-xs font-semibold">
+                    <div className="size-6 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-xs">
+                      {user?.name?.charAt(0) ?? "U"}
+                    </div>
+                    <span className="hidden sm:inline-block max-w-[120px] truncate">{user?.name ?? user?.email?.split("@")[0]}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <p className="font-bold text-xs text-foreground">{user?.name}</p>
+                    <p className="text-[11px] text-muted truncate">{user?.email}</p>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => router.push("/account")}>Account Settings</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => router.push(roleMode === "student" ? "/requests" : "/opportunities")}>
+                    Switch to {roleMode === "student" ? "Specialist Mode" : "Student Mode"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      await logout();
+                      router.push("/");
+                    }}
+                    className="text-danger focus:bg-danger/10"
+                  >
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Mobile Menu Drawer */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8" aria-label="Open menu">
+                    <Menu className="size-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-full max-w-xs p-6 space-y-6">
+                  <div className="flex items-center justify-between border-b border-border pb-4">
+                    <span className="font-bold text-sm text-foreground">Workspace Menu</span>
+                  </div>
+
+                  {/* Mobile Role Switcher */}
+                  <div className="grid grid-cols-2 p-1 rounded-xl bg-surface-1 border border-border/80 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRoleMode("student");
+                        router.push("/requests");
+                      }}
+                      className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold transition-all ${
+                        roleMode === "student"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted hover:text-foreground"
+                      }`}
+                    >
+                      <GraduationCap className="size-4" />
+                      <span>Student</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRoleMode("expert");
+                        router.push("/opportunities");
+                      }}
+                      className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold transition-all ${
+                        roleMode === "expert"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted hover:text-foreground"
+                      }`}
+                    >
+                      <Zap className="size-4" />
+                      <span>Specialist</span>
+                    </button>
+                  </div>
+
+                  {/* Nav Links */}
+                  <nav className="flex flex-col gap-1.5" aria-label="Mobile">
+                    {nav.map((item) => (
+                      <SheetClose asChild key={item.href}>
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                            active(item.href)
+                              ? "bg-primary/10 text-primary font-bold"
+                              : "text-muted hover:bg-surface-2 hover:text-foreground",
+                          )}
+                        >
+                          {item.label}
+                        </Link>
+                      </SheetClose>
+                    ))}
+                  </nav>
+
+                  <div className="pt-4 border-t border-border space-y-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        await logout();
+                        router.push("/");
+                      }}
+                      className="w-full text-xs text-danger hover:bg-danger/10 justify-start px-3 font-semibold"
+                    >
+                      <LogOut className="size-3.5 mr-2" />
+                      Log out
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{notificationShell}</main>
-    </div>
+        </header>
+
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">{notificationShell}</main>
+      </div>
     </NotificationsProvider>
   );
 }
