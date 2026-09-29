@@ -16,10 +16,10 @@ export function Card({
     <div
       className={cn(
         "rounded-xl p-6 transition-all duration-200",
-        variant === "default" && "border border-border bg-surface shadow-sm",
-        variant === "glass" && "glass-panel shadow-glass",
-        variant === "glow" && "glass-panel border-glow shadow-glass",
-        variant === "elevated" && "border border-border bg-surface shadow-md",
+        variant === "default" && "border border-border bg-card text-card-foreground shadow-sm",
+        variant === "glass" && "glass-panel shadow-glass text-card-foreground",
+        variant === "glow" && "glass-panel border-glow shadow-glass text-card-foreground",
+        variant === "elevated" && "border border-border bg-card text-card-foreground shadow-md",
         hover && "hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/40",
         className
       )}

@@ -61,8 +61,8 @@ export default function StudentOnboardingPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
-      <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Set up your student profile</h1>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+      <h1 className="text-xl font-bold text-foreground">Set up your student profile</h1>
+      <p className="mt-1 text-sm text-muted">
         Optional preferences that help experts understand what you&apos;re learning. You can change this anytime.
       </p>
 

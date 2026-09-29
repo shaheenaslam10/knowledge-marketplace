@@ -28,7 +28,7 @@ export function LegalDocument({
     <article className="flex flex-col gap-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-        <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">{summary}</p>
+        <p className="mt-3 max-w-2xl text-muted">{summary}</p>
         <p className="mt-2 text-xs text-muted">Effective: {effective}</p>
       </header>
 
@@ -50,12 +50,12 @@ export function LegalDocument({
           <section key={section.heading} id={slug(section.heading)} className="scroll-mt-24">
             <h2 className="text-lg font-semibold">{section.heading}</h2>
             {section.body.map((paragraph) => (
-              <p key={paragraph} className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              <p key={paragraph} className="mt-2 text-sm text-muted">
                 {paragraph}
               </p>
             ))}
             {section.bullets ? (
-              <ul className="mt-3 flex list-disc flex-col gap-1 pl-5 text-sm text-slate-600 dark:text-slate-300">
+              <ul className="mt-3 flex list-disc flex-col gap-1 pl-5 text-sm text-muted">
                 {section.bullets.map((bullet) => (
                   <li key={bullet}>{bullet}</li>
                 ))}
@@ -65,7 +65,7 @@ export function LegalDocument({
         ))}
       </div>
 
-      <footer className="border-t border-border pt-6 text-sm text-slate-600 dark:text-slate-300">
+      <footer className="border-t border-border pt-6 text-sm text-muted">
         <p>
           Questions about this document? Contact the platform operator through your account, or see{" "}
           <Link href="/how-it-works" className="underline hover:text-foreground">

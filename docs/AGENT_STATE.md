@@ -78,26 +78,48 @@
   - Typecheck: 0 errors across `@hem/ui`, `@hem/web`, and `@hem/admin` (`tsc --noEmit`).
   - Unit & Integration Tests: 143 Vitest tests passing (25 test suites).
   - All 12 critical web and admin routes returning HTTP 200 OK.
+- [x] **Remediation Phase: Role-Based Routing, Contrast Overhaul & Next-Gen Dashboard Elevation:**
+  - **Role-Based Routing & Redirection:**
+    - Upgraded login submission (`apps/web/src/app/(auth)/login/page.tsx` & `frontend/src/app/(auth)/login/page.tsx`): Expert logins redirect immediately to `/opportunities` (Expert Workspace); Student logins redirect immediately to `/requests` (Student Workspace); query `?next=` is honored when explicitly provided.
+    - Tied active role mode to persistent state (`localStorage` key `hem_role_mode` + cookie `hem_role_mode`).
+    - Fixed workspace switcher in shell header (`(app)/layout.tsx`): Instant state persistence and route transition (`/requests` vs `/opportunities`).
+    - Handled single-role users gracefully: If user lacks expert privileges, the toggle displays an "Upgrade to Expert Specialist" callout linking to `/expert/apply` instead of a broken toggle.
+    - Added interactive Workspace Mode Switcher & Upgrade card to `/account` (`apps/web/src/app/(app)/account/page.tsx`).
+  - **Light/Dark Mode Contrast Elimination:**
+    - Mapped semantic theme tokens (`--color-card`, `--color-card-foreground`, `--color-muted-foreground`, `--color-border`) into `@theme inline` across all web, admin, and UI stylesheets.
+    - Updated `Card.tsx` in all packages to consume `border-border bg-card text-card-foreground`.
+    - Eliminated hardcoded `text-slate-900 dark:text-slate-100` and `text-slate-500 dark:text-slate-400` across 30+ application files, replacing them with crisp semantic `text-foreground` and `text-muted`.
+    - Confirmed 100% typography legibility in both Light and Dark themes.
+  - **Next-Gen Student Workspace Dashboard (`/requests`):**
+    - Executive top hero strip with personalized greeting, active discipline pill, escrow protection badge, and animated glowing "Start New Task Brief" CTA.
+    - 4-card telemetry ribbon: Active Briefs, Proposals Received, Secure Escrow Protection (100%), and Match SLA (< 18m).
+    - Dynamic Project Radar with visual filter tabs ("All Briefs", "Awaiting Bids", "In Progress", "Archives") and live search filter.
+    - Rich task cards featuring gross budget ranges, SLA deadlines, proposal status badges, and empty states with guided prompts.
+  - **Next-Gen Expert Cockpit (`/opportunities`):**
+    - High-frequency Wall Street / Terminal-caliber header with Live Stream indicator.
+    - Live Market Intelligence Ribbon: Available Bounty Pool ($), Live Open Briefs, 85% Specialist Net Payout, and Urgent (<24h) opportunities.
+    - Search bar, category filters, and quick filter pills (`[All]`, `[💎 High Budget]`, `[🤝 Managed Tasks]`, `[Unbid Briefs]`).
+    - Terminal-caliber opportunity cards with automated Net Take-Home calculator (e.g. $200 -> $170 Net), attached document badges, and "Calculate & Bid" action.
 
 ---
 
 ## 3. Production Verification & Test Results
 - **TypeScript Typecheck (`npm --prefix frontend run typecheck`):**
-  - `@hem/admin`: 0 errors.
-  - `@hem/web`: 0 errors.
-  - `@hem/ui`: 0 errors.
+  - `@hem/admin`: **0 errors**.
+  - `@hem/web`: **0 errors**.
+  - `@hem/ui`: **0 errors**.
 - **Frontend Test Suite (`npm --prefix frontend test -- --run`):**
   - **25 / 25 test files passed** (100%).
   - **143 / 143 tests passed** (100%).
-- **Backend Test Suite (`pytest`):**
+- **Backend Test Suite (`pytest backend`):**
   - **439 / 439 tests passed** (100%).
   - All business rules (BR-01 through BR-25) verified.
 - **HTTP Route Verification (all HTTP 200 OK):**
   - `http://localhost:3000/` -> 200 OK
   - `http://localhost:3000/login` -> 200 OK
   - `http://localhost:3000/register` -> 200 OK
-  - `http://localhost:3000/requests` -> 200 OK
-  - `http://localhost:3000/opportunities` -> 200 OK
+  - `http://localhost:3000/requests` -> 200 OK (Next-Gen Student Dashboard)
+  - `http://localhost:3000/opportunities` -> 200 OK (Next-Gen Expert Cockpit)
   - `http://localhost:3000/orders` -> 200 OK
   - `http://localhost:3000/messages` -> 200 OK
   - `http://localhost:3001/portal` -> 200 OK

@@ -56,15 +56,15 @@ export default function ExpertApplicationStatusPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
-      <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Expert application</h1>
+      <h1 className="text-xl font-bold text-foreground">Expert application</h1>
 
       <Card className="mt-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-semibold text-slate-900 dark:text-slate-100" data-testid="application-status-title">
+            <p className="font-semibold text-foreground" data-testid="application-status-title">
               {copy.title}
             </p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{copy.detail}</p>
+            <p className="mt-1 text-sm text-muted">{copy.detail}</p>
           </div>
           <Badge tone={copy.tone}>{status.replace("_", " ")}</Badge>
         </div>
@@ -75,7 +75,7 @@ export default function ExpertApplicationStatusPage() {
           </p>
         )}
         {resubmissions > 0 && (
-          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Resubmissions: {resubmissions}</p>
+          <p className="mt-3 text-xs text-muted">Resubmissions: {resubmissions}</p>
         )}
 
         <div className="mt-6 flex flex-wrap gap-3">
@@ -112,7 +112,7 @@ export default function ExpertApplicationStatusPage() {
         </div>
       </Card>
 
-      <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+      <p className="mt-4 text-xs text-muted">
         Lifecycle: draft → submitted → under review → approved / rejected (→ resubmit) · approved ⇄ suspended. Every
         decision is recorded and emailed.
       </p>

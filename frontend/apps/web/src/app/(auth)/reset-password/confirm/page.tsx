@@ -40,7 +40,7 @@ function ConfirmInner() {
 
   return (
     <Card>
-      <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Choose a new password</h1>
+      <h1 className="text-lg font-bold text-foreground">Choose a new password</h1>
 
       {missingParams ? (
         <div className="mt-4 space-y-4">
@@ -67,7 +67,7 @@ function ConfirmInner() {
               onChange={(e) => setPassword(e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
             />
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">At least 10 characters.</p>
+            <p className="mt-1 text-xs text-muted">At least 10 characters.</p>
           </div>
           {error && (
             <p role="alert" data-testid="confirm-error" className="text-sm text-red-700 dark:text-red-400">

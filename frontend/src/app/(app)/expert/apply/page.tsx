@@ -107,8 +107,8 @@ export default function ExpertApplyPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
-      <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Apply as an expert</h1>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+      <h1 className="text-xl font-bold text-foreground">Apply as an expert</h1>
+      <p className="mt-1 text-sm text-muted">
         {loaded && status !== "not_applied" ? `${copy.title} — ${copy.detail}` : "Become a tutor on the marketplace."}
       </p>
       {rejectionReason && status === "rejected" && (
@@ -118,7 +118,7 @@ export default function ExpertApplyPage() {
       )}
       {!editable && loaded && status !== "not_applied" && (
         <Card className="mt-4">
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-muted">
             This application is locked in its current state.{" "}
             <Link href="/expert/application" className="underline">
               View status
@@ -144,7 +144,7 @@ export default function ExpertApplyPage() {
                 maxLength={2000}
                 className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
               />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-muted">
                 Describe how you coach. You are a teacher, not a ghostwriter — the platform enforces academic-integrity
                 rules.
               </p>
@@ -188,9 +188,9 @@ export default function ExpertApplyPage() {
                 accept=".pdf,.png,.jpg,.jpeg"
                 multiple
                 onChange={(e) => void onFileChange(e.target.files)}
-                className="mt-1 block w-full text-sm text-slate-600 dark:text-slate-300"
+                className="mt-1 block w-full text-sm text-muted"
               />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-muted">
                 {uploading ? "Uploading…" : "PDF, PNG or JPG · max 10 MB · private — visible only to reviewers."}
                 {credentialIds.length > 0 && ` ${credentialIds.length} file(s) attached.`}
               </p>

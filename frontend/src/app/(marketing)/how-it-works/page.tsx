@@ -31,7 +31,7 @@ export default function HowItWorksPage() {
     <div className="flex flex-col gap-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">How it works</h1>
-        <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
+        <p className="mt-3 max-w-2xl text-muted">
           One pipeline for both business models — matching differs, everything
           else (payment, delivery, revisions, reviews, disputes) is shared.
         </p>
@@ -40,13 +40,13 @@ export default function HowItWorksPage() {
         {STEPS.map((step) => (
           <Card key={step.title}>
             <h2 className="text-lg font-semibold">{step.title}</h2>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{step.body}</p>
+            <p className="mt-2 text-sm text-muted">{step.body}</p>
           </Card>
         ))}
       </div>
       <Card>
         <h2 className="text-lg font-semibold">Academic integrity</h2>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mt-2 text-sm text-muted">
           The platform supports <strong>learning</strong>: tutoring, coaching,
           feedback on your own drafts and exam preparation. Producing graded
           coursework to submit as your own is prohibited and enforced through

@@ -69,7 +69,7 @@ export default function ExpertProfilePage() {
     return (
       <div className="mx-auto w-full max-w-2xl px-4 py-10">
         <Card>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-muted">
             Your expert profile appears here after your application is approved.{" "}
             <Link href="/expert/application" className="underline">
               Check your application status
@@ -83,9 +83,9 @@ export default function ExpertProfilePage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
-      <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Your expert profile</h1>
+      <h1 className="text-xl font-bold text-foreground">Your expert profile</h1>
       {profile && (
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-sm text-muted">
           Public page: <Link href={`/experts/${profile.slug}`} className="underline">/experts/{profile.slug}</Link>
         </p>
       )}

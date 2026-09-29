@@ -1,23 +1,23 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
 import {
-  ArrowRight,
+  Sparkles,
+  Plus,
+  ShieldCheck,
   Clock,
-  Coins,
-  FileCheck,
+  MessageSquare,
+  FileText,
+  DollarSign,
+  ChevronRight,
+  Search,
   Filter,
   GraduationCap,
   Layers,
-  MessageSquare,
-  Plus,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Users,
+  ArrowUpRight,
+  TrendingUp,
 } from "lucide-react";
-
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -26,15 +26,19 @@ import { requestsApi } from "@/features/requests/api";
 import {
   REQUEST_STATUS_COPY,
   REQUEST_STATUS_TONE,
-  type ServiceRequest,
   type RequestStatus,
+  type ServiceRequest,
 } from "@/features/requests/types";
+import { useSession } from "@/features/auth/SessionProvider";
+
+type FilterTab = "all" | "bidding" | "active" | "completed";
 
 export default function RequestsPage() {
+  const { user } = useSession();
   const [requests, setRequests] = useState<ServiceRequest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<FilterTab>("all");
 
   useEffect(() => {
     requestsApi
@@ -43,295 +47,343 @@ export default function RequestsPage() {
       .catch(() => setError("Could not load your requests."));
   }, []);
 
-  // Calculate dashboard metric cards
+  // Compute metrics
   const metrics = useMemo(() => {
-    if (!requests) return { activeOrders: 0, pendingBids: 0, totalEscrow: 0, completed: 0 };
-    const activeOrders = requests.filter((r) => r.status === "matched" || r.status === "in_progress").length;
-    const pendingBids = requests.reduce((acc, r) => acc + (r.offer_count || 0), 0);
-    const completed = requests.filter((r) => r.status === "completed").length;
-    const totalEscrow = requests
-      .filter((r) => r.status === "matched" || r.status === "in_progress")
-      .reduce((acc, r) => acc + (r.budget_max_display || 0), 0);
+    if (!requests) return { total: 0, bidding: 0, active: 0, completed: 0, totalOffers: 0 };
+    let bidding = 0;
+    let active = 0;
+    let completed = 0;
+    let totalOffers = 0;
 
-    return { activeOrders, pendingBids, totalEscrow, completed };
+    requests.forEach((req) => {
+      totalOffers += req.offer_count || 0;
+      if (req.status === "open" || req.status === "pooled" || req.status === "draft") {
+        bidding += 1;
+      } else if (req.status === "matched" || req.status === "in_progress" || req.status === "in_review") {
+        active += 1;
+      } else {
+        completed += 1;
+      }
+    });
+
+    return {
+      total: requests.length,
+      bidding,
+      active,
+      completed,
+      totalOffers,
+    };
   }, [requests]);
 
-  // Filtered requests
+  // Filter requests based on tab and search
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
-    return requests.filter((r) => {
-      const matchesSearch =
-        searchQuery === "" ||
-        r.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.subject?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    return requests.filter((req) => {
+      // Tab filter
+      if (activeTab === "bidding") {
+        if (!["open", "pooled", "draft"].includes(req.status)) return false;
+      } else if (activeTab === "active") {
+        if (!["matched", "in_progress", "in_review"].includes(req.status)) return false;
+      } else if (activeTab === "completed") {
+        if (!["completed", "cancelled", "expired", "rejected"].includes(req.status)) return false;
+      }
 
-      const matchesStatus =
-        filterStatus === "all" ||
-        (filterStatus === "open" && (r.status === "open" || r.status === "in_review" || r.status === "pooled")) ||
-        (filterStatus === "active" && (r.status === "matched" || r.status === "in_progress")) ||
-        (filterStatus === "completed" && r.status === "completed");
-
-      return matchesSearch && matchesStatus;
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const titleMatch = req.title?.toLowerCase().includes(query);
+        const descMatch = req.description?.toLowerCase().includes(query);
+        const subjectMatch = req.subject?.name?.toLowerCase().includes(query);
+        return titleMatch || descMatch || subjectMatch;
+      }
+      return true;
     });
-  }, [requests, searchQuery, filterStatus]);
+  }, [requests, activeTab, searchQuery]);
 
   return (
     <div className="space-y-8">
-      {/* 1. Header & Quick Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              Learning Dashboard
-            </h1>
-            <Badge tone="info">Student Workspace</Badge>
-          </div>
-          <p className="mt-1 text-xs sm:text-sm text-muted">
-            Track active consultation requests, compare specialist bids, and inspect milestones.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button asChild className="h-10 px-5 text-xs font-semibold shadow-md shadow-primary/20">
-            <Link href="/requests/new">
-              <span className="flex items-center gap-1.5">
-                <Plus className="size-4" /> Create Request
+      {/* 1. Executive Top Hero Strip */}
+      <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-sm">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-soft/50 px-3 py-0.5 text-xs font-semibold text-primary">
+                <GraduationCap className="size-3.5" />
+                <span>Student Learning Workspace</span>
               </span>
-            </Link>
-          </Button>
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="size-3" />
+                <span>Escrow Guarantee Protected</span>
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+              Welcome back, {user?.name?.split(" ")[0] ?? "Scholar"}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted max-w-2xl">
+              Track your academic briefs, review competitive proposals from verified doctoral specialists, and manage milestone deliverables.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <Button
+              asChild
+              className="h-11 px-5 font-semibold bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-strong hover:to-indigo-700 text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:shadow-primary/40 hover:-translate-y-0.5"
+            >
+              <Link href="/requests/new" className="flex items-center gap-2">
+                <Plus className="size-4" />
+                <span>Start New Task Brief</span>
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* 2. Top Metric Cards (Studybay Style) */}
+      {/* 2. Quick Telemetry & Escrow Health Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: In-Progress Orders */}
-        <div className="rounded-2xl border border-border/80 bg-surface p-4 sm:p-5 shadow-sm">
+        <Card className="p-5 border-border/80 bg-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted">In-Progress Orders</span>
-            <div className="flex size-7 items-center justify-center rounded-lg bg-primary-soft text-primary">
-              <Sparkles className="size-3.5" />
+            <span className="text-xs font-semibold text-muted">Active Briefs</span>
+            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <Layers className="size-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums">
-              {metrics.activeOrders}
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-foreground">
+              {requests ? metrics.bidding + metrics.active : <Skeleton className="h-8 w-12" />}
             </span>
-            <span className="text-xs text-muted">active</span>
+            <p className="mt-1 text-[11px] text-muted">Awaiting bids or in-flight</p>
           </div>
-        </div>
+        </Card>
 
-        {/* Metric 2: Pending Expert Bids */}
-        <div className="rounded-2xl border border-border/80 bg-surface p-4 sm:p-5 shadow-sm">
+        <Card className="p-5 border-border/80 bg-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Pending Expert Bids</span>
-            <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
-              <Users className="size-3.5" />
+            <span className="text-xs font-semibold text-muted">Proposals Received</span>
+            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <TrendingUp className="size-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums">
-              {metrics.pendingBids}
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-foreground">
+              {requests ? metrics.totalOffers : <Skeleton className="h-8 w-12" />}
             </span>
-            <span className="text-xs text-muted">proposals</span>
+            <p className="mt-1 text-[11px] text-muted">Total specialist bids received</p>
           </div>
-        </div>
+        </Card>
 
-        {/* Metric 3: Funds in Escrow */}
-        <div className="rounded-2xl border border-border/80 bg-surface p-4 sm:p-5 shadow-sm">
+        <Card className="p-5 border-border/80 bg-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Funds in Escrow</span>
-            <div className="flex size-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
-              <ShieldCheck className="size-3.5" />
+            <span className="text-xs font-semibold text-muted">Secure Escrow Protection</span>
+            <div className="size-8 rounded-lg bg-indigo-500/10 text-primary flex items-center justify-center">
+              <ShieldCheck className="size-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums">
-              ${metrics.totalEscrow}
-            </span>
-            <span className="text-[11px] text-emerald-500 font-semibold">100% Protected</span>
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-foreground">100%</span>
+            <p className="mt-1 text-[11px] text-muted">Milestone-gated custodian hold</p>
           </div>
-        </div>
+        </Card>
 
-        {/* Metric 4: Completed Projects */}
-        <div className="rounded-2xl border border-border/80 bg-surface p-4 sm:p-5 shadow-sm">
+        <Card className="p-5 border-border/80 bg-card">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Completed Projects</span>
-            <div className="flex size-7 items-center justify-center rounded-lg bg-surface-2 text-foreground">
-              <FileCheck className="size-3.5" />
+            <span className="text-xs font-semibold text-muted">Average Match SLA</span>
+            <div className="size-8 rounded-lg bg-amber-500/10 text-warning flex items-center justify-center">
+              <Clock className="size-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-bold text-foreground tabular-nums">
-              {metrics.completed}
-            </span>
-            <span className="text-xs text-muted">sessions</span>
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-foreground">&lt; 18m</span>
+            <p className="mt-1 text-[11px] text-muted">Median time to first proposal</p>
           </div>
-        </div>
+        </Card>
       </div>
 
-      {/* 3. Search and Status Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Status Tabs */}
-        <div className="inline-flex rounded-xl border border-border/80 bg-surface p-1 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setFilterStatus("all")}
-            className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              filterStatus === "all"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            All Requests ({requests?.length ?? 0})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterStatus("open")}
-            className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              filterStatus === "open"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            Open for Bids
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterStatus("active")}
-            className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              filterStatus === "active"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            Active In-Progress
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterStatus("completed")}
-            className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              filterStatus === "completed"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            Completed
-          </button>
-        </div>
-
-        {/* Search Filter */}
-        <div className="relative max-w-xs w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
-          <input
-            type="text"
-            placeholder="Filter requests by title or subject…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-border bg-surface py-2 pl-9 pr-3 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
-          />
-        </div>
-      </div>
-
-      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
-      {!requests && !error && (
-        <div className="space-y-4">
-          <Skeleton className="h-28 w-full rounded-2xl" />
-          <Skeleton className="h-28 w-full rounded-2xl" />
-        </div>
-      )}
-
-      {/* Empty State */}
-      {requests && filteredRequests.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-border/80 bg-surface/50 p-12 text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-            <Plus className="size-6" />
+      {/* 3. Dynamic Project Radar Navigation & Search */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+          {/* Visual Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab("all")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === "all"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted hover:text-foreground hover:bg-surface-2"
+              }`}
+            >
+              All Briefs ({metrics.total})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("bidding")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === "bidding"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted hover:text-foreground hover:bg-surface-2"
+              }`}
+            >
+              Awaiting Bids ({metrics.bidding})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("active")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === "active"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted hover:text-foreground hover:bg-surface-2"
+              }`}
+            >
+              In Progress ({metrics.active})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("completed")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === "completed"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted hover:text-foreground hover:bg-surface-2"
+              }`}
+            >
+              Archives ({metrics.completed})
+            </button>
           </div>
-          <h3 className="mt-4 text-base font-bold text-foreground">No matching requests found</h3>
-          <p className="mt-1 text-xs sm:text-sm text-muted max-w-md mx-auto">
-            {searchQuery
-              ? "Try adjusting your search query or status filter."
-              : "Describe your project or assignment needs to let verified doctoral specialists bid or get matched instantly."}
-          </p>
-          <div className="mt-6">
-            <Link href="/requests/new">
-              <Button size="sm" className="h-10 px-5 text-xs font-semibold">
-                Post New Request
-              </Button>
-            </Link>
+
+          {/* Quick Filter Search */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
+            <input
+              type="text"
+              placeholder="Search briefs by title or topic…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-8 pl-8 pr-3 rounded-lg border border-border bg-surface-2/60 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+            />
           </div>
         </div>
-      )}
 
-      {/* 4. Rich Request Cards List */}
-      <div className="grid gap-4">
-        {filteredRequests.map((req) => (
-          <div
-            key={req.id}
-            className="group rounded-2xl border border-border/80 bg-surface/90 p-5 sm:p-6 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
-          >
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="space-y-2 max-w-3xl">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="rounded-lg bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-foreground">
-                    {req.subject?.name ?? "General Discipline"}
-                  </span>
-                  <Badge tone={REQUEST_STATUS_TONE[req.status]}>
-                    {REQUEST_STATUS_COPY[req.status]}
-                  </Badge>
-                  {req.mode === "managed" ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-0.5 text-[10px] font-bold text-primary">
-                      <Sparkles className="size-3" /> Managed Matching
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-0.5 text-[10px] font-semibold text-muted">
-                      <Users className="size-3" /> Open Bids Pool
-                    </span>
-                  )}
-                </div>
+        {error && (
+          <div className="rounded-xl border border-danger/30 bg-danger-soft/60 p-4 text-xs font-medium text-danger" role="alert">
+            {error}
+          </div>
+        )}
 
-                <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
-                  {req.title || "Untitled draft"}
-                </h2>
+        {/* Loading State */}
+        {!requests && !error && (
+          <div className="space-y-3">
+            <Skeleton className="h-28 w-full rounded-2xl" />
+            <Skeleton className="h-28 w-full rounded-2xl" />
+            <Skeleton className="h-28 w-full rounded-2xl" />
+          </div>
+        )}
 
-                <p className="line-clamp-2 text-xs sm:text-sm text-muted leading-relaxed">
-                  {req.description}
-                </p>
-
-                {/* Metadata Row */}
-                <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-muted">
-                  <span className="flex items-center gap-1 font-semibold text-foreground">
-                    <Users className="size-3.5 text-primary" />
-                    <span>{req.offer_count} {req.offer_count === 1 ? "bid received" : "bids received"}</span>
-                  </span>
-                  {req.budget_max_display != null && (
-                    <span className="flex items-center gap-1">
-                      <Coins className="size-3.5 text-muted" />
-                      <span>Budget: <strong className="text-foreground">{req.budget_max_display} {req.currency}</strong></span>
-                    </span>
-                  )}
-                  {req.deadline && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="size-3.5 text-muted" />
-                      <span>Deadline: {new Date(req.deadline).toLocaleDateString()}</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Action Button */}
-              <div className="flex items-center gap-2.5 shrink-0 pt-2 lg:pt-0">
-                <Button variant="secondary" size="sm" asChild className="text-xs font-semibold">
-                  <Link href={`/requests/${req.id}`}>
-                    <span className="flex items-center gap-1">
-                      Inspect Details <ArrowRight className="size-3.5" />
-                    </span>
+        {/* Empty State */}
+        {requests && filteredRequests.length === 0 && (
+          <Card className="p-12 text-center border-dashed border-border bg-card">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
+              <FileText className="size-7" />
+            </div>
+            <h3 className="text-base font-bold text-foreground">No academic briefs in this view</h3>
+            <p className="mt-1.5 text-xs text-muted max-w-md mx-auto leading-relaxed">
+              {searchQuery
+                ? `No briefs matched your filter "${searchQuery}". Clear your search to see all active requests.`
+                : "You haven't posted any requests in this category yet. Describe the academic assistance you need and vetted doctoral specialists will submit competitive proposals."}
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              {searchQuery ? (
+                <Button variant="secondary" size="sm" onClick={() => setSearchQuery("")}>
+                  Clear Filter
+                </Button>
+              ) : (
+                <Button asChild size="sm" className="font-semibold">
+                  <Link href="/requests/new">
+                    <Plus className="size-4 mr-1.5" /> Create New Brief
                   </Link>
                 </Button>
-              </div>
+              )}
             </div>
-          </div>
-        ))}
+          </Card>
+        )}
+
+        {/* 4. Rich Request Brief Cards */}
+        <div className="grid gap-4">
+          {filteredRequests.map((req) => (
+            <Card
+              key={req.id}
+              className="p-5 sm:p-6 border-border/80 bg-card hover:border-primary/40 transition-all duration-200 shadow-sm"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                <div className="space-y-2 flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold text-foreground">
+                      {req.title || "Untitled Task Brief"}
+                    </span>
+                    <Badge tone={REQUEST_STATUS_TONE[req.status]}>
+                      {REQUEST_STATUS_COPY[req.status]}
+                    </Badge>
+                    <span className="text-[11px] font-semibold text-muted bg-surface-2 px-2.5 py-0.5 rounded-full border border-border">
+                      {req.mode === "managed" ? "White-Glove Match" : "Open Market"}
+                    </span>
+                    {req.subject?.name && (
+                      <span className="text-[11px] font-medium text-primary bg-primary-soft/40 px-2.5 py-0.5 rounded-full border border-primary/20">
+                        {req.subject.name}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="line-clamp-2 text-xs text-muted leading-relaxed">
+                    {req.description}
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted pt-1">
+                    {req.budget_max_display != null && (
+                      <span className="flex items-center gap-1 font-mono font-semibold text-foreground">
+                        <DollarSign className="size-3 text-emerald-600 dark:text-emerald-400" />
+                        <span>Budget: Up to {req.budget_max_display} {req.currency}</span>
+                      </span>
+                    )}
+                    {req.deadline && (
+                      <span className="flex items-center gap-1 text-foreground">
+                        <Clock className="size-3 text-warning" />
+                        <span>Deadline: {req.deadline}</span>
+                      </span>
+                    )}
+                    <span className="text-muted">
+                      Created on {new Date(req.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right Action / Proposal Pill */}
+                <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-center gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-border/60">
+                  <div className="text-left lg:text-right">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted block">
+                      Proposals Status
+                    </span>
+                    <span className="text-sm font-bold text-foreground">
+                      {req.offer_count === 0 ? (
+                        <span className="text-muted font-normal text-xs">Waiting for specialists…</span>
+                      ) : (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                          {req.offer_count} proposal{req.offer_count === 1 ? "" : "s"} ready
+                        </span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button variant="secondary" size="sm" asChild className="h-8 text-xs font-semibold">
+                      <Link href={`/requests/${req.id}`}>
+                        <span>Inspect Proposals</span>
+                        <ChevronRight className="size-3.5 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );

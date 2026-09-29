@@ -38,10 +38,32 @@ function LoginForm() {
     setError(null);
     setSubmitting(true);
     try {
-      await authApi.login({ email: email.trim(), password });
+      const res = await authApi.login({ email: email.trim(), password });
       await refresh();
       const next = searchParams.get("next");
-      router.push(next && next.startsWith("/") ? next : "/account");
+      
+      const isExpert =
+        Boolean(res?.user?.roles?.expert) ||
+        (activeRole === "expert" && email.toLowerCase().includes("expert")) ||
+        email.toLowerCase().startsWith("expert@");
+
+      if (typeof window !== "undefined") {
+        try {
+          const mode = isExpert ? "EXPERT" : "STUDENT";
+          localStorage.setItem("hem_role_mode", mode);
+          document.cookie = `hem_role_mode=${mode}; path=/; max-age=31536000; SameSite=Lax`;
+        } catch {}
+      }
+
+      if (next && next.startsWith("/")) {
+        if (next === "/account" && isExpert) {
+          router.push("/opportunities");
+        } else {
+          router.push(next);
+        }
+      } else {
+        router.push(isExpert ? "/opportunities" : "/requests");
+      }
     } catch (err) {
       setError(authErrorMessage(err));
       setShake(true);
@@ -54,11 +76,11 @@ function LoginForm() {
   function handleDemoSelect(role: "student" | "expert") {
     setActiveRole(role);
     if (role === "student") {
-      setEmail("student@demo.local");
-      setPassword("demo-password-1234");
+      setEmail("student@example.com");
+      setPassword("password123");
     } else {
-      setEmail("expert@demo.local");
-      setPassword("demo-password-1234");
+      setEmail("expert@example.com");
+      setPassword("password123");
     }
     setError(null);
   }

@@ -65,7 +65,7 @@ export default function AboutPage() {
     <div className="flex flex-col gap-10">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">About</h1>
-        <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
+        <p className="mt-3 max-w-2xl text-muted">
           A marketplace connecting students with vetted subject experts — built so that both sides
           know exactly what happens to the work and the money.
         </p>
@@ -75,7 +75,7 @@ export default function AboutPage() {
         <h2 id="what-it-is" className="text-lg font-semibold">
           What it is
         </h2>
-        <p className="mt-3 max-w-3xl text-sm text-slate-600 dark:text-slate-300">
+        <p className="mt-3 max-w-3xl text-sm text-muted">
           Most platforms pick one model: either an open marketplace where you sift through bids, or
           a managed service that picks someone for you. This one runs both, over a single shared
           pipeline. How you get matched is the only thing that differs — payment, messaging, file
@@ -84,14 +84,14 @@ export default function AboutPage() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Card>
             <h3 className="text-sm font-semibold">Open marketplace</h3>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            <p className="mt-2 text-sm text-muted">
               Post a request and eligible experts send offers. You compare price, timeline, rating
               and track record, then choose. Best when you want control and options.
             </p>
           </Card>
           <Card>
             <h3 className="text-sm font-semibold">Managed service</h3>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            <p className="mt-2 text-sm text-muted">
               The platform reviews your request, prices it and matches a suitable expert. Best when
               you would rather not evaluate candidates yourself.
             </p>
@@ -107,7 +107,7 @@ export default function AboutPage() {
           {PRINCIPLES.map((principle) => (
             <Card key={principle.title}>
               <h3 className="text-sm font-semibold">{principle.title}</h3>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{principle.body}</p>
+              <p className="mt-2 text-sm text-muted">{principle.body}</p>
               {principle.href && (
                 <p className="mt-3 text-sm">
                   <Link href={principle.href} className="underline">
@@ -125,7 +125,7 @@ export default function AboutPage() {
           When something goes wrong
         </h2>
         <Card className="mt-4">
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-muted">
             Delivery not what was agreed? Ask for a revision inside the order. If that does not
             resolve it, either side can open a dispute within the window after completion. Disputes
             are reviewed by staff with the full order history — messages, files, deadlines and

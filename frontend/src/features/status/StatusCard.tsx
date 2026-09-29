@@ -12,8 +12,8 @@ export function StatusCard({ health }: { health: { status: string; database: boo
     <Card className="w-full max-w-md">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Backend API</p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-sm font-semibold text-foreground">Backend API</p>
+          <p className="mt-1 text-xs text-muted">
             {live ? "Connected to the Django service" : "Backend not reachable right now"}
           </p>
         </div>

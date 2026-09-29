@@ -39,7 +39,7 @@ export default async function SubjectsPage() {
     <div className="flex flex-col gap-8">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Subjects</h1>
-        <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
+        <p className="mt-3 max-w-2xl text-muted">
           Every subject the marketplace covers. Pick one to see the experts available, or{" "}
           <Link href="/experts" className="underline">
             browse the full directory
@@ -51,7 +51,7 @@ export default async function SubjectsPage() {
       {subjects.length === 0 ? (
         <Card data-testid="subjects-unavailable">
           <h2 className="text-lg font-semibold">Subjects are unavailable right now</h2>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-2 text-sm text-muted">
             We could not load the subject list. You can still{" "}
             <Link href="/experts" className="underline">
               browse every expert
@@ -87,7 +87,7 @@ export default async function SubjectsPage() {
               <h2 id="open-subjects" className="text-lg font-semibold">
                 Subjects without a listed expert yet
               </h2>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              <p className="mt-2 text-sm text-muted">
                 You can still post a request in these — the managed service will match an expert.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">

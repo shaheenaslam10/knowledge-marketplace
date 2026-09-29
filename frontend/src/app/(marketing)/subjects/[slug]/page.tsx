@@ -69,7 +69,7 @@ export default async function SubjectPage({ params }: PageProps) {
       <div className="flex flex-col gap-6">
         <header>
           <h1 className="text-3xl font-bold tracking-tight">Subject unavailable</h1>
-          <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
+          <p className="mt-3 max-w-2xl text-muted">
             We could not load this subject just now. Please try again shortly, or{" "}
             <Link href="/experts" className="underline">
               browse every expert
@@ -150,7 +150,7 @@ export default async function SubjectPage({ params }: PageProps) {
 
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Find help in {subject.name}</h1>
-        <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">{description}</p>
+        <p className="mt-3 max-w-2xl text-muted">{description}</p>
         <p className="mt-3 text-sm text-muted" data-testid="subject-expert-count">
           {expertCount === 0
             ? "No experts are listed in this subject yet."
@@ -187,11 +187,11 @@ export default async function SubjectPage({ params }: PageProps) {
                     <Badge tone="neutral">Paused</Badge>
                   )}
                 </div>
-                <p className="mt-3 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
+                <p className="mt-3 line-clamp-2 text-sm text-muted">
                   {expert.expertise_summary}
                 </p>
                 {expert.rating_count > 0 && (
-                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                  <p className="mt-3 text-xs text-muted">
                     ★ {expert.rating_avg} · {expert.rating_count} review
                     {expert.rating_count === 1 ? "" : "s"}
                   </p>
@@ -208,7 +208,7 @@ export default async function SubjectPage({ params }: PageProps) {
       ) : (
         <Card data-testid="subject-empty-state">
           <h2 className="text-lg font-semibold">No {subject.name} experts listed yet</h2>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-2 text-sm text-muted">
             You can still post a request — the managed service reviews it and matches a vetted
             expert for you, and experts joining this subject will see it in the marketplace.
           </p>

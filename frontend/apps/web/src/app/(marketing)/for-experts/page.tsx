@@ -115,7 +115,7 @@ export default async function ForExpertsPage() {
 
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Teach what you know. Get paid for it.</h1>
-        <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
+        <p className="mt-3 max-w-2xl text-muted">
           Join a vetted marketplace of tutors, coaches and subject experts. Bid on the requests you
           want, or let the platform match you with students who need exactly your expertise.
         </p>
@@ -171,7 +171,7 @@ export default async function ForExpertsPage() {
                     {keepPercent}
                     <span className="text-xl text-muted">% to you</span>
                   </p>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                  <p className="mt-2 text-sm text-muted">
                     {tier.percent}% platform commission. {blurb}
                   </p>
                 </Card>
@@ -180,7 +180,7 @@ export default async function ForExpertsPage() {
           </div>
         ) : (
           <Card className="mt-4" data-testid="expert-commission-unavailable">
-            <p className="text-sm text-slate-600 dark:text-slate-300">
+            <p className="text-sm text-muted">
               Commission rates could not be loaded right now. They are published in full on the{" "}
               <Link href="/pricing" className="underline">
                 pricing page
@@ -205,14 +205,14 @@ export default async function ForExpertsPage() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Card>
             <h3 className="text-sm font-semibold">Open marketplace</h3>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            <p className="mt-2 text-sm text-muted">
               Students post requests; you send an offer with your price and timeline. You compete on
               expertise and track record, and you decide which requests are worth your time.
             </p>
           </Card>
           <Card>
             <h3 className="text-sm font-semibold">Managed assignments</h3>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            <p className="mt-2 text-sm text-muted">
               The platform triages a request, sets the price and routes it to a suitable expert —
               either into a pool you can claim or directly to you. Higher commission, no bidding.
             </p>
@@ -228,7 +228,7 @@ export default async function ForExpertsPage() {
           {STEPS.map((step) => (
             <Card key={step.title}>
               <h3 className="text-sm font-semibold">{step.title}</h3>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{step.body}</p>
+              <p className="mt-2 text-sm text-muted">{step.body}</p>
             </Card>
           ))}
         </div>
@@ -239,12 +239,12 @@ export default async function ForExpertsPage() {
           What we ask of you
         </h2>
         <Card className="mt-4">
-          <ul className="flex list-disc flex-col gap-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
+          <ul className="flex list-disc flex-col gap-2 pl-5 text-sm text-muted">
             {REQUIREMENTS.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
-          <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-4 text-sm text-muted">
             The integrity policy is not decoration: this platform supports tutoring, coaching,
             feedback on a student&rsquo;s own work and exam preparation. Producing graded coursework
             for submission is prohibited, and experts are expected to report requests that ask for
@@ -265,7 +265,7 @@ export default async function ForExpertsPage() {
           {faq.map((item) => (
             <Card key={item.q}>
               <h3 className="text-sm font-semibold">{item.q}</h3>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{item.a}</p>
+              <p className="mt-2 text-sm text-muted">{item.a}</p>
             </Card>
           ))}
         </div>
@@ -273,7 +273,7 @@ export default async function ForExpertsPage() {
 
       <Card>
         <h2 className="text-lg font-semibold">Ready to apply?</h2>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mt-2 text-sm text-muted">
           Applications are reviewed by a person, typically within 48 hours.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">

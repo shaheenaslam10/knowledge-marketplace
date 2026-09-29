@@ -35,13 +35,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [roleMode, setRoleMode] = useState<"student" | "expert">("student");
 
+  // Read stored role preference
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("hem_role_mode");
+      if (stored === "EXPERT") {
+        setRoleMode("expert");
+      } else if (stored === "STUDENT") {
+        setRoleMode("student");
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/login?next=/account");
     }
   }, [status, router]);
 
-  // Sync mode with route if navigating to expert surfaces
+  // Sync mode with route if navigating to role-specific surfaces
   useEffect(() => {
     if (
       pathname.startsWith("/opportunities") ||
@@ -50,10 +62,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       pathname.startsWith("/offers")
     ) {
       setRoleMode("expert");
-    } else if (pathname.startsWith("/requests") || pathname.startsWith("/orders")) {
+      try {
+        localStorage.setItem("hem_role_mode", "EXPERT");
+        document.cookie = "hem_role_mode=EXPERT; path=/; max-age=31536000; SameSite=Lax";
+      } catch {}
+    } else if (pathname.startsWith("/requests")) {
       setRoleMode("student");
+      try {
+        localStorage.setItem("hem_role_mode", "STUDENT");
+        document.cookie = "hem_role_mode=STUDENT; path=/; max-age=31536000; SameSite=Lax";
+      } catch {}
     }
   }, [pathname]);
+
+  const isExpertUser = Boolean(user?.roles?.expert);
+
+  const handleSwitchToStudent = () => {
+    setRoleMode("student");
+    try {
+      localStorage.setItem("hem_role_mode", "STUDENT");
+      document.cookie = "hem_role_mode=STUDENT; path=/; max-age=31536000; SameSite=Lax";
+    } catch {}
+    router.push("/requests");
+  };
+
+  const handleSwitchToExpert = () => {
+    setRoleMode("expert");
+    try {
+      localStorage.setItem("hem_role_mode", "EXPERT");
+      document.cookie = "hem_role_mode=EXPERT; path=/; max-age=31536000; SameSite=Lax";
+    } catch {}
+    router.push("/opportunities");
+  };
 
   // The API is unreachable (rate-limited, restarting, offline)
   if (status === "unreachable") {
@@ -130,38 +170,48 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
 
               {/* Mode Switcher Pill */}
-              <div className="hidden sm:flex items-center p-0.5 rounded-full border border-border/70 bg-surface-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRoleMode("student");
-                    router.push("/requests");
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
-                    roleMode === "student"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted hover:text-foreground"
-                  }`}
-                >
-                  <GraduationCap className="size-3.5" />
-                  <span>Student</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRoleMode("expert");
-                    router.push("/opportunities");
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
-                    roleMode === "expert"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted hover:text-foreground"
-                  }`}
-                >
-                  <Zap className="size-3.5" />
-                  <span>Specialist</span>
-                </button>
-              </div>
+              {isExpertUser ? (
+                <div className="hidden sm:flex items-center p-0.5 rounded-full border border-border bg-surface-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={handleSwitchToStudent}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
+                      roleMode === "student"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted hover:text-foreground"
+                    }`}
+                  >
+                    <GraduationCap className="size-3.5" />
+                    <span>Student</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSwitchToExpert}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
+                      roleMode === "expert"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted hover:text-foreground"
+                    }`}
+                  >
+                    <Zap className="size-3.5" />
+                    <span>Specialist</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="hidden sm:flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-soft/50 px-3 py-1 text-xs font-semibold text-primary">
+                    <GraduationCap className="size-3.5" />
+                    <span>Student Workspace</span>
+                  </span>
+                  <Link
+                    href="/expert/apply"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1 text-xs font-semibold text-muted hover:border-primary/50 hover:text-primary transition-colors"
+                  >
+                    <Zap className="size-3 text-warning" />
+                    <span>Become an Expert</span>
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Desktop Navigation Links */}
@@ -205,9 +255,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => router.push("/account")}>Account Settings</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => router.push(roleMode === "student" ? "/requests" : "/opportunities")}>
-                    Switch to {roleMode === "student" ? "Specialist Mode" : "Student Mode"}
-                  </DropdownMenuItem>
+                  {isExpertUser ? (
+                    <DropdownMenuItem onSelect={() => (roleMode === "student" ? handleSwitchToExpert() : handleSwitchToStudent())}>
+                      Switch to {roleMode === "student" ? "Specialist Mode" : "Student Mode"}
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onSelect={() => router.push("/expert/apply")}>
+                      Apply as Expert Specialist
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onSelect={async () => {
@@ -234,38 +290,51 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
 
                   {/* Mobile Role Switcher */}
-                  <div className="grid grid-cols-2 p-1 rounded-xl bg-surface-1 border border-border/80 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRoleMode("student");
-                        router.push("/requests");
-                      }}
-                      className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold transition-all ${
-                        roleMode === "student"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted hover:text-foreground"
-                      }`}
-                    >
-                      <GraduationCap className="size-4" />
-                      <span>Student</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRoleMode("expert");
-                        router.push("/opportunities");
-                      }}
-                      className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold transition-all ${
-                        roleMode === "expert"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted hover:text-foreground"
-                      }`}
-                    >
-                      <Zap className="size-4" />
-                      <span>Specialist</span>
-                    </button>
-                  </div>
+                  {isExpertUser ? (
+                    <div className="grid grid-cols-2 p-1 rounded-xl bg-surface-2 border border-border/80 text-xs">
+                      <button
+                        type="button"
+                        onClick={handleSwitchToStudent}
+                        className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold transition-all ${
+                          roleMode === "student"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted hover:text-foreground"
+                        }`}
+                      >
+                        <GraduationCap className="size-4" />
+                        <span>Student</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSwitchToExpert}
+                        className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-bold transition-all ${
+                          roleMode === "expert"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted hover:text-foreground"
+                        }`}
+                      >
+                        <Zap className="size-4" />
+                        <span>Specialist</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-border bg-surface-2 p-3.5 space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                        <GraduationCap className="size-4 text-primary" />
+                        <span>Active Mode: Student</span>
+                      </div>
+                      <p className="text-[11px] text-muted leading-relaxed">
+                        Want to offer academic consultations and earn on bounties?
+                      </p>
+                      <Link
+                        href="/expert/apply"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+                      >
+                        <Zap className="size-3.5 text-warning" />
+                        <span>Upgrade to Specialist →</span>
+                      </Link>
+                    </div>
+                  )}
 
                   {/* Nav Links */}
                   <nav className="flex flex-col gap-1.5" aria-label="Mobile">
@@ -311,3 +380,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </NotificationsProvider>
   );
 }
+
