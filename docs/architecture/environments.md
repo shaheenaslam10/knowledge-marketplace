@@ -105,6 +105,7 @@
 | `APP_DOMAIN` | `app.example.com` | `(auth)`+`(app)` hostname |
 | `ADMIN_DOMAIN` | `admin.example.com` | `(portal)` hostname |
 | `API_DOMAIN` | `api.example.com` | Django/API hostname |
+| `APEX_DOMAIN` | `example.com` | apex domain redirected to `SITE_DOMAIN` (Caddy) |
 | `ACME_EMAIL` | `ops@example.com` | Let's Encrypt registration for automatic TLS |
 | `READYZ_URL` | `http://api:8000/readyz` | worker entrypoint's readiness target (compose sets it; defaults to the dev service name) |
 

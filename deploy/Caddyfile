@@ -17,6 +17,7 @@
 #   APP_DOMAIN    app.example.com
 #   ADMIN_DOMAIN  admin.example.com
 #   API_DOMAIN    api.example.com
+#   APEX_DOMAIN   example.com
 #   ACME_EMAIL    ops@example.com
 
 {
@@ -121,6 +122,6 @@
 }
 
 # Apex -> www, so the bare domain is never a dead end.
-example.com {
+{$APEX_DOMAIN} {
 	redir https://{$SITE_DOMAIN}{uri} permanent
 }

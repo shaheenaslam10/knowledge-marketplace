@@ -80,8 +80,8 @@ Create 4 `A` (and optionally `AAAA`) records pointing to your server's public IP
 | `api` | A | `<Server-Public-IP>` | `API_DOMAIN` (Backend REST & WebSockets) |
 
 > [!IMPORTANT]
-> **Apex Domain Redirection:** In `deploy/Caddyfile` (lines 124–126), Caddy redirects the bare apex domain to `https://{$SITE_DOMAIN}`.
-> Ensure you either point your apex A record to the host and update `example.com` in `deploy/Caddyfile` to your apex domain, or configure root domain redirection at your DNS registrar (e.g., Cloudflare Page Rules / URL Forwarding).
+> **Apex Domain Redirection:** In `deploy/Caddyfile`, Caddy automatically redirects the bare apex domain `{$APEX_DOMAIN}` to `https://{$SITE_DOMAIN}`.
+> Configure `APEX_DOMAIN` in your `.env.production` (e.g., `example.com`), and point an `A` record for your apex domain to the host IP. If you manage root domain redirection at your DNS registrar (e.g., Cloudflare Page Rules / URL Forwarding), set `APEX_DOMAIN` to match or point to Caddy.
 
 ### 3. Email Provider (SMTP or Brevo)
 The platform requires transactional email for account verification, password resets, and critical business notifications.
@@ -217,6 +217,7 @@ Open `.env.production` in your preferred editor (`nano .env.production`) and fil
 | `APP_DOMAIN` | Non-Secret | Required | App domain, e.g., `app.example.com` |
 | `ADMIN_DOMAIN` | Non-Secret | Required | Operations portal domain, e.g., `admin.example.com` |
 | `API_DOMAIN` | Non-Secret | Required | Backend API domain, e.g., `api.example.com` |
+| `APEX_DOMAIN` | Non-Secret | Required | Apex domain redirected to `SITE_DOMAIN`, e.g., `example.com` |
 | `ACME_EMAIL` | Non-Secret | Required | Operator email for Let's Encrypt renewal notices |
 | `ALLOWED_HOSTS` | Non-Secret | Required | Comma-separated: `api.example.com` |
 | `FRONTEND_URL` | Non-Secret | Required | `https://app.example.com` |
@@ -520,7 +521,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production logs caddy
 - Ensure DNS A records for all 4 domains point to the server's public IP.
 - Confirm ports 80 and 443 are open on your host firewall (`sudo ufw status`).
 - Check that `ACME_EMAIL` in `.env.production` is a valid email address.
-- Verify `example.com` in `deploy/Caddyfile` is either updated to your apex domain or commented out.
+- Verify `APEX_DOMAIN` in `.env.production` matches your apex domain and points to the server IP.
 
 ### Q: WebSocket chat disconnects immediately or fails to connect.
 **A:** 
