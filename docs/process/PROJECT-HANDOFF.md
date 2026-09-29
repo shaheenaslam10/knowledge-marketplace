@@ -20,7 +20,8 @@ Working branch:     arena/01a0e69d-knowledge-marketplace  (this session's branch
 Latest commit:      see `git log -1` (Phase 12 chain listed in roadmap-phases.md)
 Read first:         docs/process/roadmap-phases.md  → "Phase 12 — Production Deployment
                                                        (record)" — honest acceptance status
-                    docs/architecture/deployment.md → runbook + owner actions
+                    docs/architecture/deployment.md → deployment architecture + owner actions
+                    docs/deployment/PRODUCTION-DEPLOYMENT.md → complete operator runbook (Phases A–H)
                     docs/architecture/backup-recovery.md → restore-drill evidence
 Since then:         A full-codebase completeness audit ran against the four
                     experiences. It found and FIXED two real gaps (details in

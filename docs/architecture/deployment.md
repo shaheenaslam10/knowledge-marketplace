@@ -6,7 +6,7 @@
 > [Deployment status](#deployment-status-read-this-first).
 > Last updated: Phase 12 · Related: [costs](../operations/costs.md) ·
 > [environments](environments.md) · [backup-recovery](backup-recovery.md) ·
-> [observability](observability.md) · ADR-0016, ADR-0017
+> [observability](observability.md) · [operator runbook](../deployment/PRODUCTION-DEPLOYMENT.md) · ADR-0016, ADR-0017
 
 ## Deployment status (read this first)
 
