@@ -46,6 +46,8 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   user: SessionUser;
+  access?: string;
+  refresh?: string;
 }
 
 export interface DetailResponse {

@@ -100,6 +100,26 @@
     - Live Market Intelligence Ribbon: Available Bounty Pool ($), Live Open Briefs, 85% Specialist Net Payout, and Urgent (<24h) opportunities.
     - Search bar, category filters, and quick filter pills (`[All]`, `[💎 High Budget]`, `[🤝 Managed Tasks]`, `[Unbid Briefs]`).
     - Terminal-caliber opportunity cards with automated Net Take-Home calculator (e.g. $200 -> $170 Net), attached document badges, and "Calculate & Bid" action.
+- [x] **Admin Operations Console Cross-Port Auth & 401 Elimination:**
+  - **Django API & SimpleJWT Dual-Auth Alignment:**
+    - Updated `backend/config/settings/base.py`: Allowed `http://localhost:3001` and `http://127.0.0.1:3001` in CORS allowed origins with `CORS_ALLOW_CREDENTIALS = True` and `SESSION_COOKIE_SAMESITE = 'Lax'`.
+    - Updated `backend/apps/accounts/api/views.py` (`LoginView` and `RefreshView`): Return `access` and `refresh` token strings in the response body alongside setting `_set_auth_cookies`, allowing clients to authenticate via both httpOnly cookies and `Authorization: Bearer <token>`.
+  - **Admin API Client Token Interceptor:**
+    - Updated `frontend/apps/admin/src/lib/api/client.ts`: Automatically attaches `Authorization: Bearer <token>` from `localStorage` (`admin_access_token` / `hm_access_token`) when present.
+    - Intercepts 401 responses in browser context, clears stale tokens, and smoothly redirects to `/login?next=${pathname}`.
+  - **Executive Admin Auth Gateway (`apps/admin/src/app/(auth)/login/`):**
+    - Built dedicated `AdminAuthLayout` with executive dark/light styling, operations telemetry cards, and zero-trust protocol indicators.
+    - Built `AdminLoginPage` with 1-click platform administrator sign-in (`admin@example.com` / `password123`), password toggle, and staff role verification.
+  - **Portal Auth Guard & Operational Shell Integration:**
+    - Upgraded `frontend/apps/admin/src/app/(portal)/layout.tsx` with `useSession()`:
+      - Renders high-fidelity skeleton loading state while determining auth status (prevents firing unauthenticated API requests).
+      - Automatically redirects unauthenticated visitors to `/login?next=...`.
+      - Enforces permission matrix check (`user.roles.admin || user.roles.staff || user.roles.support`), presenting an Access Restricted screen with sign-out action if unauthorized.
+      - Displays live authenticated user info (initials, name/email, `SUPERUSER` badge) and interactive sign-out buttons in the header and sidebar.
+  - **Live Verification:**
+    - Verified all operations endpoints (`/api/v1/ops/kpis?range=30d`, `/api/v1/ops/reports?status=open`, `/api/v1/ops/disputes`) return HTTP 200 OK.
+    - Verified `http://localhost:3001/login` and `http://localhost:3001/portal` return HTTP 200 OK.
+    - Vitest: 143 / 143 passed (100%). Pytest: 439 / 439 passed (100%). TypeScript: 0 errors.
 
 ---
 
@@ -122,7 +142,8 @@
   - `http://localhost:3000/opportunities` -> 200 OK (Next-Gen Expert Cockpit)
   - `http://localhost:3000/orders` -> 200 OK
   - `http://localhost:3000/messages` -> 200 OK
-  - `http://localhost:3001/portal` -> 200 OK
+  - `http://localhost:3001/login` -> 200 OK (Admin Sign-In Gateway)
+  - `http://localhost:3001/portal` -> 200 OK (Executive Operations Cockpit)
   - `http://localhost:3001/portal/dispatch` -> 200 OK
   - `http://localhost:3001/portal/disputes` -> 200 OK
   - `http://localhost:3001/portal/experts` -> 200 OK

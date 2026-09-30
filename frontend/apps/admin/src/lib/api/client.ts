@@ -35,22 +35,51 @@ interface ApiFetchOptions extends RequestInit {
 export async function apiFetch<T>({ path, baseUrl, ...init }: ApiFetchOptions): Promise<T> {
   const url = (baseUrl ?? API_URL_BROWSER) + path;
   const method = (init.method ?? "GET").toUpperCase();
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...(method !== "GET" && method !== "HEAD" ? { "X-Requested-With": "XMLHttpRequest" } : {}),
+    // FormData sets its own multipart boundary — never override it
+    ...(init.body && typeof init.body === "string" ? { "Content-Type": "application/json" } : {}),
+    ...(init.headers as Record<string, string> | undefined),
+  };
+
+  if (!headers["Authorization"] && typeof window !== "undefined") {
+    try {
+      const token =
+        localStorage.getItem("admin_access_token") ||
+        localStorage.getItem("hm_access_token");
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    } catch {}
+  }
+
   const response = await fetch(url, {
     ...init,
     credentials: "include",
-    headers: {
-      Accept: "application/json",
-      ...(method !== "GET" && method !== "HEAD" ? { "X-Requested-With": "XMLHttpRequest" } : {}),
-      // FormData sets its own multipart boundary — never override it
-      ...(init.body && typeof init.body === "string" ? { "Content-Type": "application/json" } : {}),
-      ...init.headers,
-    },
+    headers,
   });
 
   const isJson = response.headers.get("content-type")?.includes("application/json");
   const payload = isJson ? await response.json() : null;
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("admin_access_token");
+      } catch {}
+
+      if (
+        !path.includes("/auth/token") &&
+        !path.includes("/auth/logout") &&
+        !window.location.pathname.startsWith("/login")
+      ) {
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/login?next=${next}`;
+      }
+    }
+
     const envelope = payload as ErrorEnvelope | null;
     if (envelope?.error) {
       throw new ApiError(

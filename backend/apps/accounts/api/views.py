@@ -140,7 +140,14 @@ class LoginView(APIView):
         user.save(update_fields=["last_login_ip", "last_login"])
         refresh = RefreshToken.for_user(user)
         logger.info("login user_id=%s", user.pk)
-        return _set_auth_cookies(Response({"user": UserSummarySerializer(user).data}), refresh)
+        return _set_auth_cookies(
+            Response({
+                "user": UserSummarySerializer(user).data,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            }),
+            refresh,
+        )
 
 
 class RefreshView(APIView):
@@ -175,7 +182,14 @@ class RefreshView(APIView):
                 code="token_invalid",
                 status_code=status.HTTP_401_UNAUTHORIZED,
             ) from None
-        return _set_auth_cookies(Response({"detail": "Token refreshed."}), new)
+        return _set_auth_cookies(
+            Response({
+                "detail": "Token refreshed.",
+                "access": str(new.access_token),
+                "refresh": str(new),
+            }),
+            new,
+        )
 
 
 class LogoutView(APIView):

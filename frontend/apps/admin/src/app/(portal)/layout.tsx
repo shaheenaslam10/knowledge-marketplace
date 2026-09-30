@@ -23,11 +23,15 @@ import {
   X,
   Sparkles,
   Command,
+  LogOut,
+  Loader2,
 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/features/auth/SessionProvider";
 
 interface NavItem {
   href: string;
@@ -70,11 +74,21 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
+  const { user, status, logout } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Redirect unauthenticated users to /login
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      const next = encodeURIComponent(pathname);
+      router.replace(`/login?next=${next}`);
+    }
+  }, [status, pathname, router]);
 
   // Cmd+K listener
   useEffect(() => {
@@ -91,10 +105,115 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // 1. Loading Skeleton View
+  if (status === "loading") {
+    return (
+      <div className="flex min-h-screen bg-background text-foreground">
+        <aside className="hidden lg:flex w-64 flex-col border-r border-border/80 bg-surface p-4 space-y-4">
+          <div className="flex items-center gap-2.5 h-10">
+            <Skeleton className="size-8 rounded-lg" />
+            <div className="space-y-1">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-2 w-20" />
+            </div>
+          </div>
+          <Skeleton className="h-8 w-full rounded-xl" />
+          <div className="space-y-2 pt-4">
+            <Skeleton className="h-6 w-full rounded-lg" />
+            <Skeleton className="h-6 w-full rounded-lg" />
+            <Skeleton className="h-6 w-full rounded-lg" />
+            <Skeleton className="h-6 w-full rounded-lg" />
+          </div>
+        </aside>
+        <div className="flex-1 flex flex-col">
+          <header className="h-14 border-b border-border/80 bg-surface flex items-center justify-between px-6">
+            <Skeleton className="h-5 w-48" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-7 w-32 rounded-full" />
+              <Skeleton className="size-7 rounded-full" />
+            </div>
+          </header>
+          <main className="p-6 max-w-7xl mx-auto w-full space-y-6">
+            <Skeleton className="h-28 w-full rounded-2xl" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Skeleton className="h-40 rounded-2xl" />
+              <Skeleton className="h-40 rounded-2xl" />
+              <Skeleton className="h-40 rounded-2xl" />
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated Redirecting View
+  if (status === "unauthenticated") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <div className="text-center space-y-3">
+          <Loader2 className="size-8 animate-spin text-primary mx-auto" />
+          <p className="text-xs text-muted">Redirecting to Operations Sign-In...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Permission Gate: User must have admin, staff, or support roles
+  const isAuthorized = Boolean(user?.roles?.admin || user?.roles?.staff || user?.roles?.support);
+
+  if (!isAuthorized) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground p-4">
+        <div className="max-w-md w-full rounded-3xl border border-danger/30 bg-surface p-8 text-center space-y-4 shadow-2xl">
+          <div className="size-12 rounded-2xl bg-danger-soft text-danger flex items-center justify-center mx-auto">
+            <ShieldAlert className="size-6" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground">Operations Access Restricted</h2>
+          <p className="text-xs text-muted leading-relaxed">
+            Authenticated as <span className="font-mono text-foreground font-semibold">{user?.email}</span>,
+            but this account does not possess operations or staff privileges.
+          </p>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={async () => {
+                await logout();
+                router.replace("/login");
+              }}
+            >
+              Sign Out & Switch Account
+            </Button>
+            <a
+              href="http://localhost:3000"
+              className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl border border-border text-xs font-semibold text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
+            >
+              Go to Marketplace
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const allNavItems = NAV_SECTIONS.flatMap((s) => s.items);
   const filteredCommands = allNavItems.filter((i) =>
     i.label.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  const userInitial = (user?.name?.[0] || user?.email?.[0] || "A").toUpperCase();
+  const roleLabel = user?.roles?.admin ? "SUPERUSER" : user?.roles?.staff ? "STAFF" : "SUPPORT";
+
+  async function handleLogout() {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("admin_access_token");
+        localStorage.removeItem("hm_access_token");
+      } catch {}
+    }
+    await logout();
+    router.replace("/login");
+  }
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -247,7 +366,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           ))}
         </nav>
 
-        {/* Sidebar Footer: System Status & Marketplace Switcher */}
+        {/* Sidebar Footer: System Status, Public Link & Sign Out */}
         <div className="p-3 border-t border-border/70 space-y-2 bg-surface-1/50">
           <div className="flex items-center justify-between px-2 text-[11px] text-muted">
             <span className="flex items-center gap-1.5 font-medium">
@@ -257,15 +376,25 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <span className="font-mono text-[10px]">8ms</span>
           </div>
 
-          <a
-            href="http://localhost:3000"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg border border-border/60 bg-surface hover:bg-surface-2 text-xs text-muted hover:text-foreground transition-colors"
-          >
-            <span className="truncate">Public Marketplace</span>
-            <ExternalLink className="size-3 text-muted shrink-0" />
-          </a>
+          <div className="flex items-center gap-2 pt-1">
+            <a
+              href="http://localhost:3000"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-border/60 bg-surface hover:bg-surface-2 text-xs text-muted hover:text-foreground transition-colors"
+            >
+              <span className="truncate">Marketplace</span>
+              <ExternalLink className="size-3 text-muted shrink-0" />
+            </a>
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-lg border border-border/60 bg-surface hover:bg-danger-soft hover:text-danger text-muted transition-colors"
+              title="Sign Out"
+              aria-label="Sign Out"
+            >
+              <LogOut className="size-3.5" />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -307,19 +436,27 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
             <ThemeToggle />
 
-            {/* Admin User Badge */}
+            {/* Admin User Profile */}
             <div className="flex items-center gap-2 pl-2 border-l border-border/60">
               <div className="size-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-bold text-primary">
-                A
+                {userInitial}
               </div>
               <div className="hidden sm:block text-left">
-                <span className="text-xs font-bold text-foreground block leading-none">
-                  Platform Admin
+                <span className="text-xs font-bold text-foreground block leading-none truncate max-w-[120px]">
+                  {user?.name || "Platform Admin"}
                 </span>
                 <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 leading-none">
-                  SUPERUSER
+                  {roleLabel}
                 </span>
               </div>
+              <button
+                onClick={handleLogout}
+                className="ml-1 text-muted hover:text-danger p-1 rounded transition-colors"
+                title="Sign Out"
+                aria-label="Sign Out"
+              >
+                <LogOut className="size-3.5" />
+              </button>
             </div>
           </div>
         </header>
