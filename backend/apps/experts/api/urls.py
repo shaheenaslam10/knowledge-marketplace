@@ -11,6 +11,14 @@ urlpatterns = [
     path(
         "experts/<slug:slug>", views.ExpertPublicDetailView.as_view(), name="expert-public-detail"
     ),
+    # public subject landing pages (seo-ux.md) — discovery over the directory,
+    # so they live with the directory rather than in the taxonomy app.
+    path("subjects", views.PublicSubjectListView.as_view(), name="public-subject-list"),
+    path(
+        "subjects/<slug:slug>",
+        views.PublicSubjectDetailView.as_view(),
+        name="public-subject-detail",
+    ),
     # own application (create/edit/submit)
     path(
         "me/expert-application",

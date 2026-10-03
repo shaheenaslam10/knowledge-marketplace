@@ -38,6 +38,14 @@ class Command(BaseCommand):
         parser.add_argument("--force", action="store_true", help="Allow outside dev/test settings.")
 
     def handle(self, *args, **options):
+        # Hard stop: --force is an escape hatch for disposable environments, NOT
+        # for production. Demo accounts with published passwords in a live
+        # marketplace would be an immediate account-takeover path (Phase 12).
+        if getattr(settings, "DEPLOY_ENV", "local") == "production":
+            raise SystemExit(
+                "Refusing to seed: DEPLOY_ENV=production. Demo accounts use published "
+                "passwords and must never exist in production — --force does not override this."
+            )
         if (
             "dev" not in settings.SETTINGS_MODULE
             and "test" not in settings.SETTINGS_MODULE

@@ -1,6 +1,6 @@
 # Web Product Architecture — Three Experiences, One Product
 
-> Status: ✅ adopted (pre-Phase-4 refinement) · Last updated: Phase 3.5 · ADR-0013 · Related: [frontend](frontend.md), [design system](../design/design-system.md), [seo-ux](seo-ux.md)
+> Status: ✅ adopted and **host mapping implemented (Phase 12)** · Last updated: Phase 12 · ADR-0013 · Related: [frontend](frontend.md), [design system](../design/design-system.md), [seo-ux](seo-ux.md)
 
 ## Decision in one paragraph
 
@@ -38,11 +38,39 @@ URLs are the contract; subdomains are a reverse-proxy/middleware mapping:
 
 Implementation: **middleware is host-aware but path-authoritative.** In dev (`localhost:3000`) every path works as-is. In production, hosts are pinned by the reverse proxy and `middleware.ts` redirects mismatched host/path combinations (e.g. `app.` + `/pricing` → `www.<domain>/pricing`). No multi-zone builds, no second frontend app — if marketing dependencies ever bloat the shared bundle beyond budget, **Next.js Multi-Zones is the documented escape hatch** (same repo, three `next build` targets), evaluated only against the performance budget in docs/design/design-system.md §Performance.
 
+**Implemented in Phase 12** (`frontend/src/middleware.ts`, `resolveHostRedirect`):
+the mapping is driven by `NEXT_PUBLIC_MARKETING_HOST`, `NEXT_PUBLIC_APP_HOST` and
+`NEXT_PUBLIC_PORTAL_HOST`, and Caddy pins the hosts (`deploy/Caddyfile`).
+
+Two rules keep it safe:
+
+- **All three variables must be set, and the request host must be one of them**,
+  otherwise no redirect happens. A partial mapping is a configuration mistake;
+  redirecting on one would strand users on a host that does not exist yet.
+- Unset everywhere but production — so `localhost:3000`, CI and Playwright keep
+  serving every path from one origin, and 308s never interfere with tests.
+
+Redirects are 308 (method- and body-preserving), carry the original path and
+query, and run before the auth guard so an unauthenticated cross-host request
+lands on the right host's login. Covered by 7 unit tests in `middleware.test.ts`.
+
 ## Route inventory (current + planned)
 
 Current (Phase 1–3): `(marketing)`: `/`, `/how-it-works`, `/experts`, `/experts/[slug]` · `(auth)`: `/login`, `/register`, `/verify-email`, `/reset-password(+/confirm)` · `(app)`: `/account`, `/onboarding/student`, `/expert/apply`, `/expert/application`, `/expert/profile` · middleware guards: `/account/*`, `/onboarding/*`, `/expert/*`.
 
 Arrives with Phase 4+ (roadmap): student `/dashboard`, `/requests/*`, `/offers/*`, `/orders/*`, `/messages/*`, `/files`, `/reviews`, `/settings`; expert opportunities/earnings views; `(portal)` shell + first operations screens (Admin operations phase); marketing `/pricing`, `/for-experts`, `/about`, `/legal/*`, `/blog/*`.
+
+**Status (Phase 12, marketing completion).** The public surface is now complete
+except for the blog. Shipped: `/`, `/how-it-works`, `/experts`,
+`/experts/[slug]`, `/pricing`, `/subjects`, `/subjects/[slug]`, `/for-experts`,
+`/about`, and the legal set (`/terms`, `/privacy`, `/academic-integrity`).
+
+`/blog/*` is **not** built, and deliberately so: `docs/product/mvp-scope.md`
+lists "Blog/CMS for SEO content" in the *out-of-MVP* table (rationale:
+"Directory + subject pages first"), and no blog model, content API, CMS
+integration or markdown pipeline exists anywhere in the repository. Building
+one would mean inventing a content system the product has explicitly deferred.
+The route and design stay reserved, as seo-ux.md already records.
 
 ## Mobile-first requirement
 

@@ -28,6 +28,14 @@ ALLOWED_HOSTS = [
 ]
 APP_VERSION = env.str("APP_VERSION", default="0.1.0")
 
+# Which deployment this process IS, independent of which settings module it
+# loaded. `prod.py` is used by BOTH staging and production, so DEBUG/settings
+# module cannot distinguish them — this can (Phase 12, ADR-0016). It drives the
+# production safety checks (apps.core.checks), the seed guard and the
+# noindex/robots behaviour that keeps staging out of search results.
+DEPLOY_ENV = env.str("DEPLOY_ENV", default="local")  # local | ci | staging | production
+DEPLOYED_ENVIRONMENTS = ("staging", "production")
+
 # --- Applications ---
 # NOTE: `accounts` (custom user) lands in Phase 2; until then Django's default
 # user model is used deliberately — swapping AUTH_USER_MODEL must happen before
@@ -217,14 +225,24 @@ COOKIE_SECURE = env.bool("COOKIE_SECURE", default=False)
 
 # --- CORS / origins ---
 FRONTEND_URL = env.str("FRONTEND_URL", default="http://localhost:3000")
+ADMIN_URL_ORIGIN = env.str("ADMIN_URL_ORIGIN", default="http://localhost:3001")
 BACKEND_URL = env.str("BACKEND_URL", default="http://localhost:8000")
+DEFAULT_CORS_ORIGINS = (
+    f"{FRONTEND_URL},{ADMIN_URL_ORIGIN},http://127.0.0.1:3000,http://127.0.0.1:3001"
+)
 CORS_ALLOWED_ORIGINS = [
-    o.strip() for o in env.str("CORS_ALLOWED_ORIGINS", default=FRONTEND_URL).split(",") if o.strip()
+    o.strip()
+    for o in env.str("CORS_ALLOWED_ORIGINS", default=DEFAULT_CORS_ORIGINS).split(",")
+    if o.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_TRUSTED_ORIGINS = [
     o.strip()
-    for o in env.str("CSRF_TRUSTED_ORIGINS", default=f"{FRONTEND_URL},{BACKEND_URL}").split(",")
+    for o in env.str(
+        "CSRF_TRUSTED_ORIGINS",
+        default=f"{DEFAULT_CORS_ORIGINS},{BACKEND_URL},http://127.0.0.1:8000",
+    ).split(",")
     if o.strip()
 ]
 

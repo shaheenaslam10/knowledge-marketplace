@@ -42,9 +42,9 @@ function VerifyEmailInner() {
 
   return (
     <Card>
-      <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Verify your email</h1>
+      <h1 className="text-lg font-bold text-foreground">Verify your email</h1>
 
-      {state === "verifying" && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Verifying…</p>}
+      {state === "verifying" && <p className="mt-4 text-sm text-muted">Verifying…</p>}
 
       {state === "success" && (
         <div className="mt-4 space-y-4">
@@ -69,12 +69,12 @@ function VerifyEmailInner() {
       {state === "idle" && (
         <div className="mt-4 space-y-4">
           {justRegistered && status === "authenticated" ? (
-            <p className="text-sm text-slate-600 dark:text-slate-300" data-testid="verify-instructions">
+            <p className="text-sm text-muted" data-testid="verify-instructions">
               Check your inbox — we sent you a verification link. A verified email unlocks posting, offers and
               messaging (you can still browse meanwhile).
             </p>
           ) : (
-            <p className="text-sm text-slate-600 dark:text-slate-300">
+            <p className="text-sm text-muted">
               Open the link from your inbox to verify your email address.
             </p>
           )}
@@ -119,7 +119,7 @@ function ResendButton() {
       >
         {sending ? "Sending…" : "Resend verification email"}
       </Button>
-      {message && <p className="text-xs text-slate-500 dark:text-slate-400">{message}</p>}
+      {message && <p className="text-xs text-muted">{message}</p>}
     </div>
   );
 }

@@ -101,6 +101,11 @@ _EVENT_COPY = {
     "dispute_resolved": (("both",), "dispute_resolved", "The dispute on your order was resolved"),
     "overdue_flagged": (("both",), "order_overdue_flagged", "This order is past its deadline"),
     "deadline_extended": (("both",), "order_deadline_extended", "The order deadline was extended"),
+    "auto_approve_warning": (
+        ("student",),
+        "order_auto_approve_warning",
+        "Your delivery auto-approves in 24 hours",
+    ),
 }
 
 
@@ -376,6 +381,8 @@ def create_order_for_request(
     from apps.payments.config import commission_split, rate_for_source
 
     expert_pk = getattr(expert, "pk", expert)
+    if request.student_id == expert_pk:
+        raise DomainError("Student and expert cannot be the same account.", code="self_dealing")
     profile = ExpertProfile.objects.filter(pk=expert_pk).first()
     commission, net = commission_split(amount, rate_for_source(source))
     order = Order.objects.create(
@@ -437,6 +444,38 @@ def deadline_reminder(now: datetime | None = None) -> int:
         _notify(order, "deadline_reminder", extra_email=order.expert_id)
         reminded += 1
     return reminded
+
+
+AUTO_APPROVE_WARNING_HOURS = 24
+
+
+def auto_approve_warning(now: datetime | None = None) -> int:
+    """T-24h student warning before an unreviewed delivery auto-approves (BR-24).
+
+    Auto-approval completes the order and releases the expert's money. Doing
+    that silently is the problem: the student gets one last chance to approve
+    deliberately, request a revision, or dispute. Idempotent via the persisted
+    event marker, so the hourly tick cannot re-warn.
+    """
+    now = now or timezone.now()
+    horizon = now + timedelta(hours=AUTO_APPROVE_WARNING_HOURS)
+    warned = 0
+    for order in (
+        Order.objects.filter(
+            status=Order.Status.DELIVERED,
+            auto_approve_at__gt=now,
+            auto_approve_at__lte=horizon,
+        )
+        .exclude(events__event_type=OrderEvent.EventType.AUTO_APPROVE_WARNED)
+        .select_related("request")
+        .iterator()
+    ):
+        OrderEvent.objects.create(
+            order=order, event_type=OrderEvent.EventType.AUTO_APPROVE_WARNED, data={}
+        )
+        _notify(order, "auto_approve_warning", extra_email=order.student_id)
+        warned += 1
+    return warned
 
 
 # --- deadline proposals + overdue flagging (order-lifecycle.md, Phase 9) ----------

@@ -411,9 +411,20 @@ def schedule_payout(order, *, now=None):
             "payout rolled forward order=%s amount_minor=%s below floor", order.number, amount
         )
         return None
-    return Payout.objects.create(
+    payout = Payout.objects.create(
         order=order, expert_id=order.expert_id, amount_minor=amount, currency=order.currency
     )
+    from apps.notifications.services import notify
+
+    notify(
+        order.expert_id,
+        "payout_scheduled",
+        title="Payout scheduled",
+        body="Your earnings for a completed order are scheduled for payout.",
+        url="/orders",
+        context={"payout_id": str(payout.pk), "order_id": str(order.pk)},
+    )
+    return payout
 
 
 @transaction.atomic
@@ -486,6 +497,18 @@ def mark_payout_failed(payout: Payout, *, actor=None, reason: str) -> Payout:
     payout.failure_reason = reason[:255]
     payout.save(update_fields=["status", "failure_reason", "updated_at"])
     audit_log(actor, action="payout.fail", obj=payout, detail={"reason": reason[:255]})
+    # ops_report already alerts staff. The expert is the one actually missing
+    # money, so silence here is the worst possible failure mode.
+    from apps.notifications.services import notify
+
+    notify(
+        payout.expert_id,
+        "payout_failed",
+        title="Payout failed",
+        body="We could not send your payout. Support has been notified and will follow up.",
+        url="/orders",
+        context={"payout_id": str(payout.pk)},
+    )
     return payout
 
 
