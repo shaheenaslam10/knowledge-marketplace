@@ -13,6 +13,8 @@ import {
   Sparkles,
   Loader2,
   ShieldCheck,
+  BookOpen,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { authApi } from "@/features/auth/api";
@@ -24,7 +26,6 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [activeRole, setActiveRole] = useState<"student" | "expert">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,10 +42,9 @@ function LoginForm() {
       const res = await authApi.login({ email: email.trim(), password });
       await refresh();
       const next = searchParams.get("next");
-      
+
       const isExpert =
         Boolean(res?.user?.roles?.expert) ||
-        (activeRole === "expert" && email.toLowerCase().includes("expert")) ||
         email.toLowerCase().startsWith("expert@");
 
       if (typeof window !== "undefined") {
@@ -73,15 +73,9 @@ function LoginForm() {
     }
   }
 
-  function handleDemoSelect(role: "student" | "expert") {
-    setActiveRole(role);
-    if (role === "student") {
-      setEmail("student@example.com");
-      setPassword("password123");
-    } else {
-      setEmail("expert@example.com");
-      setPassword("password123");
-    }
+  function fillDemo() {
+    setEmail("student@demo.local");
+    setPassword("demo-password-1234");
     setError(null);
   }
 
@@ -91,57 +85,40 @@ function LoginForm() {
         shake ? "animate-[wiggle_0.4s_ease-in-out]" : ""
       }`}
     >
-      {/* Title & Subtitle */}
+      {/* Title & Role Badge */}
       <div className="space-y-1.5">
         <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-soft/60 px-3 py-0.5 text-[11px] font-semibold text-primary">
-          <ShieldCheck className="size-3.5" />
-          <span>Secure Academic Access</span>
+          <GraduationCap className="size-3.5" />
+          <span>Student Portal</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-          Sign In
+          Welcome Back
         </h1>
         <p className="text-xs sm:text-sm text-muted">
-          Access your research consultations, active requests, or specialist bids.
+          Sign in to access your requests, orders, and expert consultations.
         </p>
       </div>
 
-      {/* 1. Quick Role Switcher / 1-Click Demo Access Bar */}
-      <div className="mt-5 rounded-2xl border border-border/80 bg-surface-2/60 p-1.5">
-        <div className="flex items-center justify-between px-2 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted">
-          <span>Quick 1-Click Demo Login</span>
-          <span className="text-primary font-semibold">Instant Access</span>
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            onClick={() => handleDemoSelect("student")}
-            className={`flex items-center justify-center gap-2 rounded-xl py-2 px-3 text-xs font-semibold transition-all ${
-              activeRole === "student" && email === "student@demo.local"
-                ? "bg-surface text-foreground shadow-sm border border-border/80 ring-1 ring-primary/30"
-                : "text-muted hover:text-foreground hover:bg-surface/50"
-            }`}
+      {/* Quick Benefits Strip */}
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        {[
+          { icon: ShieldCheck, label: "Escrow protected" },
+          { icon: BookOpen, label: "Expert matched" },
+          { icon: Zap, label: "Fast turnaround" },
+        ].map(({ icon: Icon, label }) => (
+          <div
+            key={label}
+            className="flex flex-col items-center gap-1 rounded-xl border border-border/60 bg-surface-2/40 p-2.5 text-center"
           >
-            <GraduationCap className="size-4 text-primary" />
-            <span>Student Account</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDemoSelect("expert")}
-            className={`flex items-center justify-center gap-2 rounded-xl py-2 px-3 text-xs font-semibold transition-all ${
-              activeRole === "expert" && email === "expert@demo.local"
-                ? "bg-surface text-foreground shadow-sm border border-border/80 ring-1 ring-primary/30"
-                : "text-muted hover:text-foreground hover:bg-surface/50"
-            }`}
-          >
-            <Sparkles className="size-4 text-primary" />
-            <span>Expert Specialist</span>
-          </button>
-        </div>
+            <Icon className="size-4 text-primary" />
+            <span className="text-[10px] font-medium text-muted leading-tight">{label}</span>
+          </div>
+        ))}
       </div>
 
-      {/* 2. Login Form */}
+      {/* Login Form */}
       <form onSubmit={onSubmit} className="mt-5 space-y-4" noValidate>
-        {/* Email Field with Icon */}
+        {/* Email */}
         <div>
           <label htmlFor="email" className="block text-xs font-semibold text-foreground">
             Email
@@ -153,7 +130,7 @@ function LoginForm() {
               type="email"
               autoComplete="email"
               required
-              placeholder="name@university.edu or student@demo.local"
+              placeholder="name@university.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-3.5 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -161,7 +138,7 @@ function LoginForm() {
           </div>
         </div>
 
-        {/* Password Field with Show/Hide Toggle */}
+        {/* Password */}
         <div>
           <div className="flex items-center justify-between">
             <label htmlFor="password" className="block text-xs font-semibold text-foreground">
@@ -197,8 +174,8 @@ function LoginForm() {
           </div>
         </div>
 
-        {/* Remember Me Checkbox */}
-        <div className="flex items-center">
+        {/* Remember Me */}
+        <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted">
             <input
               type="checkbox"
@@ -206,11 +183,11 @@ function LoginForm() {
               onChange={(e) => setRememberMe(e.target.checked)}
               className="size-4 rounded border-border text-primary focus:ring-primary/20"
             />
-            <span>Remember this device for 30 days</span>
+            <span>Remember me for 30 days</span>
           </label>
         </div>
 
-        {/* Error Alert with Micro-shake */}
+        {/* Error */}
         {error && (
           <div
             role="alert"
@@ -221,7 +198,7 @@ function LoginForm() {
           </div>
         )}
 
-        {/* Submit Button */}
+        {/* Submit */}
         <Button
           type="submit"
           disabled={submitting}
@@ -230,69 +207,50 @@ function LoginForm() {
         >
           {submitting ? (
             <span className="flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin" /> Authenticating…
+              <Loader2 className="size-4 animate-spin" /> Signing in…
             </span>
           ) : (
             <span className="flex items-center justify-center gap-1.5">
-              Sign In to Workspace <ArrowRight className="size-4" />
+              Sign In to Student Zone <ArrowRight className="size-4" />
             </span>
           )}
         </Button>
       </form>
 
-      {/* 3. Polished Third-Party Auth Buttons */}
-      <div className="relative my-6 text-center">
+      {/* Divider */}
+      <div className="relative my-5 text-center">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border/80" />
         </div>
         <span className="relative bg-surface px-3 text-[10px] font-bold uppercase tracking-wider text-muted">
-          Or Authenticate With
+          Or try the demo
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
-        <button
-          type="button"
-          onClick={() => handleDemoSelect("student")}
-          className="flex h-10 items-center justify-center gap-2 rounded-xl border border-border/80 bg-surface-2/40 px-3 text-xs font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/40 shadow-sm"
-        >
-          <svg className="size-4" viewBox="0 0 24 24">
-            <path
-              fill="#4285F4"
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-            />
-            <path
-              fill="#EA4335"
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-            />
-          </svg>
-          <span>Google Account</span>
-        </button>
+      {/* Demo Button */}
+      <button
+        type="button"
+        onClick={fillDemo}
+        className="w-full flex items-center justify-center gap-2 rounded-xl border border-border/80 bg-surface-2/40 px-3 h-10 text-xs font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/40 shadow-sm"
+      >
+        <GraduationCap className="size-4 text-primary" />
+        <span>Fill Student Demo Credentials</span>
+      </button>
 
-        <button
-          type="button"
-          onClick={() => handleDemoSelect("expert")}
-          className="flex h-10 items-center justify-center gap-2 rounded-xl border border-border/80 bg-surface-2/40 px-3 text-xs font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/40 shadow-sm"
-        >
-          <GraduationCap className="size-4 text-foreground" />
-          <span>Institutional SSO</span>
-        </button>
-      </div>
-
-      {/* Footer Link */}
-      <div className="mt-6 text-center text-xs text-muted">
-        Don&apos;t have an account yet?{" "}
-        <Link href="/register" className="font-semibold text-primary hover:underline">
-          Create an account
-        </Link>
+      {/* Footer Links */}
+      <div className="mt-6 space-y-2 text-center text-xs text-muted">
+        <div>
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="font-semibold text-primary hover:underline">
+            Create student account
+          </Link>
+        </div>
+        <div className="pt-1 border-t border-border/60">
+          Are you a specialist?{" "}
+          <Link href="/login/expert" className="font-semibold text-primary hover:underline inline-flex items-center gap-1">
+            <Sparkles className="size-3" /> Expert login
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -312,4 +270,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-

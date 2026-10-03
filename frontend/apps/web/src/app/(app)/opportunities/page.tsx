@@ -305,8 +305,19 @@ export default function OpportunitiesPage() {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-danger/30 bg-danger-soft/60 p-4 text-xs font-medium text-danger" role="alert">
-            {error}
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 space-y-3" role="alert">
+            <div className="flex items-center gap-2.5 text-foreground font-bold text-sm">
+              <Zap className="size-4 text-amber-500" />
+              <span>Specialist Verification Required</span>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              {error} Complete your academic specialist dossier to unlock access to live student bounties, direct quote requests, and fast-track escrow payouts.
+            </p>
+            <Button asChild size="sm" className="text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl">
+              <Link href="/expert/apply">
+                <span>Complete Specialist Application →</span>
+              </Link>
+            </Button>
           </div>
         )}
 

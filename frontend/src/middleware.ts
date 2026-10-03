@@ -25,7 +25,7 @@ const PROTECTED_PREFIXES = [
   "/orders",
   "/portal",
 ];
-const AUTH_PAGES = ["/login", "/register"];
+const AUTH_PAGES = ["/login", "/login/expert", "/register", "/register/expert"];
 const ACCESS_COOKIE = "hm_access";
 
 /**
@@ -40,7 +40,7 @@ const ACCESS_COOKIE = "hm_access";
  * promoting the rest to edge redirects is a one-line change to this list once
  * it has been verified against the E2E journey pack.
  */
-const REDIRECT_SCOPE = ["/account", "/onboarding", "/expert", "/login", "/register"];
+const REDIRECT_SCOPE = ["/account", "/onboarding", "/expert", "/login", "/login/expert", "/register", "/register/expert"];
 
 export function resolveRoute(pathname: string, hasAccessCookie: boolean): string | null {
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -74,7 +74,9 @@ export type Experience = "marketing" | "app" | "portal";
 
 const APP_PREFIXES = [
   "/login",
+  "/login/expert",
   "/register",
+  "/register/expert",
   "/verify-email",
   "/reset-password",
   "/account",

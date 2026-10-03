@@ -33,6 +33,48 @@ import { useSession } from "@/features/auth/SessionProvider";
 
 type FilterTab = "all" | "bidding" | "active" | "completed";
 
+function getSubjectBadgeClass(subjectName?: string) {
+  if (!subjectName) return "bg-primary/10 text-primary border-primary/20";
+  const lower = subjectName.toLowerCase();
+  if (
+    lower.includes("cs") ||
+    lower.includes("computer") ||
+    lower.includes("code") ||
+    lower.includes("software") ||
+    lower.includes("ai") ||
+    lower.includes("data")
+  ) {
+    return "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/25";
+  }
+  if (
+    lower.includes("math") ||
+    lower.includes("stat") ||
+    lower.includes("calculus") ||
+    lower.includes("algebra") ||
+    lower.includes("geometry")
+  ) {
+    return "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/25";
+  }
+  if (
+    lower.includes("econ") ||
+    lower.includes("finance") ||
+    lower.includes("accounting") ||
+    lower.includes("business") ||
+    lower.includes("market")
+  ) {
+    return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25";
+  }
+  if (
+    lower.includes("eng") ||
+    lower.includes("physics") ||
+    lower.includes("chem") ||
+    lower.includes("biology")
+  ) {
+    return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25";
+  }
+  return "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/25";
+}
+
 export default function RequestsPage() {
   const { user } = useSession();
   const [requests, setRequests] = useState<ServiceRequest[] | null>(null);
@@ -112,9 +154,15 @@ export default function RequestsPage() {
                 <GraduationCap className="size-3.5" />
                 <span>Student Learning Workspace</span>
               </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                🔥 5-Day Academic Streak
+              </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                 <ShieldCheck className="size-3" />
                 <span>Escrow Guarantee Protected</span>
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/25 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-violet-600 dark:text-violet-400">
+                ⭐ Top Match SLA (&lt;18m)
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
@@ -136,6 +184,72 @@ export default function RequestsPage() {
               </Link>
             </Button>
           </div>
+        </div>
+      </div>
+
+      {/* AI Quick Task Launchpad (Interactive Accelerators) */}
+      <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/5 via-surface-1 to-violet-500/5 p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-7 items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-indigo-600 text-primary-foreground shadow-xs">
+              <Sparkles className="size-3.5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-foreground">AI Quick Launchpad</h2>
+              <p className="text-[11px] text-muted">Select an academic challenge to generate an instant structured brief:</p>
+            </div>
+          </div>
+          <Link
+            href="/requests/new"
+            className="text-xs font-semibold text-primary hover:text-primary-strong flex items-center gap-1 group self-start md:self-auto"
+          >
+            <span>Custom Brief Builder</span>
+            <ArrowUpRight className="size-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          </Link>
+        </div>
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          {[
+            {
+              label: "⚡ Python / Algorithm Optimization",
+              title: "Python Algorithm Optimization & Vectorization",
+              prompt: "Need assistance profiling and optimizing Python code bottlenecks, vectorizing operations with NumPy/Pandas, and ensuring clean asymptotic runtime complexity.",
+              category: "code_review",
+            },
+            {
+              label: "📐 Multivariable Calculus & Proofs",
+              title: "Multivariable Calculus & Differential Proofs",
+              prompt: "Need step-by-step conceptual walkthrough and verification of multivariable calculus proofs and coordinate transformation problems.",
+              category: "tutoring",
+            },
+            {
+              label: "📝 Academic Paper & Thesis Review",
+              title: "Academic Paper & Literature Review Critique",
+              prompt: "Need comprehensive peer review of academic tone, literature review framing, citation rigor, and thesis counter-arguments.",
+              category: "tutoring",
+            },
+            {
+              label: "📊 Econometrics & Regression Models",
+              title: "Econometrics Regression & Time-Series Modeling",
+              prompt: "Need guidance resolving heteroskedasticity, autocorrelation, and interpreting multivariate regression results in Stata / R.",
+              category: "tutoring",
+            },
+            {
+              label: "🧠 Machine Learning & PyTorch",
+              title: "PyTorch Model Debugging & Loss Convergence",
+              prompt: "Need specialist review of custom PyTorch loss function, gradient clipping, and validation curve overfitting.",
+              category: "code_review",
+            },
+          ].map((item) => (
+            <Link
+              key={item.label}
+              href={`/requests/new?title=${encodeURIComponent(item.title)}&prompt=${encodeURIComponent(item.prompt)}&category=${encodeURIComponent(item.category)}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-surface-1 hover:bg-surface-2 hover:border-primary/40 text-xs font-semibold text-foreground transition-all hover:scale-[1.02] shadow-2xs group"
+            >
+              <span>{item.label}</span>
+              <Sparkles className="size-3 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+            </Link>
+          ))}
         </div>
       </div>
 
@@ -310,7 +424,7 @@ export default function RequestsPage() {
           {filteredRequests.map((req) => (
             <Card
               key={req.id}
-              className="p-5 sm:p-6 border-border/80 bg-card hover:border-primary/40 transition-all duration-200 shadow-sm"
+              className="p-5 sm:p-6 border-border/80 bg-card hover:border-primary/40 hover:-translate-y-1 hover:shadow-lg transition-all duration-200 shadow-sm"
             >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                 <div className="space-y-2 flex-1 min-w-0">
@@ -325,7 +439,11 @@ export default function RequestsPage() {
                       {req.mode === "managed" ? "White-Glove Match" : "Open Market"}
                     </span>
                     {req.subject?.name && (
-                      <span className="text-[11px] font-medium text-primary bg-primary-soft/40 px-2.5 py-0.5 rounded-full border border-primary/20">
+                      <span
+                        className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full border ${getSubjectBadgeClass(
+                          req.subject.name,
+                        )}`}
+                      >
                         {req.subject.name}
                       </span>
                     )}

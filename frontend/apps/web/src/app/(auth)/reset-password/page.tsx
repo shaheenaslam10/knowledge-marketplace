@@ -29,11 +29,11 @@ export default function ResetPasswordPage() {
 
   return (
     <Card>
-      <h1 className="text-lg font-bold text-foreground">Reset your password</h1>
+      <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Reset your password</h1>
 
       {sent ? (
         <div className="mt-4 space-y-4">
-          <p data-testid="reset-sent" className="text-sm text-muted">
+          <p data-testid="reset-sent" className="text-sm text-slate-600 dark:text-slate-300">
             If that address has an account, a reset link is on its way. Check your inbox.
           </p>
           <Link href="/login" className="block text-sm text-slate-500 hover:underline dark:text-slate-400">
@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
         </div>
       ) : (
         <>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Enter your email and we&apos;ll send you a reset link.
           </p>
           <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
               {submitting ? "Sending…" : "Send reset link"}
             </Button>
           </form>
-          <p className="mt-4 text-sm text-muted">
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
             <Link href="/login" className="hover:underline">
               Back to log in
             </Link>

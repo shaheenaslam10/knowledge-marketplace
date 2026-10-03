@@ -17,11 +17,66 @@
 ---
 
 ## 2. Phase Tracker
-- **Current Phase:** Phase 5: Final Production Polish, Responsive Audit & Handoff — **COMPLETE**
-- **Overall Status:** **`PRODUCTION_READY`** (Dual-native Next.js 15 monorepo, 0 type errors, 143 frontend Vitest tests passing, 439 backend pytest tests passing, HTTP 200 on all routes).
+- **Current Phase:** Dedicated Dual-Role Auth & High-Converting Zone A Experience — **COMPLETE**
+- **Overall Status:** **`PRODUCTION_READY`** (Dual-native Next.js 15 monorepo, 0 type errors, 143 frontend Vitest tests passing, 440 backend pytest tests passing, HTTP 200 on all routes).
 
 ### Completed Tasks
-- [x] Backend functional verification & full test suite passing (439 pytest tests, business rules BR-01 through BR-25).
+- [x] **Dedicated Student vs Expert Auth Architecture (No Radio Toggles):**
+  - **Student Login (`/login`):** Streamlined sign-in with student benefits strip (Escrow protected, Expert matched, Fast turnaround), 1-click student demo credentials (`student@demo.local`), and cross-role footer link to Expert Login.
+  - **Specialist Login (`/login/expert`):** Dedicated executive amber cockpit portal with payout metrics (85% payout, Verified profile, Grow your reach), 1-click expert demo credentials (`expert@demo.local`), and direct routing to `/opportunities` or `/expert/apply`.
+  - **Student Registration (`/register`):** Student-focused onboarding with study level (undergrad, masters, phd) and primary academic discipline, 4-bar password complexity meter, and academic integrity honor code attestation.
+  - **Specialist Registration (`/register/expert`):** Professional specialist intake with highest degree held (PhD, Postdoc, Masters, Industry), alma mater/institution field, and expertise taxonomy selection.
+  - **Middleware & Edge Routing Synchronization:** Updated `AUTH_PAGES`, `REDIRECT_SCOPE`, and `APP_PREFIXES` in `src/middleware.ts` to natively support `/login/expert` and `/register/expert`.
+- [x] **Zone A Marketing Experience & Visual Overhaul (`(marketing)/page.tsx` & `/for-experts`):**
+  - **Student-First Hero Section:** Clean, bold typography ("Your Academic Breakthrough Starts Here"), real-time network status pill, and zero-compromise CSS gradients and SVG illustrations.
+  - **4-Column Student Protection Grid:** Escrow Protection, Top 3% Vetted Experts, Fast Turnaround, and 24/7 Concierge Support.
+  - **Interactive Scope Simulator:** Live algorithmic scope estimator with real-time budget ranges, turnaround SLAs, and audience perspective toggling.
+  - **Orchestrated 3-Step Pipeline:** Visual journey through brief articulation, competitive blind bidding (BR-15), and escrow delivery.
+  - **Verified Student Reviews:** Real student testimonials with star ratings from MIT CSAIL, Oxford, and Carnegie Mellon.
+  - **Hybrid Delivery Dynamic Comparison:** Transparent side-by-side cards for Open Marketplace (15%) and White-Glove Concierge (20%).
+  - **Specialized Discipline Cards:** 6 high-contrast subject cards with colored icon badges and micro-interactions.
+  - **Academic Integrity Pledge (BR-10 & BR-14):** Institutional commitment to coaching and prohibition against ghostwriting graded coursework.
+  - **Specialist Program Recruitment Banner:** Amber callout inviting accredited academics to apply as specialists.
+  - **High-Converting Closing CTA:** Milestone-secured trial block with dual CTAs ("Get Started Free" & "See How It Works").
+  - **Modernized For-Experts Experience (`/for-experts`):** Amber specialist design with live pricing cards, requirements, and compliance with all legal and automated unit test constraints.
+- [x] **Zone A Ultra-Premium Visual Overhaul & Image Integration:**
+  - **High-Tech 3D Generated Graphics:** Deployed 3 AI-rendered assets (`student_hero_study.jpg`, `expert_mentorship_collab.jpg`, `escrow_vault_security.jpg`) into `public/images/marketing/` across both `@hem/web` and root frontend.
+  - **Dark High-Contrast Aesthetic & Glowing Blobs:** Replaced plain text layout with high-converting dark slate containers, glowing violet/indigo color blobs, and floating milestone badges (`4.98/5.0 Rating`, `Milestone Escrow Active`).
+  - **Prominent "Who Is Here" Specialist Showcase:** Featured 4 verified doctoral specialists with real credentials (Stanford AI Lab, Oxford & ETH Zürich, MIT CSAIL, Cambridge University), rating scores, research domains, bio briefs, hourly rates, and 1-click consultation requests.
+  - **"What Students Achieve" Visual Deck:** Paired mentorship graphic with 4 tangible study outcomes (Rapid blocker resolution, deep concept intuition, anti-plagiarism pledge, and milestone security).
+  - **Milestone Escrow Vault Banner:** Dark cybernetic security section emphasizing the double-entry escrow protocol and 72-hour review guarantee.
+  - **For-Experts Link Remediation:** Resolved `/for-experts` "Create your account" link to route directly to `/register/expert` instead of student sign-in, verified with Playwright automated navigation test and unit tests (`for-experts/page.test.tsx`).
+  - **Visual Verification:** Playwright screenshots 26 (`26_zone_a_ultra_premium_fullpage.png`), 27 (`27_for_experts_verified.png`), and 28 (`28_expert_register_from_for_experts.png`) captured and inspected.
+- [x] **Dual-Codebase Synchronization & Zero-Error Compilation:**
+  - Synchronized all auth and marketing components between `frontend/src` and `frontend/apps/web/src`.
+  - TypeScript validation: 0 errors across `@hem/web`, `@hem/admin`, and `@hem/ui` (`npx tsc --noEmit`).
+  - Unit test suite: 143/143 passing tests across 25 test suites (`npx vitest run`).
+  - Backend test suite: 440/440 pytest tests passing (`pytest backend`).
+- [x] **Header Navigation Active Link Remediation (`(app)/layout.tsx`):**
+  - Resolved duplicate active highlight bug where navigating to `/requests/new` highlighted both "Learning Dashboard" and "New Task Brief".
+  - Implemented strict route boundary matching logic (`href === "/requests"` strictly matches `/requests`).
+- [x] **Strict Dual-Role Persona Architecture & De-Cluttering:**
+  - Removed competing pills in Zone A; brand identity now features clean "HYBRID PRO Knowledge Exchange" with glowing accent icon.
+  - Relocated role controls to Zone C with Airbnb-style mode toggle `[ Specialist View ⚡ ]` <--> `[ Student View 🎓 ]` for approved dual-role users and subtle `Apply as Specialist ⚡` link for students.
+  - Purged specialist clutter from Student views: Students experience a dedicated, distraction-free learning universe (`Learning Dashboard`, `New Task Brief`, `My Orders`, `Messages`).
+- [x] **AI-Era Student Learning Experience & Launchpad (`/requests` & `/requests/new`):**
+  - Integrated AI Quick Launchpad on `/requests` with 1-click templates (Python Optimization, Multivariable Calculus, Academic Thesis Critique, Econometrics, PyTorch ML).
+  - Pre-fill query param engine in `RequestForm.tsx` to automatically populate brief titles, descriptions, and categories, advancing directly to Step 2.
+  - Interactive "✨ Enhance with AI" Copilot button formatting student briefs into structured academic rubrics.
+- [x] **Attraction-Side Experience & Interactive Scope Simulator (`(marketing)/page.tsx`):**
+  - Engineered client-side `InteractiveScopeSimulator` enabling exploring visitors to test academic disciplines, urgency multipliers, and scope depth with live budget/SLA calculations and sample verified doctoral specialist profiles.
+  - Interactive audience toggle allowing prospective users to compare Student benefits (blind bidding, escrow protection) vs Specialist benefits (85% payout split, guaranteed deposits).
+- [x] **Universal Dual-Role Mode & Menu Switching (`(app)/layout.tsx` & `/account`):**
+  - Resolved student login specialist menu switching bug: In student login, switching to specialist mode or opening `/expert/apply` now **completely and instantly** transforms the menu items to the Specialist menu (`Opportunity Radar`, `Managed Tasks`, `Active Orders`, `Reviews`, `Specialist Cockpit`, `Messages`).
+  - Zone C toggle button is now universal for all authenticated users:
+    - In Student View: renders `[ Specialist View ⚡ ]`. Clicking it switches mode, stores preference, and routes directly to the Specialist Cockpit (`/expert/apply` for candidates, `/opportunities` for verified experts).
+    - In Specialist View: renders `[ Student View 🎓 ]`. Clicking it switches mode and returns directly to the Student Learning Dashboard (`/requests`), restoring the student menu (`Learning Dashboard`, `New Task Brief`, `My Orders`, `Messages`).
+  - Active route highlighting logic strictly highlights `Specialist Cockpit` when on `/expert/apply` or `/expert/application`, avoiding collisions with `/expert/profile`.
+  - Upgraded the `/account` Workspace Controller with a universal segmented toggle allowing any user to toggle active workspace mode.
+  - Upgraded `/opportunities` with a specialized verification callout providing clear CTA for students to complete their specialist application.
+  - Verified across both codebases (`frontend/apps/web` and `frontend/src` are byte-for-byte identical).
+  - 100% automated verification passing with Playwright (Screenshots 15, 16, 17, 18 generated and visually inspected).
+- [x] Backend functional verification & full test suite passing (440 pytest tests including `test_self_bidding_prevented`, business rules BR-01 through BR-25).
 - [x] Initial design blueprint created (`docs/design/premium-product-ui-direction.md`).
 - [x] Centralized AI Memory established (`docs/AGENT_STATE.md`).
 - [x] Converted `frontend/` to npm workspace monorepo (`apps/*`, `packages/*`).

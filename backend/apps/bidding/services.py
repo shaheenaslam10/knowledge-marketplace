@@ -32,6 +32,8 @@ def _expert_guard(expert, request: ServiceRequest) -> None:
         raise PermissionDeniedError("Only approved, available experts can offer.")
     if not request.is_open_for_offers or request.mode != ServiceRequest.Mode.OPEN:
         raise DomainError("This request is not accepting offers.", code="request_closed")
+    if request.student_id == expert.id:
+        raise DomainError("You cannot submit an offer on your own request.", code="self_dealing")
 
 
 def submit(expert, request: ServiceRequest, *, payload: dict[str, Any]) -> Offer:
@@ -150,6 +152,8 @@ def accept(student, offer: Offer) -> tuple[Offer, Any]:
     request = ServiceRequest.objects.select_for_update().get(pk=offer.request_id)
     if request.student_id != student.id:
         raise PermissionDeniedError("You can only select an expert on your own requests.")
+    if offer.expert_id == student.id:
+        raise DomainError("You cannot select your own offer.", code="self_dealing")
     if offer.status != Offer.Status.PENDING:
         raise DomainError("This offer can no longer be accepted.", code="offer_locked")
     if request.status != ServiceRequest.Status.OPEN:

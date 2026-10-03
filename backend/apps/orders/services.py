@@ -381,6 +381,8 @@ def create_order_for_request(
     from apps.payments.config import commission_split, rate_for_source
 
     expert_pk = getattr(expert, "pk", expert)
+    if request.student_id == expert_pk:
+        raise DomainError("Student and expert cannot be the same account.", code="self_dealing")
     profile = ExpertProfile.objects.filter(pk=expert_pk).first()
     commission, net = commission_split(amount, rate_for_source(source))
     order = Order.objects.create(

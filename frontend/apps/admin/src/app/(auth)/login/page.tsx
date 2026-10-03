@@ -41,11 +41,12 @@ function AdminLoginForm() {
       });
 
       // Store JWT token to bypass cross-origin/cross-port cookie limitations
-      if (res.access && typeof window !== "undefined") {
+      const token = (res as { access?: string }).access;
+      if (token && typeof window !== "undefined") {
         try {
-          localStorage.setItem("admin_access_token", res.access);
-          localStorage.setItem("hm_access_token", res.access);
-          document.cookie = `hm_access=${res.access}; path=/; max-age=1800; SameSite=Lax`;
+          localStorage.setItem("admin_access_token", token);
+          localStorage.setItem("hm_access_token", token);
+          document.cookie = `hm_access=${token}; path=/; max-age=1800; SameSite=Lax`;
         } catch {}
       }
 

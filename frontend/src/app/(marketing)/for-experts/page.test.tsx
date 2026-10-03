@@ -91,7 +91,7 @@ describe("/for-experts", () => {
 
     expect(screen.getAllByRole("link", { name: "Create your account" })[0]).toHaveAttribute(
       "href",
-      "/register",
+      "/register/expert",
     );
     expect(
       screen.getByRole("link", { name: "Start your expert application" }),

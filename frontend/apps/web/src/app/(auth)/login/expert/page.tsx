@@ -13,15 +13,16 @@ import {
   Sparkles,
   Loader2,
   ShieldCheck,
-  BookOpen,
-  Zap,
+  BadgeCheck,
+  TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { authApi } from "@/features/auth/api";
 import { authErrorMessage } from "@/features/auth/errors";
 import { useSession } from "@/features/auth/SessionProvider";
 
-function LoginForm() {
+function ExpertLoginForm() {
   const { refresh } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,24 +46,21 @@ function LoginForm() {
 
       const isExpert =
         Boolean(res?.user?.roles?.expert) ||
-        email.toLowerCase().startsWith("expert@");
+        email.toLowerCase().startsWith("expert@") ||
+        email.toLowerCase().startsWith("bid");
 
       if (typeof window !== "undefined") {
         try {
-          const mode = isExpert ? "EXPERT" : "STUDENT";
-          localStorage.setItem("hem_role_mode", mode);
-          document.cookie = `hem_role_mode=${mode}; path=/; max-age=31536000; SameSite=Lax`;
+          // Force EXPERT mode since this is the expert login page
+          localStorage.setItem("hem_role_mode", "EXPERT");
+          document.cookie = `hem_role_mode=EXPERT; path=/; max-age=31536000; SameSite=Lax`;
         } catch {}
       }
 
       if (next && next.startsWith("/")) {
-        if (next === "/account" && isExpert) {
-          router.push("/opportunities");
-        } else {
-          router.push(next);
-        }
+        router.push(next);
       } else {
-        router.push(isExpert ? "/opportunities" : "/requests");
+        router.push(isExpert ? "/opportunities" : "/expert/apply");
       }
     } catch (err) {
       setError(authErrorMessage(err));
@@ -74,7 +72,7 @@ function LoginForm() {
   }
 
   function fillDemo() {
-    setEmail("student@demo.local");
+    setEmail("expert@demo.local");
     setPassword("demo-password-1234");
     setError(null);
   }
@@ -87,30 +85,30 @@ function LoginForm() {
     >
       {/* Title & Role Badge */}
       <div className="space-y-1.5">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-soft/60 px-3 py-0.5 text-[11px] font-semibold text-primary">
-          <GraduationCap className="size-3.5" />
-          <span>Student Portal</span>
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+          <Sparkles className="size-3.5" />
+          <span>Specialist Portal</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-          Welcome Back
+          Specialist Sign In
         </h1>
         <p className="text-xs sm:text-sm text-muted">
-          Sign in to access your requests, orders, and expert consultations.
+          Access your bids, active orders, earnings dashboard, and expert profile.
         </p>
       </div>
 
       {/* Quick Benefits Strip */}
       <div className="mt-5 grid grid-cols-3 gap-2">
         {[
-          { icon: ShieldCheck, label: "Escrow protected" },
-          { icon: BookOpen, label: "Expert matched" },
-          { icon: Zap, label: "Fast turnaround" },
+          { icon: Wallet, label: "85% payout" },
+          { icon: BadgeCheck, label: "Verified profile" },
+          { icon: TrendingUp, label: "Grow your reach" },
         ].map(({ icon: Icon, label }) => (
           <div
             key={label}
-            className="flex flex-col items-center gap-1 rounded-xl border border-border/60 bg-surface-2/40 p-2.5 text-center"
+            className="flex flex-col items-center gap-1 rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5 text-center"
           >
-            <Icon className="size-4 text-primary" />
+            <Icon className="size-4 text-amber-500" />
             <span className="text-[10px] font-medium text-muted leading-tight">{label}</span>
           </div>
         ))}
@@ -120,20 +118,20 @@ function LoginForm() {
       <form onSubmit={onSubmit} className="mt-5 space-y-4" noValidate>
         {/* Email */}
         <div>
-          <label htmlFor="email" className="block text-xs font-semibold text-foreground">
-            Email
+          <label htmlFor="expert-email" className="block text-xs font-semibold text-foreground">
+            Expert Email
           </label>
           <div className="relative mt-1.5">
             <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
             <input
-              id="email"
+              id="expert-email"
               type="email"
               autoComplete="email"
               required
-              placeholder="name@university.edu"
+              placeholder="you@domain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-3.5 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-3.5 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-amber-500 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-amber-500/20"
             />
           </div>
         </div>
@@ -141,7 +139,7 @@ function LoginForm() {
         {/* Password */}
         <div>
           <div className="flex items-center justify-between">
-            <label htmlFor="password" className="block text-xs font-semibold text-foreground">
+            <label htmlFor="expert-password" className="block text-xs font-semibold text-foreground">
               Password
             </label>
             <Link
@@ -154,14 +152,14 @@ function LoginForm() {
           <div className="relative mt-1.5">
             <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
             <input
-              id="password"
+              id="expert-password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               required
               placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-amber-500 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-amber-500/20"
             />
             <button
               type="button"
@@ -175,13 +173,13 @@ function LoginForm() {
         </div>
 
         {/* Remember Me */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-muted">
             <input
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="size-4 rounded border-border text-primary focus:ring-primary/20"
+              className="size-4 rounded border-border text-amber-500 focus:ring-amber-500/20"
             />
             <span>Remember me for 30 days</span>
           </label>
@@ -202,16 +200,16 @@ function LoginForm() {
         <Button
           type="submit"
           disabled={submitting}
-          className="w-full h-11 text-sm font-semibold shadow-lg shadow-primary/25"
+          className="w-full h-11 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25 border-0"
           data-testid="login-submit"
         >
           {submitting ? (
             <span className="flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin" /> Signing in…
+              <Loader2 className="size-4 animate-spin" /> Authenticating…
             </span>
           ) : (
             <span className="flex items-center justify-center gap-1.5">
-              Sign In to Student Zone <ArrowRight className="size-4" />
+              Enter Specialist Cockpit <ArrowRight className="size-4" />
             </span>
           )}
         </Button>
@@ -231,24 +229,29 @@ function LoginForm() {
       <button
         type="button"
         onClick={fillDemo}
-        className="w-full flex items-center justify-center gap-2 rounded-xl border border-border/80 bg-surface-2/40 px-3 h-10 text-xs font-medium text-foreground transition-all hover:bg-surface-2 hover:border-primary/40 shadow-sm"
+        className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 h-10 text-xs font-medium text-foreground transition-all hover:bg-amber-500/10 shadow-sm"
       >
-        <GraduationCap className="size-4 text-primary" />
-        <span>Fill Student Demo Credentials</span>
+        <Sparkles className="size-4 text-amber-500" />
+        <span>Fill Expert Demo Credentials</span>
       </button>
 
       {/* Footer Links */}
       <div className="mt-6 space-y-2 text-center text-xs text-muted">
         <div>
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-semibold text-primary hover:underline">
-            Create student account
+          Want to apply as a specialist?{" "}
+          <Link href="/register/expert" className="font-semibold text-primary hover:underline">
+            Create expert account
           </Link>
         </div>
         <div className="pt-1 border-t border-border/60">
-          Are you a specialist?{" "}
-          <Link href="/login/expert" className="font-semibold text-primary hover:underline inline-flex items-center gap-1">
-            <Sparkles className="size-3" /> Expert login
+          Are you a student?{" "}
+          <Link href="/login" className="font-semibold text-primary hover:underline inline-flex items-center gap-1">
+            <GraduationCap className="size-3" /> Student login
+          </Link>
+        </div>
+        <div>
+          <Link href="/for-experts" className="text-muted hover:text-foreground hover:underline">
+            Learn about the expert program →
           </Link>
         </div>
       </div>
@@ -256,7 +259,7 @@ function LoginForm() {
   );
 }
 
-export default function LoginPage() {
+export default function ExpertLoginPage() {
   return (
     <Suspense
       fallback={
@@ -266,7 +269,7 @@ export default function LoginPage() {
         </div>
       }
     >
-      <LoginForm />
+      <ExpertLoginForm />
     </Suspense>
   );
 }

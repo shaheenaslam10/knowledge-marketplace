@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  BookOpen,
   Check,
   CheckCircle2,
   Eye,
@@ -13,19 +12,21 @@ import {
   GraduationCap,
   Lock,
   Mail,
+  School,
   ShieldCheck,
   Sparkles,
   User,
   Loader2,
-  Zap,
-  Users,
+  Wallet,
+  BadgeCheck,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { authApi } from "@/features/auth/api";
 import { authErrorMessage } from "@/features/auth/errors";
 import { useSession } from "@/features/auth/SessionProvider";
 
-export default function StudentRegisterPage() {
+export default function ExpertRegisterPage() {
   const { refresh } = useSession();
   const router = useRouter();
 
@@ -33,8 +34,9 @@ export default function StudentRegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [studyLevel, setStudyLevel] = useState("undergraduate");
-  const [studentDiscipline, setStudentDiscipline] = useState("cs");
+  const [expertDegree, setExpertDegree] = useState("phd");
+  const [institution, setInstitution] = useState("");
+  const [expertDiscipline, setExpertDiscipline] = useState("cs_ai");
   const [agreedHonorCode, setAgreedHonorCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -84,12 +86,13 @@ export default function StudentRegisterPage() {
 
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("hem_role_mode", "STUDENT");
-          document.cookie = `hem_role_mode=STUDENT; path=/; max-age=31536000; SameSite=Lax`;
+          localStorage.setItem("hem_role_mode", "EXPERT");
+          document.cookie = `hem_role_mode=EXPERT; path=/; max-age=31536000; SameSite=Lax`;
         } catch {}
       }
 
-      router.push("/verify-email?registered=1");
+      // Route to expert application flow
+      router.push("/for-experts?welcome=1");
     } catch (err) {
       setError(authErrorMessage(err));
     } finally {
@@ -101,32 +104,33 @@ export default function StudentRegisterPage() {
     <div className="rounded-3xl border border-border/80 bg-surface/95 p-7 sm:p-9 shadow-2xl backdrop-blur-xl">
       {/* Title & Badge */}
       <div className="space-y-1.5">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-soft/60 px-3 py-0.5 text-[11px] font-semibold text-primary">
-          <GraduationCap className="size-3.5" />
-          <span>Student Registration</span>
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+          <Sparkles className="size-3.5" />
+          <span>Expert Application</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-          Create Your Account
+          Apply as a Specialist
         </h1>
         <p className="text-xs sm:text-sm text-muted">
-          Join thousands of students getting expert academic consultations.
+          Join our vetted network. Teach what you know and earn on your schedule.
         </p>
       </div>
 
-      {/* Value proposition chips */}
-      <div className="mt-4 flex flex-wrap gap-2">
+      {/* Expert Benefits */}
+      <div className="mt-4 grid grid-cols-3 gap-2">
         {[
-          { icon: ShieldCheck, text: "Escrow Protected" },
-          { icon: Zap, text: "Fast Matching" },
-          { icon: Users, text: "250K+ Tasks Done" },
-        ].map(({ icon: Icon, text }) => (
-          <span
-            key={text}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface-2/40 px-2.5 py-1 text-[11px] font-medium text-muted"
+          { icon: Wallet, label: "Keep 85%", sub: "of every order" },
+          { icon: BadgeCheck, label: "Vetted Badge", sub: "builds trust" },
+          { icon: TrendingUp, label: "Grow Income", sub: "flexible schedule" },
+        ].map(({ icon: Icon, label, sub }) => (
+          <div
+            key={label}
+            className="flex flex-col items-center gap-0.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5 text-center"
           >
-            <Icon className="size-3 text-primary" />
-            {text}
-          </span>
+            <Icon className="size-4 text-amber-500 mb-0.5" />
+            <span className="text-[10px] font-bold text-foreground">{label}</span>
+            <span className="text-[9px] text-muted">{sub}</span>
+          </div>
         ))}
       </div>
 
@@ -134,7 +138,7 @@ export default function StudentRegisterPage() {
         {/* Full Name */}
         <div>
           <label htmlFor="name" className="block text-xs font-semibold text-foreground">
-            Full Name
+            Full Name (as on credentials)
           </label>
           <div className="relative mt-1.5">
             <User className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
@@ -144,10 +148,10 @@ export default function StudentRegisterPage() {
               autoComplete="name"
               required
               minLength={2}
-              placeholder="Alex Rivera"
+              placeholder="Dr. Jordan Hayes, Ph.D."
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-3.5 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-3.5 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-amber-500 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-amber-500/20"
             />
           </div>
         </div>
@@ -155,7 +159,7 @@ export default function StudentRegisterPage() {
         {/* Email */}
         <div>
           <label htmlFor="email" className="block text-xs font-semibold text-foreground">
-            University / Personal Email
+            Email Address
           </label>
           <div className="relative mt-1.5">
             <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
@@ -164,47 +168,63 @@ export default function StudentRegisterPage() {
               type="email"
               autoComplete="email"
               required
-              placeholder="name@university.edu"
+              placeholder="you@domain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-3.5 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-3.5 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-amber-500 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-amber-500/20"
             />
           </div>
         </div>
 
-        {/* Study Details */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-2xl border border-border/80 bg-surface-2/40 p-3.5">
-          <div>
-            <label className="block text-[11px] font-semibold text-foreground mb-1">
-              Study Level
-            </label>
-            <select
-              value={studyLevel}
-              onChange={(e) => setStudyLevel(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground transition-colors focus:border-primary focus:outline-none"
-            >
-              <option value="undergraduate">Undergraduate (B.S. / B.A.)</option>
-              <option value="masters">Master&apos;s (M.S. / M.A.)</option>
-              <option value="doctoral">Doctoral Candidate (Ph.D.)</option>
-              <option value="professional">Professional Degree (MBA / J.D.)</option>
-            </select>
+        {/* Expert-specific fields */}
+        <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-foreground mb-1">
+                Highest Degree Held
+              </label>
+              <select
+                value={expertDegree}
+                onChange={(e) => setExpertDegree(e.target.value)}
+                className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground transition-colors focus:border-amber-500 focus:outline-none"
+              >
+                <option value="phd">Ph.D. / Doctorate</option>
+                <option value="postdoc">Postdoctoral Researcher</option>
+                <option value="masters">Master&apos;s Degree (M.S./M.A.)</option>
+                <option value="industry">Senior Industry Specialist</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-foreground mb-1">
+                Primary Expertise Domain
+              </label>
+              <select
+                value={expertDiscipline}
+                onChange={(e) => setExpertDiscipline(e.target.value)}
+                className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground transition-colors focus:border-amber-500 focus:outline-none"
+              >
+                <option value="cs_ai">Distributed Systems &amp; AI</option>
+                <option value="math_stats">Stochastic Calculus &amp; Pure Math</option>
+                <option value="quant_econ">Econometrics &amp; Causal Inference</option>
+                <option value="robotics">Robotics &amp; Embedded Systems</option>
+                <option value="quantum">Quantum Physics &amp; Chemistry</option>
+              </select>
+            </div>
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-foreground mb-1">
-              Primary Discipline
+              Alma Mater / Research Institution
             </label>
-            <select
-              value={studentDiscipline}
-              onChange={(e) => setStudentDiscipline(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground transition-colors focus:border-primary focus:outline-none"
-            >
-              <option value="cs">Computer Science &amp; AI</option>
-              <option value="math">Mathematics &amp; Statistics</option>
-              <option value="econ">Economics &amp; Econometrics</option>
-              <option value="eng">Engineering &amp; Robotics</option>
-              <option value="physics">Natural Sciences &amp; Physics</option>
-              <option value="law">Law &amp; Humanities</option>
-            </select>
+            <div className="relative">
+              <School className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
+              <input
+                type="text"
+                placeholder="e.g. Stanford University, MIT, Oxford"
+                value={institution}
+                onChange={(e) => setInstitution(e.target.value)}
+                className="w-full rounded-xl border border-border bg-surface py-2 pl-9 pr-3 text-xs text-foreground placeholder:text-muted/70 focus:border-amber-500 focus:outline-none"
+              />
+            </div>
           </div>
         </div>
 
@@ -224,7 +244,7 @@ export default function StudentRegisterPage() {
               placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-surface-2/40 py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted/70 transition-colors focus:border-amber-500 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-amber-500/20"
             />
             <button
               type="button"
@@ -286,7 +306,7 @@ export default function StudentRegisterPage() {
               required
               checked={agreedHonorCode}
               onChange={(e) => setAgreedHonorCode(e.target.checked)}
-              className="size-4 mt-0.5 rounded border-border text-primary focus:ring-primary/20 shrink-0"
+              className="size-4 mt-0.5 rounded border-border text-amber-500 focus:ring-amber-500/20 shrink-0"
             />
             <span>
               I agree to the{" "}
@@ -297,7 +317,7 @@ export default function StudentRegisterPage() {
               <Link href="/terms" className="text-primary font-semibold hover:underline">
                 Terms of Service
               </Link>
-              .
+              . I confirm I will never ghostwrite graded work.
             </span>
           </label>
         </div>
@@ -317,7 +337,7 @@ export default function StudentRegisterPage() {
         <Button
           type="submit"
           disabled={submitting}
-          className="w-full h-11 text-sm font-semibold shadow-lg shadow-primary/25"
+          className="w-full h-11 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25 border-0"
           data-testid="register-submit"
         >
           {submitting ? (
@@ -326,7 +346,7 @@ export default function StudentRegisterPage() {
             </span>
           ) : (
             <span className="flex items-center justify-center gap-1.5">
-              Create Student Account <ArrowRight className="size-4" />
+              Start Expert Application <ArrowRight className="size-4" />
             </span>
           )}
         </Button>
@@ -336,14 +356,19 @@ export default function StudentRegisterPage() {
       <div className="mt-6 space-y-2 text-center text-xs text-muted">
         <div>
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-primary hover:underline">
-            Sign in
+          <Link href="/login/expert" className="font-semibold text-primary hover:underline">
+            Expert sign in
           </Link>
         </div>
         <div className="pt-1 border-t border-border/60">
-          Are you a specialist?{" "}
-          <Link href="/register/expert" className="font-semibold text-primary hover:underline inline-flex items-center gap-1">
-            <Sparkles className="size-3" /> Apply as an expert
+          Are you a student?{" "}
+          <Link href="/register" className="font-semibold text-primary hover:underline inline-flex items-center gap-1">
+            <GraduationCap className="size-3" /> Student registration
+          </Link>
+        </div>
+        <div>
+          <Link href="/for-experts" className="text-muted hover:text-foreground hover:underline">
+            Learn about the expert program →
           </Link>
         </div>
       </div>
