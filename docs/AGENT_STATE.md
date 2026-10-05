@@ -17,10 +17,30 @@
 ---
 
 ## 2. Phase Tracker
-- **Current Phase:** Dedicated Dual-Role Auth & High-Converting Zone A Experience — **COMPLETE**
+- **Current Phase:** Navigation Fix, Dual-Role Persona Architecture & Request Wizard Overhaul — **COMPLETE**
 - **Overall Status:** **`PRODUCTION_READY`** (Dual-native Next.js 15 monorepo, 0 type errors, 143 frontend Vitest tests passing, 440 backend pytest tests passing, HTTP 200 on all routes).
 
 ### Completed Tasks
+- [x] **Navigation Active Link Remediation (`(app)/layout.tsx`):**
+  - Resolved route boundary highlight bug: Visiting `/requests/new` highlights strictly ONE navigation button ("New Task Brief").
+  - Visiting `/requests` highlights strictly ONE navigation button ("Learning Dashboard").
+  - Verified via Playwright automated browser test and visual screenshot 29.
+- [x] **Dual-Role Persona Architecture (Airbnb / Upwork Model):**
+  - Removed clutter from Zone A/B; brand identity remains clean and focused.
+  - Single-role Student accounts render a clean profile and a subtle "Apply as Specialist ⚡" link routing to `/expert/apply` (no broken or premature toggle).
+  - Approved dual-role accounts render a clean persona switcher: `[ Switch to Specialist View ⚡ ]` <--> `[ Switch to Student View 🎓 ]` in Zone C and in the profile dropdown.
+  - Toggling cleanly syncs `hem_role_mode` in cookies and `localStorage`, instantly pivoting between Student navigation and Specialist cockpit views.
+  - Verified via Playwright automated browser test and visual screenshot 30.
+- [x] **Academic Request Creation Wizard Overhaul (`/requests/new` & `RequestForm.tsx`):**
+  - Stepper Header: Step 1 (Model & Scope) -> Step 2 (Academic Specs & Files) -> Step 3 (Turnaround & Escrow Review).
+  - Operating Model Selection: High-contrast interactive cards for `[⚡ Open Bidding Marketplace]` vs. `[💎 Managed White-Glove Service]`.
+  - Academic Specs: Subject taxonomy dropdown (BR contract compliant), category selection, AI Scope Copilot ("Enhance with AI ✨"), quick template insertion chips, and drag-and-drop file attachment zone.
+  - Turnaround & Escrow Review: Visual turnaround chips (`<24h Rush`, `3 Days Standard`, `7+ Days Deep Dive`), date picker, fixed vs hourly pricing, live 85%/15% custody split calculator, and BR-10/14 academic integrity honor code banner.
+  - Responsive Layout: Expansive clean layout with sticky live summary sidebar on desktop.
+- [x] **Public UI & RSC Compatibility Fixes:**
+  - Fixed Next.js RSC compatibility in `(marketing)/layout.tsx` by replacing client event handler with standard HTML form action.
+  - Replaced missing Lucide brand icons with scalable inline SVGs.
+  - Confirmed HTTP 200 OK across all public and authenticated routes: `/`, `/login`, `/register`, `/for-experts`, `/requests`, `/requests/new`, `/opportunities`, `/account`.
 - [x] **Dedicated Student vs Expert Auth Architecture (No Radio Toggles):**
   - **Student Login (`/login`):** Streamlined sign-in with student benefits strip (Escrow protected, Expert matched, Fast turnaround), 1-click student demo credentials (`student@demo.local`), and cross-role footer link to Expert Login.
   - **Specialist Login (`/login/expert`):** Dedicated executive amber cockpit portal with payout metrics (85% payout, Verified profile, Grow your reach), 1-click expert demo credentials (`expert@demo.local`), and direct routing to `/opportunities` or `/expert/apply`.

@@ -350,30 +350,43 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
             {/* ZONE C (Right: Persona Switcher, Financial Capsule, Theme, Notifications & Profile) */}
             <div className="flex items-center gap-3 shrink-0">
-              {/* Universal Dual-Role Persona Switcher (Airbnb / Upwork Model) */}
-              <button
-                type="button"
-                onClick={roleMode === "student" ? handleSwitchToExpert : handleSwitchToStudent}
-                className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border/80 bg-surface-1 hover:bg-surface-2 text-xs font-semibold text-foreground transition-all shadow-xs hover:border-primary/40 group"
-                title={roleMode === "student" ? "Switch to Specialist View" : "Switch to Student View"}
-                data-testid="button-role-toggle"
-              >
-                {roleMode === "student" ? (
-                  <>
-                    <span>Specialist View</span>
-                    <span className="flex size-5 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-bold group-hover:scale-110 transition-transform">
-                      ⚡
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span>Student View</span>
-                    <span className="flex size-5 items-center justify-center rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-400 text-xs font-bold group-hover:scale-110 transition-transform">
-                      🎓
-                    </span>
-                  </>
-                )}
-              </button>
+              {/* Dual-Role Persona Switcher / Specialist Onboarding Link */}
+              {isExpertUser ? (
+                <button
+                  type="button"
+                  onClick={roleMode === "student" ? handleSwitchToExpert : handleSwitchToStudent}
+                  className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border/80 bg-surface-1 hover:bg-surface-2 text-xs font-semibold text-foreground transition-all shadow-xs hover:border-primary/40 group"
+                  title={roleMode === "student" ? "Switch to Specialist View" : "Switch to Student View"}
+                  data-testid="button-role-toggle"
+                >
+                  {roleMode === "student" ? (
+                    <>
+                      <span>Switch to Specialist View</span>
+                      <span className="flex size-5 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-bold group-hover:scale-110 transition-transform">
+                        ⚡
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Switch to Student View</span>
+                      <span className="flex size-5 items-center justify-center rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-400 text-xs font-bold group-hover:scale-110 transition-transform">
+                        🎓
+                      </span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <Link
+                  href="/expert/apply"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-border/80 bg-surface-1 hover:bg-surface-2 text-xs font-semibold text-muted hover:text-foreground transition-all shadow-xs group"
+                  title="Apply as Specialist"
+                >
+                  <span>Apply as Specialist</span>
+                  <span className="text-amber-500 font-bold group-hover:scale-110 transition-transform">
+                    ⚡
+                  </span>
+                </Link>
+              )}
 
               {/* Wallet / Escrow Capsule */}
               <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold shadow-xs">
@@ -429,19 +442,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <DropdownMenuItem onSelect={() => router.push("/account")} className="text-xs font-semibold cursor-pointer rounded-xl">
                     Account & Preferences
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => (roleMode === "student" ? handleSwitchToExpert() : handleSwitchToStudent())}
-                    className="text-xs font-semibold cursor-pointer rounded-xl flex items-center justify-between"
-                  >
-                    <span>Switch to {roleMode === "student" ? "Specialist View" : "Student View"}</span>
-                    <span>{roleMode === "student" ? "⚡" : "🎓"}</span>
-                  </DropdownMenuItem>
-                  {!isExpertUser && (
+                  {isExpertUser ? (
+                    <DropdownMenuItem
+                      onSelect={() => (roleMode === "student" ? handleSwitchToExpert() : handleSwitchToStudent())}
+                      className="text-xs font-semibold cursor-pointer rounded-xl flex items-center justify-between"
+                    >
+                      <span>Switch to {roleMode === "student" ? "Specialist View" : "Student View"}</span>
+                      <span>{roleMode === "student" ? "⚡" : "🎓"}</span>
+                    </DropdownMenuItem>
+                  ) : (
                     <DropdownMenuItem
                       onSelect={() => router.push("/expert/apply")}
                       className="text-xs font-semibold cursor-pointer rounded-xl flex items-center justify-between text-primary font-bold"
                     >
-                      <span>Complete Specialist Application</span>
+                      <span>Apply as Specialist</span>
                       <span className="text-amber-500">⚡</span>
                     </DropdownMenuItem>
                   )}
@@ -471,35 +485,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <span className="font-bold text-sm text-foreground">Workspace Menu</span>
                   </div>
 
-                  {/* Mobile Role Switcher (Universal for all authenticated users) */}
-                  <div className="grid grid-cols-2 p-1 rounded-2xl bg-surface-2 border border-border/80 text-xs">
-                    <button
-                      type="button"
-                      onClick={handleSwitchToStudent}
-                      className={`flex items-center justify-center gap-1.5 py-2 rounded-xl font-bold transition-all ${
-                        roleMode === "student"
-                          ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-sm"
-                          : "text-muted hover:text-foreground"
-                      }`}
-                    >
-                      <GraduationCap className="size-4" />
-                      <span>Student</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSwitchToExpert}
-                      className={`flex items-center justify-center gap-1.5 py-2 rounded-xl font-bold transition-all ${
-                        roleMode === "expert"
-                          ? "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm"
-                          : "text-muted hover:text-foreground"
-                      }`}
-                    >
-                      <Zap className="size-4" />
-                      <span>Specialist</span>
-                    </button>
-                  </div>
-
-                  {!isExpertUser && (
+                  {/* Mobile Role Switcher (Dual-role for approved experts, apply callout for students) */}
+                  {isExpertUser ? (
+                    <div className="grid grid-cols-2 p-1 rounded-2xl bg-surface-2 border border-border/80 text-xs">
+                      <button
+                        type="button"
+                        onClick={handleSwitchToStudent}
+                        className={`flex items-center justify-center gap-1.5 py-2 rounded-xl font-bold transition-all ${
+                          roleMode === "student"
+                            ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-sm"
+                            : "text-muted hover:text-foreground"
+                        }`}
+                      >
+                        <GraduationCap className="size-4" />
+                        <span>Student</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSwitchToExpert}
+                        className={`flex items-center justify-center gap-1.5 py-2 rounded-xl font-bold transition-all ${
+                          roleMode === "expert"
+                            ? "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm"
+                            : "text-muted hover:text-foreground"
+                        }`}
+                      >
+                        <Zap className="size-4" />
+                        <span>Specialist</span>
+                      </button>
+                    </div>
+                  ) : (
                     <div className="rounded-2xl border border-border bg-surface-2 p-4 space-y-2">
                       <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                         <Zap className="size-4 text-warning" />
@@ -512,7 +526,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         href="/expert/apply"
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
                       >
-                        <span>Complete Specialist Application →</span>
+                        <span>Apply as Specialist →</span>
                       </Link>
                     </div>
                   )}
@@ -587,3 +601,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </NotificationsProvider>
   );
 }
+

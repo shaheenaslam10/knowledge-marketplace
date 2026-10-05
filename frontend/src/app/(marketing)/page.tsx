@@ -2,9 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
-  Award,
   BadgeCheck,
-  BookOpen,
   Brain,
   Calculator,
   CheckCircle2,
@@ -19,6 +17,7 @@ import {
   Lock,
   MessageSquare,
   Scale,
+  Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -33,94 +32,46 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Spotlight } from "@/components/patterns/marketing/spotlight";
+import { PartnerMarquee } from "@/components/patterns/marketing/partner-marquee";
+import { ExpertDiscoveryGrid } from "@/components/patterns/marketing/expert-discovery-grid";
 import { InteractiveScopeSimulator } from "@/components/patterns/marketing/interactive-scope-simulator";
 import { fetchBackendHealth } from "@/lib/api/health";
 
 export const dynamic = "force-dynamic";
 
-const FEATURED_EXPERTS = [
-  {
-    name: "Dr. Jordan Hayes, Ph.D.",
-    title: "Senior Research Scientist · Former Stanford AI Lab",
-    institution: "Stanford University",
-    avatar: "JH",
-    rating: 4.99,
-    reviews: 420,
-    hourly: "$45",
-    domain: "Distributed Systems & AI",
-    bio: "Ex-Google Brain researcher specializing in distributed consensus (Raft/Paxos), LLM fine-tuning, and CUDA performance optimization.",
-    badges: ["Ph.D. Verified", "Top 1% Mentor", "99.4% On-Time"],
-    skills: ["PyTorch", "Distributed Systems", "C++", "CUDA"],
-  },
-  {
-    name: "Dr. Elena Rostova, Ph.D.",
-    title: "Doctoral Fellow in Econometrics & Causal Inference",
-    institution: "Oxford University & ETH Zürich",
-    avatar: "ER",
-    rating: 4.98,
-    reviews: 312,
-    hourly: "$50",
-    domain: "Quantitative Economics & Stats",
-    bio: "Specializes in synthetic control methods, non-parametric time series, and stochastic calculus for master's and doctoral theses.",
-    badges: ["Oxford Fellow", "Peer Reviewer", "100% Satisfaction"],
-    skills: ["R / Stata", "Econometrics", "Bayesian Stats", "Time Series"],
-  },
-  {
-    name: "Prof. David Chen, Sc.D.",
-    title: "Principal Robotics Architect · Adjunct Faculty",
-    institution: "MIT CSAIL",
-    avatar: "DC",
-    rating: 5.0,
-    reviews: 280,
-    hourly: "$55",
-    domain: "Robotics, SLAM & Embedded Control",
-    bio: "12 years designing autonomous navigation pipelines, sensor fusion, Kalman filters, and real-time embedded hardware.",
-    badges: ["MIT Alum", "IEEE Senior Member", "High Complexity"],
-    skills: ["ROS2", "SLAM", "Kalman Filters", "Embedded C"],
-  },
-  {
-    name: "Dr. Sarah Jenkins, Ph.D.",
-    title: "Postdoctoral Fellow in Topological Data Analysis",
-    institution: "Cambridge University",
-    avatar: "SJ",
-    rating: 4.97,
-    reviews: 195,
-    hourly: "$40",
-    domain: "Pure Mathematics & Algebraic Topology",
-    bio: "Patient mathematical coach for advanced abstract algebra, real analysis, manifold theory, and complex mathematical proofs.",
-    badges: ["Cambridge Ph.D.", "Honor Roll Tutor", "Proof Specialist"],
-    skills: ["Differential Geometry", "Topology", "Real Analysis", "LaTeX"],
-  },
+const POPULAR_SEARCHES = [
+  "Distributed Consensus",
+  "LLM Fine-Tuning",
+  "Econometrics & R",
+  "Multivariable Calculus",
+  "CUDA Optimization",
+  "ROS2 Robotics",
 ];
 
-const STUDENT_OUTCOMES = [
+const LEARNER_STEPS = [
   {
-    icon: Zap,
-    title: "Break Blockers in Under 30 Minutes",
-    desc: "Don't spend days stuck on a cryptic compiler fault or multivariable calculus proof. Match with a verified specialist who spots the issue immediately.",
-    color: "text-amber-500",
-    bg: "bg-amber-500/10",
-  },
-  {
-    icon: Brain,
-    title: "Master Hard Concepts, Don't Just Memorize",
-    desc: "1-on-1 personalized breakdowns designed for deep conceptual intuition. Receive recorded walkthroughs, commented code, and step-by-step mathematical proofs.",
+    step: "01",
+    title: "Discover Your Specialist",
+    desc: "Filter 2,400+ vetted doctoral scholars and senior staff engineers by technical domain, academic credential, and hourly rate.",
+    icon: Search,
     color: "text-primary",
     bg: "bg-primary/10",
   },
   {
-    icon: ShieldCheck,
-    title: "100% Ethical & Anti-Plagiarism Protected",
-    desc: "Strict adherence to academic integrity (BR-10 & BR-14). Experts guide, mentor, and debug alongside you — guaranteeing your degree and reputation remain untarnished.",
+    step: "02",
+    title: "Book 1:1 or Milestone Project",
+    desc: "Post a private brief with your target turnaround. Receive tailored blind proposals with transparent, locked-in milestone budgets.",
+    icon: MessageSquare,
     color: "text-emerald-500",
     bg: "bg-emerald-500/10",
   },
   {
-    icon: Lock,
-    title: "Bank-Grade Milestone Escrow Security",
-    desc: "Your funds are sequestered in double-entry platform escrow and released only when you inspect and approve the consultation delivery.",
-    color: "text-cyan-500",
-    bg: "bg-cyan-500/10",
+    step: "03",
+    title: "Elevate Your Mastery Safely",
+    desc: "Collaborate in dedicated order workspaces with shared code, live proofs, and file review. Funds remain securely in escrow until you approve.",
+    icon: Sparkles,
+    color: "text-amber-500",
+    bg: "bg-amber-500/10",
   },
 ];
 
@@ -140,17 +91,17 @@ export default async function HomePage() {
     <div className="flex flex-col gap-24 sm:gap-32 pb-20">
 
       {/* ════════════════════════════════════════════════
-          1. ULTRA-PREMIUM DUAL-COLUMN HERO (STUDENT ATTRACTION)
+          1. ULTRA-WIDE HERO SECTION (MAVEN / LINEAR / INTRO.CO CALIBER)
       ════════════════════════════════════════════════ */}
-      <section className="relative -mx-4 overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-slate-950 via-slate-900 to-background p-6 sm:mx-0 sm:p-12 lg:p-16 shadow-2xl">
+      <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-slate-950 via-slate-900 to-background p-6 sm:p-12 lg:p-16 shadow-2xl">
         <Spotlight />
         {/* Ambient Glowing Blobs */}
-        <div className="pointer-events-none absolute -top-40 -left-40 size-[600px] rounded-full bg-primary/20 blur-[120px]" />
-        <div className="pointer-events-none absolute -bottom-40 -right-40 size-[600px] rounded-full bg-indigo-500/15 blur-[120px]" />
+        <div className="pointer-events-none absolute -top-40 -left-40 size-[600px] rounded-full bg-primary/20 blur-[130px]" />
+        <div className="pointer-events-none absolute -bottom-40 -right-40 size-[600px] rounded-full bg-indigo-500/15 blur-[130px]" />
         <div className="bg-tech-grid absolute inset-0 opacity-25 pointer-events-none" />
 
         <div className="relative z-10 grid items-center gap-10 lg:grid-cols-12 lg:gap-14">
-          {/* Left Text Column: Strong Student Conversion Copy */}
+          {/* Left Text & Search Column */}
           <div className="space-y-6 lg:col-span-7">
             {/* Live Operational Status Pill */}
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary backdrop-blur-md">
@@ -158,82 +109,70 @@ export default async function HomePage() {
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
               </span>
-              <span>{health?.status === "ok" ? "Platform Active · 1,420 Accredited Specialists Online" : "Concierge Network Online"}</span>
+              <span>{health?.status === "ok" ? "Platform Live · 2,400+ Vetted Industry Leaders Available" : "Concierge Network Online"}</span>
             </div>
 
-            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl sm:leading-[1.12] xl:text-6xl">
-              Accelerate Your Studies With <span className="bg-gradient-to-r from-primary via-indigo-400 to-cyan-400 bg-clip-text text-transparent">Verified Doctoral Scholars</span>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl sm:leading-[1.1] xl:text-6xl">
+              Learn Directly From <span className="bg-gradient-to-r from-primary via-indigo-400 to-cyan-400 bg-clip-text text-transparent">World-Class Minds</span>
             </h1>
 
             <p className="text-sm text-slate-300 sm:text-base xl:text-lg leading-relaxed max-w-2xl">
-              Overcome challenging coursework, complex algorithms, and thesis roadblocks with 1-on-1 guidance from top 3% academics from Stanford, MIT, and Oxford. Zero ghostwriting — 100% milestone protected.
+              Book private 1:1 masterclasses, live technical debugging, and rigorous research guidance with verified doctoral scholars, staff engineers, and industry leaders.
             </p>
 
-            {/* Quick Benefits Bullet List */}
-            <div className="grid grid-cols-2 gap-3 pt-1 text-xs text-slate-300 sm:text-sm">
-              <div className="flex items-center gap-2">
-                <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
-                  <CheckCircle2 className="size-3.5" />
-                </div>
-                <span>Instant Debugging &amp; Proofs</span>
+            {/* Prominent Search Pill Bar with Instant Category Quick-Filters */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center rounded-2xl border border-slate-700/80 bg-slate-900/90 p-2 shadow-2xl backdrop-blur-xl transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25">
+                <Search className="size-5 text-muted ml-3 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search by topic, e.g. 'Distributed Raft', 'Quantum Mechanics', 'Causal Inference'…"
+                  className="w-full bg-transparent px-3 py-2 text-xs sm:text-sm text-white placeholder:text-slate-400 focus:outline-none"
+                />
+                <Button size="sm" variant="glow" asChild className="shrink-0 h-10 px-5 text-xs font-bold rounded-xl shadow-lg shadow-primary/25">
+                  <Link href="/experts">
+                    Explore <ArrowRight className="size-3.5 ml-1" />
+                  </Link>
+                </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex size-5 items-center justify-center rounded-full bg-primary/20 text-primary">
-                  <CheckCircle2 className="size-3.5" />
-                </div>
-                <span>1-on-1 Personalized Coaching</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex size-5 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400">
-                  <CheckCircle2 className="size-3.5" />
-                </div>
-                <span>Strict Anti-Plagiarism Pledge</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex size-5 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400">
-                  <CheckCircle2 className="size-3.5" />
-                </div>
-                <span>Milestone Escrow Guarantee</span>
+
+              {/* Instant Category Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+                <span className="font-semibold text-slate-400">Trending Topics:</span>
+                {POPULAR_SEARCHES.map((topic) => (
+                  <Link
+                    key={topic}
+                    href={`/experts?q=${encodeURIComponent(topic)}`}
+                    className="rounded-lg border border-slate-800 bg-slate-900/70 px-2 py-0.5 text-slate-300 hover:border-primary/50 hover:bg-slate-800 hover:text-white transition-colors"
+                  >
+                    {topic}
+                  </Link>
+                ))}
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-3 pt-3">
-              <Button size="lg" variant="glow" asChild className="h-12 px-7 text-sm font-semibold shadow-xl shadow-primary/30">
-                <Link href="/register">
-                  Find Your Specialist Now <ArrowRight className="size-4 ml-1.5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="secondary" asChild className="h-12 border-slate-700 bg-slate-800/80 text-white hover:bg-slate-700">
-                <Link href="/experts">Browse Doctoral Directory</Link>
-              </Button>
-            </div>
-
-            {/* Live Trust Metrics Strip */}
-            <div className="flex flex-wrap items-center gap-6 border-t border-slate-800/80 pt-6 text-xs text-slate-400">
+            {/* 4-Metric Trust Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-slate-800/80 pt-6 text-xs text-slate-400">
               <div>
-                <span className="font-mono text-base font-bold text-white">250,000+</span>
-                <span className="block text-[10px] text-slate-400">Sessions Completed</span>
+                <span className="font-mono text-base font-extrabold text-white">Top 2%</span>
+                <span className="block text-[10px] text-slate-400">Acceptance Rate</span>
               </div>
-              <span className="text-slate-700">•</span>
               <div>
-                <span className="font-mono text-base font-bold text-emerald-400">99.2%</span>
-                <span className="block text-[10px] text-slate-400">On-Time Completion</span>
+                <span className="font-mono text-base font-extrabold text-emerald-400">45,000+</span>
+                <span className="block text-[10px] text-slate-400">Hours Delivered</span>
               </div>
-              <span className="text-slate-700">•</span>
               <div>
-                <span className="font-mono text-base font-bold text-primary">Top 3%</span>
-                <span className="block text-[10px] text-slate-400">Vetted Acceptance</span>
+                <span className="font-mono text-base font-extrabold text-amber-400">4.98 / 5.0</span>
+                <span className="block text-[10px] text-slate-400">Average Student Rating</span>
               </div>
-              <span className="text-slate-700">•</span>
-              <div className="flex items-center gap-1.5 text-slate-300">
-                <ShieldCheck className="size-4 text-emerald-400" />
-                <span className="font-medium text-white">Escrow Safeguarded</span>
+              <div>
+                <span className="font-mono text-base font-extrabold text-cyan-400">&lt; 15 Mins</span>
+                <span className="block text-[10px] text-slate-400">Median Proposal SLA</span>
               </div>
             </div>
           </div>
 
-          {/* Right Visual Column: High-Tech Student Hero Graphic with Floating Badges */}
+          {/* Right Visual Column: High-Tech Studio Graphic with Floating Badges */}
           <div className="relative lg:col-span-5 flex justify-center">
             <div className="relative w-full max-w-lg rounded-2xl border border-primary/30 bg-surface/50 p-2.5 shadow-2xl backdrop-blur-xl">
               <div className="relative aspect-[16/10] overflow-hidden rounded-xl border border-slate-700/60 shadow-inner">
@@ -242,7 +181,7 @@ export default async function HomePage() {
                   alt="Student mastering advanced academic concepts in high-tech research studio"
                   fill
                   priority
-                  sizes="(max-width: 768px) 100vw, 500px"
+                  sizes="(max-width: 768px) 100vw, 550px"
                   className="object-cover transition-transform duration-700 hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
@@ -255,7 +194,7 @@ export default async function HomePage() {
                 </div>
                 <div>
                   <span className="block text-xs font-bold text-white">4.98 / 5.0 Rating</span>
-                  <span className="block text-[10px] text-slate-400">Across 312+ Doctoral Consults</span>
+                  <span className="block text-[10px] text-slate-400">Across 312+ Consultations</span>
                 </div>
               </div>
 
@@ -267,7 +206,7 @@ export default async function HomePage() {
                 </span>
                 <div>
                   <span className="block text-xs font-bold text-white">Milestone Escrow Active</span>
-                  <span className="block text-[10px] text-slate-400">Funds Protected Until Approval</span>
+                  <span className="block text-[10px] text-slate-400">Funds Safe Until You Approve</span>
                 </div>
               </div>
             </div>
@@ -276,87 +215,32 @@ export default async function HomePage() {
       </section>
 
       {/* ════════════════════════════════════════════════
-          2. PROMINENT "WHO IS HERE" — FEATURED DOCTORAL SPECIALISTS
+          2. INFINITE MARQUEE TICKER (RESEARCH LABS & TECH PARTNERS)
       ════════════════════════════════════════════════ */}
-      <section className="space-y-10">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-semibold text-primary">
-              <UserCheck className="size-3.5" />
-              <span>Elite Verified Talent</span>
-            </div>
-            <h2 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-              Who Is Here to Coach You?
-            </h2>
-            <p className="text-sm text-muted max-w-2xl">
-              No anonymous freelancers. Learn directly from credentialed Ph.D. scholars, postdocs, and senior industry architects from top global research labs.
-            </p>
+      <PartnerMarquee />
+
+      {/* ════════════════════════════════════════════════
+          3. EXPERT DISCOVERY & SHOWCASE GRID (FILTERABLE BY DOMAIN)
+      ════════════════════════════════════════════════ */}
+      <section className="space-y-6">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-semibold text-primary">
+            <UserCheck className="size-3.5" />
+            <span>Featured Industry &amp; Academic Specialists</span>
           </div>
-          <Button variant="secondary" asChild className="shrink-0">
-            <Link href="/experts">View All 1,420 Specialists →</Link>
-          </Button>
+          <h2 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            Book 1:1 Sessions With Top Practitioners
+          </h2>
+          <p className="text-sm text-muted max-w-2xl">
+            Filter our network of credentialed Ph.D. scholars, postdocs, and senior staff architects. Real identities, verified badges, and transparent rates.
+          </p>
         </div>
 
-        {/* 4 Rich Specialist Profile Cards */}
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {FEATURED_EXPERTS.map((exp) => (
-            <Card key={exp.name} variant="glass" hover className="h-full flex flex-col justify-between p-6 relative overflow-hidden border-border/80">
-              <div className="space-y-4">
-                {/* Header: Avatar, Name, Rating */}
-                <div className="flex items-start gap-3.5">
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 font-bold text-white shadow-md text-sm">
-                    {exp.avatar}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="font-bold text-sm text-foreground truncate">{exp.name}</h3>
-                      <BadgeCheck className="size-4 shrink-0 text-primary" />
-                    </div>
-                    <p className="text-[11px] font-medium text-primary line-clamp-1">{exp.domain}</p>
-                    <p className="text-[10px] text-muted">{exp.institution}</p>
-                  </div>
-                </div>
-
-                {/* Rating & Reviews */}
-                <div className="flex items-center justify-between border-y border-border/60 py-2.5 text-xs">
-                  <div className="flex items-center gap-1 text-amber-500 font-bold">
-                    <Star className="size-3.5 fill-amber-400 text-amber-400" />
-                    <span>{exp.rating}</span>
-                    <span className="text-[11px] text-muted font-normal">({exp.reviews} consults)</span>
-                  </div>
-                  <span className="font-mono text-xs font-bold text-foreground">{exp.hourly}<span className="text-[10px] text-muted font-normal">/brief</span></span>
-                </div>
-
-                {/* Bio */}
-                <p className="text-xs text-muted leading-relaxed line-clamp-3">
-                  {exp.bio}
-                </p>
-
-                {/* Skills tags */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {exp.skills.map((skill) => (
-                    <span key={skill} className="rounded-md border border-border bg-surface-2/60 px-2 py-0.5 text-[10px] font-medium text-foreground">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action Button */}
-              <div className="mt-5 pt-4 border-t border-border/60">
-                <Button variant="secondary" className="w-full text-xs font-semibold h-9" asChild>
-                  <Link href="/register">
-                    Request 1-on-1 Brief <ArrowRight className="size-3.5 ml-1" />
-                  </Link>
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <ExpertDiscoveryGrid />
       </section>
 
       {/* ════════════════════════════════════════════════
-          3. "WHAT STUDENTS ACHIEVE" — VISUAL OUTCOME DECK WITH 3D ART
+          4. VALUE PROPOSITION & HOW IT WORKS (3-STEP SEQUENCE)
       ════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-surface via-surface-2/30 to-background p-8 sm:p-12 lg:p-16 shadow-xl">
         <div className="pointer-events-none absolute -bottom-20 -left-20 size-72 rounded-full bg-primary/10 blur-3xl" />
@@ -384,35 +268,41 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Right Column: 4 Student Value Pillars */}
+          {/* Right Column: 3-Step Sequence for Learners */}
           <div className="space-y-6 lg:col-span-6">
             <div className="space-y-2">
-              <Badge tone="flow">Direct Academic Impact</Badge>
+              <Badge tone="flow">The Learning Pipeline</Badge>
               <h2 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-                What You Get as a Student
+                How Knowledge Marketplace Works
               </h2>
               <p className="text-sm text-muted">
-                Transform stress and academic confusion into mastery. Every inquiry is calibrated for tangible comprehension and rapid turnaround.
+                From finding the right specialist to deep conceptual mastery — structured, milestone-gated, and completely ethical.
               </p>
             </div>
 
             <div className="space-y-4">
-              {STUDENT_OUTCOMES.map((item) => (
-                <div key={item.title} className="flex gap-4 rounded-2xl border border-border/60 bg-surface/70 p-4 transition-all hover:bg-surface hover:shadow-md">
+              {LEARNER_STEPS.map((item) => (
+                <div key={item.step} className="flex gap-4 rounded-2xl border border-border/60 bg-surface/70 p-4 transition-all hover:bg-surface hover:shadow-md">
                   <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${item.bg} ${item.color}`}>
                     <item.icon className="size-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-muted">{item.step}</span>
+                      <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
+                    </div>
                     <p className="mt-1 text-xs text-muted leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap items-center gap-3">
               <Button size="lg" variant="glow" asChild className="h-11">
-                <Link href="/register">Start Your Student Brief <ArrowRight className="size-4 ml-1.5" /></Link>
+                <Link href="/register">Get Started as a Student <ArrowRight className="size-4 ml-1.5" /></Link>
+              </Button>
+              <Button size="lg" variant="secondary" asChild className="h-11">
+                <Link href="/how-it-works">Detailed Protocol</Link>
               </Button>
             </div>
           </div>
@@ -420,12 +310,48 @@ export default async function HomePage() {
       </section>
 
       {/* ════════════════════════════════════════════════
-          4. INTERACTIVE SCOPE SIMULATOR (PLAYGROUND)
+          5. DEDICATED "MONETIZE YOUR KNOWLEDGE" CALLOUT FOR MENTORS
+      ════════════════════════════════════════════════ */}
+      <section className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-surface p-8 sm:p-12 shadow-xl">
+        <div className="grid items-center gap-8 lg:grid-cols-12">
+          <div className="space-y-3 lg:col-span-8">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-0.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+              <Sparkles className="size-3.5" />
+              <span>For Industry Practitioners &amp; Doctoral Mentors</span>
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-foreground">
+              Monetize Your Specialized Knowledge
+            </h3>
+            <p className="text-sm text-muted max-w-2xl leading-relaxed">
+              Join an exclusive network of top academics, staff engineers, and domain researchers. Set your own consultation rates, choose what briefs to accept, and keep up to 85% of what you earn — with zero subscription or listing fees.
+            </p>
+            <div className="flex flex-wrap gap-4 pt-2 text-xs text-muted">
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-amber-500" /> Keep 85% on open bids</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-amber-500" /> 72-hour automated payout clearing</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-amber-500" /> Dedicated operator dispute protection</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-3 lg:col-span-4 lg:items-end justify-center">
+            <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white font-bold border-0 shadow-lg shadow-amber-500/25 h-11 px-6 text-sm">
+              <Link href="/register/expert">
+                Apply as a Specialist <ArrowRight className="size-4 ml-1.5" />
+              </Link>
+            </Button>
+            <Button variant="secondary" asChild className="h-11">
+              <Link href="/for-experts">Explore Mentor Economics</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════
+          6. INTERACTIVE SCOPE SIMULATOR (LIVE CALCULATION PLAYGROUND)
       ════════════════════════════════════════════════ */}
       <InteractiveScopeSimulator />
 
       {/* ════════════════════════════════════════════════
-          5. MILESTONE ESCROW & SECURITY VAULT (DARK CYBERNETIC BANNER)
+          7. MILESTONE ESCROW & PLATFORM SECURITY VAULT
       ════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8 sm:p-12 lg:p-14 text-white shadow-2xl">
         <div className="pointer-events-none absolute -top-40 right-0 size-80 rounded-full bg-emerald-500/10 blur-[120px]" />
@@ -484,7 +410,7 @@ export default async function HomePage() {
       </section>
 
       {/* ════════════════════════════════════════════════
-          6. DISCIPLINE DIRECTORY GRID
+          8. SPECIALIZED SUBJECT COVERAGE
       ════════════════════════════════════════════════ */}
       <section className="space-y-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -522,35 +448,7 @@ export default async function HomePage() {
       </section>
 
       {/* ════════════════════════════════════════════════
-          7. SPECIALIST RECRUITMENT CALLOUT BANNER
-      ════════════════════════════════════════════════ */}
-      <section className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-surface p-8 sm:p-10">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-0.5 text-xs font-bold text-amber-600 dark:text-amber-400">
-              <Sparkles className="size-3.5" />
-              <span>For Subject Specialists</span>
-            </div>
-            <h3 className="text-2xl font-extrabold text-foreground">Are You a University Tutor or Ph.D. Expert?</h3>
-            <p className="text-sm text-muted max-w-xl">
-              Teach what you love, choose your own hours, and keep up to 85% of what you charge. Join an accredited academic network trusted by hundreds of thousands of students.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3 shrink-0">
-            <Button variant="secondary" asChild className="h-11">
-              <Link href="/for-experts">Learn More</Link>
-            </Button>
-            <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white font-semibold border-0 shadow-lg shadow-amber-500/25 h-11 px-5">
-              <Link href="/register/expert">
-                Apply as Specialist <ArrowRight className="size-4 ml-1.5" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════
-          8. CLOSING HIGH-CONVERTING STUDENT CTA
+          9. CLOSING HIGH-CONVERTING STUDENT CTA
       ════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary-soft/40 to-indigo-950/20 p-10 sm:p-16 text-center space-y-6 shadow-2xl">
         <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 size-72 rounded-full bg-primary/25 blur-3xl" />

@@ -1,52 +1,70 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Sparkles, X } from "lucide-react";
+import { Menu, Sparkles, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useSession } from "@/features/auth/SessionProvider";
 
-const NAV_LINKS = [
-  { href: "/experts", label: "Find an Expert" },
-  { href: "/subjects", label: "Disciplines" },
-  { href: "/how-it-works", label: "How it Works" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/for-experts", label: "For Specialists" },
-];
-
 export function SiteHeader() {
   const { user, status, logout } = useSession();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/80 backdrop-blur-md transition-colors">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur-xl transition-colors">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        {/* Brand Logo with Illuminated Icon */}
         <Link href="/" className="flex items-center gap-2.5 transition-transform hover:scale-[1.01]">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Sparkles className="size-4" />
+          <div className="relative flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-indigo-600 to-primary-strong text-white shadow-md shadow-primary/30 ring-1 ring-white/20">
+            <Sparkles className="size-4 animate-pulse" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold tracking-tight text-foreground">
-              Expert Marketplace
+            <span className="text-sm font-extrabold tracking-tight text-foreground">
+              Knowledge<span className="text-primary">Marketplace</span>
             </span>
-            <span className="hidden text-[10px] font-medium tracking-wider text-muted sm:inline-block">
-              INTELLIGENT LEARNING
+            <span className="hidden text-[9px] font-bold tracking-widest text-muted sm:inline-block uppercase">
+              Maven &middot; Linear &middot; Intro Caliber
             </span>
           </div>
         </Link>
 
         {/* Center navigation for desktop */}
-        <nav className="hidden items-center gap-6 md:flex" aria-label="Main navigation">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-medium text-muted transition-colors hover:text-foreground"
-            >
-              {link.label}
-            </Link>
-          ))}
+        <nav className="hidden items-center gap-7 lg:flex" aria-label="Main navigation">
+          <Link
+            href="/experts"
+            className="text-xs font-semibold text-muted transition-colors hover:text-foreground"
+          >
+            Explore Experts
+          </Link>
+          <Link
+            href="/how-it-works"
+            className="text-xs font-semibold text-muted transition-colors hover:text-foreground"
+          >
+            How It Works
+          </Link>
+          <Link
+            href="/subjects"
+            className="text-xs font-semibold text-muted transition-colors hover:text-foreground inline-flex items-center gap-1.5"
+          >
+            <span>Masterclasses</span>
+            <span className="rounded-full bg-primary-soft px-1.5 py-0.5 text-[9px] font-bold text-primary">New</span>
+          </Link>
+          <Link
+            href="/pricing"
+            className="text-xs font-semibold text-muted transition-colors hover:text-foreground"
+          >
+            Pricing
+          </Link>
+          <Link
+            href="/for-experts"
+            className="text-xs font-semibold text-muted transition-colors hover:text-foreground inline-flex items-center gap-1.5"
+          >
+            <span>Become a Mentor</span>
+            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              Keep 85%
+            </span>
+          </Link>
         </nav>
 
         {/* Right actions */}
@@ -59,7 +77,7 @@ export function SiteHeader() {
             <div className="hidden sm:flex items-center gap-3">
               <Link
                 href={user.roles.staff ? "/portal" : "/account"}
-                className="text-sm font-medium text-foreground transition-colors hover:text-primary"
+                className="text-xs font-bold text-foreground transition-colors hover:text-primary"
               >
                 {user.name}
               </Link>
@@ -69,20 +87,21 @@ export function SiteHeader() {
                 size="sm"
                 onClick={() => void logout()}
                 data-testid="nav-logout"
+                className="text-xs h-8"
               >
                 Log out
               </Button>
             </div>
           ) : (
-            <div className="hidden sm:flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2.5">
               <Link href="/login">
-                <Button variant="ghost" size="sm">
-                  Sign in
+                <Button variant="ghost" size="sm" className="text-xs font-semibold h-9 px-3">
+                  Sign In
                 </Button>
               </Link>
               <Link href="/register">
-                <Button variant="primary" size="sm">
-                  Get started
+                <Button variant="glow" size="sm" className="text-xs font-bold h-9 px-4 shadow-lg shadow-primary/25">
+                  Get Started <ArrowRight className="size-3.5 ml-1" />
                 </Button>
               </Link>
             </div>
@@ -91,7 +110,7 @@ export function SiteHeader() {
           {/* Mobile Navigation Drawer */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
+              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
@@ -101,16 +120,48 @@ export function SiteHeader() {
               </div>
 
               <nav className="flex flex-col gap-2" aria-label="Mobile navigation">
-                {NAV_LINKS.map((link) => (
-                  <SheetClose asChild key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  </SheetClose>
-                ))}
+                <SheetClose asChild>
+                  <Link
+                    href="/experts"
+                    className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
+                  >
+                    Explore Experts
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link
+                    href="/how-it-works"
+                    className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
+                  >
+                    How It Works
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link
+                    href="/subjects"
+                    className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors flex items-center justify-between"
+                  >
+                    <span>Masterclasses</span>
+                    <span className="rounded-full bg-primary-soft px-1.5 py-0.5 text-[10px] font-bold text-primary">New</span>
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link
+                    href="/pricing"
+                    className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
+                  >
+                    Pricing
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link
+                    href="/for-experts"
+                    className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors flex items-center justify-between"
+                  >
+                    <span>Become a Mentor</span>
+                    <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">85% Split</span>
+                  </Link>
+                </SheetClose>
               </nav>
 
               <div className="pt-4 border-t border-border space-y-3">
@@ -141,14 +192,14 @@ export function SiteHeader() {
                     <SheetClose asChild>
                       <Link href="/login">
                         <Button variant="secondary" size="sm" className="w-full text-xs">
-                          Sign in
+                          Sign In
                         </Button>
                       </Link>
                     </SheetClose>
                     <SheetClose asChild>
                       <Link href="/register">
-                        <Button variant="primary" size="sm" className="w-full text-xs">
-                          Get started
+                        <Button variant="glow" size="sm" className="w-full text-xs font-bold">
+                          Get Started
                         </Button>
                       </Link>
                     </SheetClose>
