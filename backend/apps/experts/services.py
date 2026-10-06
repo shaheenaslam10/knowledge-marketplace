@@ -399,6 +399,81 @@ def get_public_expert(slug: str) -> ExpertProfile:
     return profile
 
 
+# --- Public subject discovery (seo-ux.md `/subjects/[slug]`) -----------------
+#
+# This lives in `experts`, not `taxonomy`, on purpose: it counts *experts* per
+# subject, and import-linter places `apps.experts` above `apps.taxonomy`. A
+# subject page is a discovery surface over the directory, so the directory's
+# app owns it and reuses `directory_queryset()` — the subject page can never
+# advertise an expert the directory itself would hide.
+
+#: Sibling subjects offered for hub-and-spoke internal linking.
+RELATED_SUBJECT_LIMIT = 8
+
+
+def _subject_expert_count(slug: str) -> int:
+    return directory_queryset().filter(subjects__slug=slug).distinct().count()
+
+
+def get_public_subject(slug: str) -> dict:
+    """Subject detail for the public `/subjects/{slug}` page.
+
+    Raises ``NotFoundError`` for unknown *or inactive* subjects: a retired
+    subject must 404 rather than render an orphan page that stays in search
+    results. Only ``kind="subject"`` resolves — skills and tags share the slug
+    space but are not public landing pages.
+    """
+    from apps.taxonomy.models import TaxonomyTerm
+
+    subject = (
+        TaxonomyTerm.objects.select_related("parent")
+        .filter(kind=TaxonomyTerm.Kind.SUBJECT, slug=slug, is_active=True)
+        .first()
+    )
+    if subject is None:
+        raise NotFoundError("Subject not found.", code="subject_not_found")
+
+    siblings = TaxonomyTerm.objects.filter(kind=TaxonomyTerm.Kind.SUBJECT, is_active=True).exclude(
+        pk=subject.pk
+    )
+    # Prefer true siblings (same parent category); fall back to any subject so
+    # a parentless taxonomy still gets internal links instead of a dead end.
+    scoped = siblings.filter(parent_id=subject.parent_id) if subject.parent_id else siblings
+    related = list(scoped.order_by("name")[:RELATED_SUBJECT_LIMIT])
+    if not related:
+        related = list(siblings.order_by("name")[:RELATED_SUBJECT_LIMIT])
+
+    return {
+        "subject": subject,
+        "parent": subject.parent if subject.parent and subject.parent.is_active else None,
+        "expert_count": _subject_expert_count(slug),
+        "related": related,
+    }
+
+
+def list_public_subjects() -> list[dict]:
+    """Active subjects with their public expert counts (sitemap + hub links).
+
+    One aggregate query rather than N counts, because the sitemap walks every
+    subject on each crawl.
+    """
+    from django.db.models import Count, Q
+
+    from apps.taxonomy.models import TaxonomyTerm
+
+    approved = Q(
+        expert_profiles__is_public=True,
+        expert_profiles__user__is_active=True,
+        expert_profiles__user__expert_application__status=ExpertApplication.Status.APPROVED,
+    )
+    terms = (
+        TaxonomyTerm.objects.filter(kind=TaxonomyTerm.Kind.SUBJECT, is_active=True)
+        .annotate(expert_count=Count("expert_profiles", filter=approved, distinct=True))
+        .order_by("name")
+    )
+    return [{"term": t, "expert_count": t.expert_count} for t in terms]
+
+
 def application_decision_age(application: ExpertApplication) -> timedelta | None:
     """How long since the last review decision (admin SLA bookkeeping)."""
     return timezone.now() - application.reviewed_at if application.reviewed_at else None

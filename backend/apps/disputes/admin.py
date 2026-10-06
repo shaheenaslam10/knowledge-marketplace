@@ -17,29 +17,41 @@ class DisputeAdmin(admin.ModelAdmin):
     def take_case(self, request, queryset):
         from apps.disputes import services
 
+        count = 0
         for dispute in queryset:
             services.take_case(dispute, actor=request.user)
+            count += 1
+        self.message_user(request, f"{count} dispute(s) taken under review.")
 
     @admin.action(description="Await response (48h)")
     def await_response(self, request, queryset):
         from apps.disputes import services
 
+        count = 0
         for dispute in queryset:
             services.await_response(dispute, actor=request.user)
+            count += 1
+        self.message_user(request, f"{count} dispute(s) awaiting response.")
 
     @admin.action(description="Resume review")
     def resume_review(self, request, queryset):
         from apps.disputes import services
 
+        count = 0
         for dispute in queryset:
             services.resume_review(dispute, actor=request.user)
+            count += 1
+        self.message_user(request, f"{count} dispute(s) resumed under review.")
 
     @admin.action(description="Close (funds settled + notified)")
     def close(self, request, queryset):
         from apps.disputes import services
 
+        count = 0
         for dispute in queryset:
             services.close(dispute, actor=request.user)
+            count += 1
+        self.message_user(request, f"{count} dispute(s) closed.")
 
     actions = ["take_case", "await_response", "resume_review", "close"]
 

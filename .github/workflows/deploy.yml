@@ -1,0 +1,171 @@
+name: Deploy
+
+# Release process (docs/architecture/deployment.md):
+#   code -> tests -> CI -> approved release -> deployment -> smoke -> rollback
+#
+# The approval gate is a GitHub *Environment* protection rule, not something
+# this file can grant itself: the owner configures required reviewers on the
+# `production` environment once, and every production run then blocks for a
+# human. Staging deploys on merge; production is manual or tag-driven.
+#
+# OWNER SETUP REQUIRED before this can run (see deployment.md §Owner actions):
+#   Environments:  staging, production  (production -> required reviewers)
+#   Secrets per environment:
+#     DEPLOY_HOST        ssh host or IP of the deploy box
+#     DEPLOY_USER        ssh user (member of the docker group)
+#     DEPLOY_SSH_KEY     private key with access to that user
+#     DEPLOY_PATH        absolute path to the checkout on the host
+#   Variables per environment:
+#     API_DOMAIN, APP_DOMAIN
+#
+# Until those exist the job stops at the preflight step with an explicit
+# message. It does not pretend to deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        options: [staging, production]
+        default: staging
+        required: true
+      ref:
+        description: "Git ref to deploy (defaults to the triggering ref)"
+        type: string
+        required: false
+  push:
+    tags: ["v*"]
+
+concurrency:
+  # Never let two deploys race for the same box.
+  group: deploy-${{ inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify the commit is releasable
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - id: resolve
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # A release must be a commit CI already went green on. Deploying an
+      # untested commit defeats the entire pipeline.
+      - name: Require a successful CI run for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA="${{ steps.resolve.outputs.sha }}"
+          echo "Checking CI for $SHA"
+          CONCLUSION="$(gh run list --workflow CI --commit "$SHA" \
+            --json conclusion,status --jq '[.[] | select(.status=="completed")][0].conclusion' || true)"
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "::error::No successful CI run for $SHA (got '${CONCLUSION:-none}'). Refusing to deploy."
+            exit 1
+          fi
+          echo "CI is green for $SHA"
+
+      - name: Deployment config sanity
+        run: |
+          test -f docker-compose.prod.yml || { echo "::error::missing docker-compose.prod.yml"; exit 1; }
+          test -f deploy/Caddyfile        || { echo "::error::missing deploy/Caddyfile"; exit 1; }
+          for s in deploy.sh rollback.sh smoke_test.sh backup_db.sh restore_backup.sh; do
+            test -x "scripts/$s" || { echo "::error::scripts/$s missing or not executable"; exit 1; }
+            bash -n "scripts/$s" || exit 1
+          done
+          echo "deployment artifacts present and syntactically valid"
+
+  deploy:
+    name: Deploy to ${{ inputs.environment || 'production' }}
+    needs: verify
+    runs-on: ubuntu-latest
+    # The approval gate. Protection rules on this environment (required
+    # reviewers) are what make "approved release" real.
+    environment:
+      name: ${{ inputs.environment || 'production' }}
+      url: https://${{ vars.APP_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+
+      - name: Preflight — are the deploy credentials configured?
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          missing=""
+          [ -n "$DEPLOY_HOST" ]    || missing="$missing DEPLOY_HOST"
+          [ -n "$DEPLOY_USER" ]    || missing="$missing DEPLOY_USER"
+          [ -n "$DEPLOY_SSH_KEY" ] || missing="$missing DEPLOY_SSH_KEY"
+          [ -n "$DEPLOY_PATH" ]    || missing="$missing DEPLOY_PATH"
+          if [ -n "$missing" ]; then
+            echo "::error::Deployment secrets not configured:$missing"
+            echo "::error::No host is provisioned yet. See docs/architecture/deployment.md §Owner actions."
+            exit 1
+          fi
+
+      - name: Set up SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy (build, migrate, health, smoke; auto-rollback on failure)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          TARGET_ENV: ${{ inputs.environment || 'production' }}
+          SHA: ${{ needs.verify.outputs.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd '$DEPLOY_PATH' && git fetch --all --tags --quiet && ./scripts/deploy.sh --env '$TARGET_ENV' --ref '$SHA'"
+
+      # Independent of the on-host smoke: verify from the public internet, so
+      # DNS, TLS and the proxy are exercised the way a user would.
+      - name: External smoke verification
+        run: |
+          ./scripts/smoke_test.sh \
+            --api "https://${{ vars.API_DOMAIN }}" \
+            --web "https://${{ vars.APP_DOMAIN }}"
+
+      - name: Roll back on failure
+        if: failure()
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          TARGET_ENV: ${{ inputs.environment || 'production' }}
+        run: |
+          echo "::warning::Deploy or smoke failed — rolling back"
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd '$DEPLOY_PATH' && ./scripts/rollback.sh --env '$TARGET_ENV'"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deploy ${{ inputs.environment || 'production' }}"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Commit | \`${{ needs.verify.outputs.sha }}\` |"
+            echo "| Result | ${{ job.status }} |"
+            echo "| App | https://${{ vars.APP_DOMAIN }} |"
+            echo "| API | https://${{ vars.API_DOMAIN }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

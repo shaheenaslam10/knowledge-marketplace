@@ -1,6 +1,6 @@
 # Security Requirements
 
-> Status: 📐 Phase 0 · Last updated: 2026-09-23 · Related: [authentication](authentication.md), [files](../workflows/files.md), [observability](observability.md)
+> Status: ✅ pre-launch gate evaluated (Phase 12) · Last updated: Phase 12 · Related: [authentication](authentication.md), [files](../workflows/files.md), [observability](observability.md)
 
 Posture: modern web-app baseline for a money-handling marketplace, sized for a small team. Principle: **secure defaults, least privilege, server-side authority, audited admin power.**
 
@@ -44,10 +44,47 @@ Posture: modern web-app baseline for a money-handling marketplace, sized for a s
 
 ## Security checklist (pre-launch gate — tracked in Phase 12)
 
-- [ ] OWASP ASVS-lite review passed (injection, authn, authz, session, CSRF, headers, uploads, errors)
-- [ ] Authorization matrix has explicit tests (every role × sensitive endpoint)
-- [ ] Stripe webhook signature + replay tests
-- [ ] File access-control tests (cross-account attempts denied + audited)
-- [ ] Dependency audit clean / triaged
-- [ ] Secrets scan on repo (no keys committed, ever)
-- [ ] Backup restore rehearsed once on staging data
+- [x] **OWASP ASVS-lite review passed** — Phase 11 audit, F-1…F-8; see
+      [security-audit-phase11](security-audit-phase11.md). All findings closed
+      or explicitly dispositioned.
+- [x] **Authorization matrix has explicit tests** —
+      `apps/portal/tests/test_authorization_matrix.py` (every role × sensitive
+      endpoint).
+- [x] **Webhook signature + replay tests** — `apps/payments/tests`. Covers the
+      manual gateway, which is the active provider; the Stripe adapter is an
+      unactivated seam (ADR-0005), so there is nothing live to sign. Re-run this
+      item on provider activation.
+- [x] **File access-control tests** — `apps/files/tests/test_files.py`,
+      cross-account attempts denied and audited.
+- [x] **Dependency audit clean / triaged** — `pip-audit` + `npm audit` run in CI
+      on every push (Backend/Frontend jobs).
+- [x] **Secrets scan** — no credentials in git. `.gitignore` excludes every
+      `.env.*` except the two committed templates, and CI asserts
+      `.env.prod.example` contains only `CHANGE_ME` placeholders.
+- [x] **Backup restore rehearsed** — full drill passed 2026-09-28 including the
+      BR-33 money identity on restored rows; evidence in
+      [backup-recovery](backup-recovery.md#restore-drill-evidence). Rehearsed on
+      seeded development data, not staging data — no staging host exists yet.
+
+### Deploy-time posture (Phase 12)
+
+The checklist above is about code. These are enforced at deploy time by
+`apps/core/checks.py`, which runs in `entrypoint.prod.sh` before the server
+starts — a misconfigured container **refuses to boot**:
+
+| Risk | Check | Severity |
+|---|---|---|
+| Development `SECRET_KEY` in production | `hem.E001` | blocks boot |
+| `DEBUG` enabled | `hem.E002` | blocks boot |
+| Forgeable payment webhooks (default secret) | `hem.E008` | blocks boot |
+| Mail printed to the log instead of delivered | `hem.E010` | blocks boot |
+| Uploads on a container filesystem (lost on redeploy) | `hem.E011` | blocks boot |
+| Default `admin/` path | `hem.W006` | blocks boot at `--fail-level WARNING` |
+| Non-HTTPS callback URLs | `hem.W002` | as above |
+| CSP left report-only | `hem.W003` | as above |
+
+Transport-layer items (TLS, HSTS, Postgres not exposed) are structural in
+`deploy/Caddyfile` and `docker-compose.prod.yml` rather than checklist items —
+the database publishes no port at all, so it cannot be reached from outside the
+compose network. The smoke test re-verifies the header posture after every
+deploy.
