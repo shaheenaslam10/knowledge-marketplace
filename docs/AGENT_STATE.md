@@ -17,10 +17,33 @@
 ---
 
 ## 2. Phase Tracker
-- **Current Phase:** Navigation Fix, Dual-Role Persona Architecture & Request Wizard Overhaul — **COMPLETE**
+- **Current Phase:** Collapsible Sidebar Shell, Student Data Scoping & Asymmetric 2-Column Canvas — **COMPLETE**
 - **Overall Status:** **`PRODUCTION_READY`** (Dual-native Next.js 15 monorepo, 0 type errors, 143 frontend Vitest tests passing, 440 backend pytest tests passing, HTTP 200 on all routes).
 
 ### Completed Tasks
+- [x] **Elite Collapsible Sidebar Shell (`(app)/layout.tsx`):**
+  - Replaced the crowded 1800px top navigation bar with a high-end SaaS left sidebar (expanded `w-64` / collapsed `w-20`) + slim top utility bar.
+  - Sidebar Top: Brand Logo + Active Workspace Badge (`[🎓 Student Workspace]` or `[⚡ Specialist Hub]`) + collapse/expand toggle button.
+  - Sidebar Middle: Clean vertical menu with modern Lucide icons and active pill backgrounds for Students (`Learning Dashboard`, `New Task Brief`, `Active Orders`, `Direct Messages`, `Account Settings`) and Specialists (`Opportunity Radar`, `Managed Tasks`, `Active Orders`, `Reviews & Ratings`, `Specialist Cockpit`, `Direct Messages`, `Account Settings`).
+  - Sidebar Bottom: Dual-role persona switcher toggle (`[ Switch to Specialist View ⚡ ]` <--> `[ Switch to Student View 🎓 ]` for approved experts, subtle `Apply as Specialist ⚡` link for students), live Escrow Custody capsule, and user profile card with avatar and preferences dropdown.
+  - Slim Top Utility Bar: Workspace breadcrumb, global command palette trigger (`⌘K Search...`), Escrow Safe badge, ThemeToggle, and NotificationBell.
+  - Mobile Responsiveness: Hidden on mobile, accessible via left sheet drawer menu.
+  - Verified via Playwright automated tests and visual screenshots 33 (`33_student_requests_sidebar_and_scoping.png`) and 36 (`36_sidebar_collapsed_mode.png`).
+- [x] **Asymmetric 2-Column Balanced Workspace Canvas (`/requests` & `/orders`):**
+  - Completely eliminated the 1800px "desert effect" and stretched lists.
+  - Constrained canvas (`max-w-[1440px] mx-auto`) with balanced 12-column grid (`lg:grid-cols-12 gap-8 items-start`):
+    - Left Column (8 cols / ~68% width): Filter tabs, quick search input, and compact structured task/order cards with title, tags, budget, SLA deadline, proposal status, and action links.
+    - Right Column (4 cols / ~32% width, sticky `top-20`): Live Telemetry summary card (Active Briefs, Proposals Received, 100% Escrow Custody, Match SLA < 18m), Action CTA card ("Accelerate Your Research" / "Create New Task Brief"), and Trust & Escrow Guarantee honor code card (BR-10 & BR-14).
+  - Overhauled `/orders` into the same balanced 2-column layout with status filter pills, compact order cards, and Escrow Custody Safe & Next Brief cards.
+  - Verified via Playwright visual screenshots 33 (`33_student_requests_sidebar_and_scoping.png`) and 34 (`34_student_orders_2column.png`).
+- [x] **Strict Student Data Scoping (`requests/page.tsx`):**
+  - Client data-fetching layer in `requests/page.tsx` strictly scopes loaded requests to authentic student learning briefs.
+  - Filtered out seeded ops portal dispute records (`Portal demo — disputed`, etc.) from student views.
+  - Clean, high-energy empty state with "Post Your First Academic Brief" CTA when no tasks match.
+- [x] **"Apply as Expert" Redirection Seam & Dossier Fix (`/expert/apply`):**
+  - Whitelisted `/expert/apply` and `/expert/application` in `(app)/layout.tsx` so navigating there preserves student context without flipping `roleMode` to `EXPERT` or triggering role-guard redirect loops.
+  - Upgraded `/expert/apply` non-editable state into an "Application Under Review (< 48h)" status card with review turnaround SLA (< 48 hours), dossier details link, and clean 1-click return button to the Student Learning Workspace.
+  - Verified via Playwright automated navigation test and visual screenshot 35 (`35_student_expert_apply.png`).
 - [x] **Navigation Active Link Remediation (`(app)/layout.tsx`):**
   - Resolved route boundary highlight bug: Visiting `/requests/new` highlights strictly ONE navigation button ("New Task Brief").
   - Visiting `/requests` highlights strictly ONE navigation button ("Learning Dashboard").

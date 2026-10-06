@@ -10,6 +10,14 @@ import {
   CheckCircle2,
   ShieldCheck,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  PlusCircle,
+  PackageCheck,
+  MessageSquare,
+  User,
+  Layers,
+  Star,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -34,18 +42,19 @@ import { cn } from "@/lib/utils";
 
 /**
  * High-Energy Next-Gen EdTech Workspace Shell.
- * Features an Elite Glassmorphic Floating Header, Interactive Pill Navigation,
- * Escrow Custody Telemetry, Professional Dual-Role Persona Architecture, and a Full-Bleed Fluid Canvas.
+ * Features an Elite Collapsible Sidebar Shell, Slim Top Utility Bar,
+ * Escrow Telemetry, Professional Dual-Role Persona Architecture, and Balanced Canvas.
  */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { status, user, logout, refresh } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const [roleMode, setRoleMode] = useState<"student" | "expert">("student");
+  const [collapsed, setCollapsed] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Read stored role preference
+  // Read stored role preference and sidebar collapsed state
   useEffect(() => {
     try {
       const stored = localStorage.getItem("hem_role_mode");
@@ -54,8 +63,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       } else if (stored === "STUDENT") {
         setRoleMode("student");
       }
+
+      const storedCollapsed = localStorage.getItem("hem_sidebar_collapsed");
+      if (storedCollapsed === "true") {
+        setCollapsed(true);
+      }
     } catch {}
   }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("hem_sidebar_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -64,11 +88,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [status, router]);
 
   // Sync mode with route if navigating to role-specific surfaces
+  // Whitelist /expert/apply and /expert/application so student mode remains active without loop
   useEffect(() => {
     if (
       pathname.startsWith("/opportunities") ||
       pathname.startsWith("/assignments") ||
-      pathname.startsWith("/expert") ||
+      (pathname.startsWith("/expert") &&
+        !pathname.startsWith("/expert/apply") &&
+        !pathname.startsWith("/expert/application")) ||
       pathname.startsWith("/offers")
     ) {
       setRoleMode("expert");
@@ -76,7 +103,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         localStorage.setItem("hem_role_mode", "EXPERT");
         document.cookie = "hem_role_mode=EXPERT; path=/; max-age=31536000; SameSite=Lax";
       } catch {}
-    } else if (pathname.startsWith("/requests")) {
+    } else if (
+      pathname.startsWith("/requests") ||
+      pathname.startsWith("/expert/apply") ||
+      pathname.startsWith("/expert/application")
+    ) {
       setRoleMode("student");
       try {
         localStorage.setItem("hem_role_mode", "STUDENT");
@@ -158,22 +189,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   // Student vs Expert dynamic navigation
-  // In Student View: ONLY Student links
   const studentNav = [
-    { href: "/requests", label: "Learning Dashboard" },
-    { href: "/requests/new", label: "New Task Brief" },
-    { href: "/orders", label: "My Orders" },
-    { href: "/messages", label: "Messages" },
+    { href: "/requests", label: "Learning Dashboard", icon: GraduationCap },
+    { href: "/requests/new", label: "New Task Brief", icon: PlusCircle },
+    { href: "/orders", label: "Active Orders", icon: PackageCheck },
+    { href: "/messages", label: "Direct Messages", icon: MessageSquare },
+    { href: "/account", label: "Account Settings", icon: User },
   ];
 
-  // In Specialist View: ONLY Specialist links
   const expertNav = [
-    { href: "/opportunities", label: "Opportunity Radar" },
-    { href: "/assignments", label: "Managed Tasks" },
-    { href: "/orders", label: "Active Orders" },
-    { href: "/expert/reviews", label: "Reviews" },
-    { href: isExpertUser ? "/expert/profile" : "/expert/apply", label: "Specialist Cockpit" },
-    { href: "/messages", label: "Messages" },
+    { href: "/opportunities", label: "Opportunity Radar", icon: Zap },
+    { href: "/assignments", label: "Managed Tasks", icon: Layers },
+    { href: "/orders", label: "Active Orders", icon: PackageCheck },
+    { href: "/expert/reviews", label: "Reviews & Ratings", icon: Star },
+    { href: isExpertUser ? "/expert/profile" : "/expert/apply", label: "Specialist Cockpit", icon: ShieldCheck },
+    { href: "/messages", label: "Direct Messages", icon: MessageSquare },
+    { href: "/account", label: "Account Settings", icon: User },
   ];
 
   const nav = roleMode === "expert" ? expertNav : studentNav;
@@ -230,7 +261,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <NotificationsProvider>
-      <div className="flex min-h-screen flex-col bg-background text-foreground transition-colors">
+      <div className="flex min-h-screen bg-background text-foreground transition-colors">
         {/* Global Cmd+K Command Palette Modal */}
         {cmdOpen && (
           <div
@@ -279,213 +310,277 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* 1. Elite Glassmorphic Floating Header */}
-        <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md transition-colors">
-          <div className="mx-auto flex h-16 sm:h-20 w-full max-w-[1720px] items-center justify-between gap-4 px-6 lg:px-10">
-            {/* ZONE A (Left: Clean Brand Identity) */}
-            <div className="flex items-center gap-3.5 shrink-0">
-              <Link href="/" className="flex items-center gap-3 font-bold tracking-tight group">
-                <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-violet-600 via-primary to-indigo-600 text-white font-black shadow-md shadow-primary/25 transition-transform duration-200 group-hover:scale-105">
-                  <Sparkles className="size-5" aria-hidden />
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base sm:text-lg font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text text-transparent">
+        {/* 1. Desktop Elite Collapsible Sidebar Shell */}
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-30 hidden lg:flex flex-col border-r border-border/70 bg-card/95 backdrop-blur-md transition-all duration-300",
+            collapsed ? "w-20" : "w-64",
+          )}
+        >
+          {/* Top: Brand Logo & Workspace Badge */}
+          <div className="flex h-16 sm:h-20 items-center justify-between px-4 border-b border-border/60">
+            <Link href="/" className="flex items-center gap-3 font-bold tracking-tight group overflow-hidden">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-violet-600 via-primary to-indigo-600 text-white font-black shadow-md shadow-primary/25 transition-transform duration-200 group-hover:scale-105">
+                <Sparkles className="size-5" aria-hidden />
+              </div>
+              {!collapsed && (
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base font-black tracking-tight bg-gradient-to-r from-foreground via-foreground to-primary bg-clip-text text-transparent">
                       HYBRID
                     </span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-xs">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
                       PRO
                     </span>
                   </div>
-                  <span className="hidden sm:inline-block text-[10px] font-bold text-muted tracking-wider uppercase">
+                  <span className="text-[10px] font-bold text-muted tracking-wider uppercase truncate">
                     Knowledge Exchange
                   </span>
                 </div>
-              </Link>
-            </div>
+              )}
+            </Link>
 
-            {/* ZONE B (Center: Interactive Pill Navigation & Quick Search) */}
-            <div className="hidden lg:flex items-center justify-center gap-3 flex-1 max-w-2xl mx-4">
-              {/* Interactive Pill Navigation Bar with Bubble Highlights */}
-              <nav
-                className="flex items-center p-1 rounded-full bg-surface-2/90 border border-border/80 shadow-xs gap-0.5 backdrop-blur-sm"
-                aria-label="Workspace Navigation"
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+            </button>
+          </div>
+
+          {/* Active Workspace Status Badge */}
+          <div className="px-3 pt-3">
+            {roleMode === "student" ? (
+              <div
+                className={cn(
+                  "flex items-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 text-violet-700 dark:text-violet-300 font-bold transition-all",
+                  collapsed ? "justify-center p-2 text-xs" : "px-3 py-2 text-xs",
+                )}
+                title="Student Workspace"
               >
-                {nav.map((item) => {
-                  const isActive = active(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={isActive ? "page" : undefined}
-                      className={cn(
-                        "relative px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap",
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25 scale-[1.02]"
-                          : "text-muted hover:text-foreground hover:bg-surface-3/80",
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
+                <GraduationCap className="size-4 shrink-0 text-violet-600 dark:text-violet-400" />
+                {!collapsed && <span>Student Workspace</span>}
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  "flex items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold transition-all",
+                  collapsed ? "justify-center p-2 text-xs" : "px-3 py-2 text-xs",
+                )}
+                title="Specialist Hub"
+              >
+                <Zap className="size-4 shrink-0 text-amber-500" />
+                {!collapsed && <span>Specialist Hub</span>}
+              </div>
+            )}
+          </div>
 
-              {/* Global Search Trigger Bar */}
+          {/* Middle Nav: Vertical List */}
+          <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5" aria-label="Main Navigation">
+            {nav.map((item) => {
+              const isActive = active(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive ? "page" : undefined}
+                  title={item.label}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl text-xs font-bold transition-all duration-150",
+                    collapsed ? "justify-center p-2.5" : "px-3.5 py-2.5",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25 scale-[1.01]"
+                      : "text-muted hover:text-foreground hover:bg-surface-2",
+                  )}
+                >
+                  <Icon className={cn("size-4 shrink-0", isActive ? "text-primary-foreground" : "text-muted")} />
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Bottom Footer Section */}
+          <div className="p-3 border-t border-border/60 space-y-2.5 bg-surface-1/40">
+            {/* Persona Switcher / Specialist Onboarding Link */}
+            {isExpertUser ? (
               <button
                 type="button"
-                onClick={() => setCmdOpen(true)}
-                className="flex items-center justify-between gap-3 px-3 py-1.5 rounded-full border border-border/80 bg-surface-1 hover:bg-surface-2 text-xs text-muted hover:text-foreground transition-all shadow-xs group shrink-0"
-                title="Search Workspace (⌘K)"
+                onClick={roleMode === "student" ? handleSwitchToExpert : handleSwitchToStudent}
+                className={cn(
+                  "w-full flex items-center gap-2 rounded-xl border border-border/80 bg-surface-1 hover:bg-surface-2 text-xs font-semibold text-foreground transition-all shadow-xs hover:border-primary/40 group",
+                  collapsed ? "justify-center p-2" : "px-3 py-2 justify-between",
+                )}
+                title={roleMode === "student" ? "Switch to Specialist View" : "Switch to Student View"}
+                data-testid="button-role-toggle"
               >
-                <div className="flex items-center gap-2">
-                  <Search className="size-3.5 text-muted group-hover:text-primary transition-colors" />
-                  <span className="hidden xl:inline text-xs">Search...</span>
-                </div>
-                <kbd className="font-mono text-[10px] font-bold bg-surface-2 group-hover:bg-surface-3 px-1.5 py-0.5 rounded border border-border/70 text-muted">
-                  ⌘K
-                </kbd>
+                {roleMode === "student" ? (
+                  <>
+                    {!collapsed && <span>Specialist View</span>}
+                    <span className="flex size-5 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-bold group-hover:scale-110 transition-transform">
+                      ⚡
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {!collapsed && <span>Student View</span>}
+                    <span className="flex size-5 items-center justify-center rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-400 text-xs font-bold group-hover:scale-110 transition-transform">
+                      🎓
+                    </span>
+                  </>
+                )}
               </button>
+            ) : (
+              <Link
+                href="/expert/apply"
+                className={cn(
+                  "flex items-center gap-2 rounded-xl border border-border/80 bg-surface-1 hover:bg-surface-2 text-xs font-semibold text-muted hover:text-foreground transition-all shadow-xs group",
+                  collapsed ? "justify-center p-2" : "px-3 py-2 justify-between",
+                )}
+                title="Apply as Specialist"
+              >
+                {!collapsed && <span>Apply as Specialist</span>}
+                <span className="text-amber-500 font-bold group-hover:scale-110 transition-transform">
+                  ⚡
+                </span>
+              </Link>
+            )}
+
+            {/* Wallet / Escrow Capsule */}
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold shadow-xs",
+                collapsed ? "justify-center p-2" : "px-3 py-2",
+              )}
+              title="Escrow: $0.00 Active"
+            >
+              <span className="size-2 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+              {!collapsed && (
+                <div className="flex items-center justify-between w-full text-[11px]">
+                  <span className="font-sans text-muted uppercase font-bold tracking-wider">Escrow:</span>
+                  <span>$0.00 Active</span>
+                </div>
+              )}
             </div>
 
-            {/* ZONE C (Right: Persona Switcher, Financial Capsule, Theme, Notifications & Profile) */}
-            <div className="flex items-center gap-3 shrink-0">
-              {/* Dual-Role Persona Switcher / Specialist Onboarding Link */}
-              {isExpertUser ? (
+            {/* User Profile Card Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  onClick={roleMode === "student" ? handleSwitchToExpert : handleSwitchToStudent}
-                  className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border/80 bg-surface-1 hover:bg-surface-2 text-xs font-semibold text-foreground transition-all shadow-xs hover:border-primary/40 group"
-                  title={roleMode === "student" ? "Switch to Specialist View" : "Switch to Student View"}
-                  data-testid="button-role-toggle"
-                >
-                  {roleMode === "student" ? (
-                    <>
-                      <span>Switch to Specialist View</span>
-                      <span className="flex size-5 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-bold group-hover:scale-110 transition-transform">
-                        ⚡
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Switch to Student View</span>
-                      <span className="flex size-5 items-center justify-center rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-400 text-xs font-bold group-hover:scale-110 transition-transform">
-                        🎓
-                      </span>
-                    </>
+                  className={cn(
+                    "w-full flex items-center gap-2.5 rounded-xl border border-border/80 bg-surface-1 hover:bg-surface-2 transition-all shrink-0 text-left focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-xs group",
+                    collapsed ? "justify-center p-1.5" : "p-2",
                   )}
-                </button>
-              ) : (
-                <Link
-                  href="/expert/apply"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-border/80 bg-surface-1 hover:bg-surface-2 text-xs font-semibold text-muted hover:text-foreground transition-all shadow-xs group"
-                  title="Apply as Specialist"
+                  aria-label="User account menu"
                 >
-                  <span>Apply as Specialist</span>
-                  <span className="text-amber-500 font-bold group-hover:scale-110 transition-transform">
-                    ⚡
-                  </span>
-                </Link>
-              )}
-
-              {/* Wallet / Escrow Capsule */}
-              <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold shadow-xs">
-                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-sans text-[11px] text-muted uppercase font-bold tracking-wider">
-                  Escrow:
-                </span>
-                <span>$0.00 Active</span>
-              </div>
-
-              <ThemeToggle />
-              <NotificationBell />
-
-              {/* Premium User Profile Pill */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex items-center gap-2.5 p-1 sm:px-2.5 sm:py-1.5 rounded-full border border-border/80 bg-surface-1 hover:bg-surface-2 transition-all shrink-0 text-left focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-xs group"
-                    aria-label="User account menu"
-                  >
-                    <div className="relative">
-                      <div className="size-8 rounded-full p-0.5 bg-gradient-to-tr from-violet-600 via-primary to-indigo-600 shadow-sm">
-                        <div className="size-full rounded-full bg-surface flex items-center justify-center text-xs font-black text-primary">
-                          {userInitial}
-                        </div>
+                  <div className="relative shrink-0">
+                    <div className="size-8 rounded-full p-0.5 bg-gradient-to-tr from-violet-600 via-primary to-indigo-600 shadow-sm">
+                      <div className="size-full rounded-full bg-surface flex items-center justify-center text-xs font-black text-primary">
+                        {userInitial}
                       </div>
-                      <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-500 border-2 border-background" />
                     </div>
-                    <div className="hidden sm:block">
+                    <span className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-500 border-2 border-background" />
+                  </div>
+                  {!collapsed && (
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-foreground truncate max-w-[110px] block leading-none">
+                        <span className="text-xs font-bold text-foreground truncate block leading-none">
                           {user?.name ?? user?.email?.split("@")[0]}
                         </span>
                         <CheckCircle2 className="size-3 text-primary shrink-0" />
                       </div>
-                      <span className="text-[10px] font-medium text-muted block leading-none mt-1">
+                      <span className="text-[10px] font-medium text-muted block leading-none mt-1 truncate">
                         {userRoleTag}
                       </span>
                     </div>
-                    <ChevronDown className="size-3.5 text-muted group-hover:text-foreground transition-transform duration-200 hidden sm:block" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl shadow-xl border-border/80">
-                  <DropdownMenuLabel className="px-3 py-2">
-                    <p className="font-bold text-xs text-foreground">{user?.name}</p>
-                    <p className="text-[11px] text-muted truncate">{user?.email}</p>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 mt-1 rounded-full text-[10px] font-bold bg-primary/10 text-primary">
-                      {userRoleTag}
-                    </span>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => router.push("/account")} className="text-xs font-semibold cursor-pointer rounded-xl">
-                    Account & Preferences
-                  </DropdownMenuItem>
-                  {isExpertUser ? (
-                    <DropdownMenuItem
-                      onSelect={() => (roleMode === "student" ? handleSwitchToExpert() : handleSwitchToStudent())}
-                      className="text-xs font-semibold cursor-pointer rounded-xl flex items-center justify-between"
-                    >
-                      <span>Switch to {roleMode === "student" ? "Specialist View" : "Student View"}</span>
-                      <span>{roleMode === "student" ? "⚡" : "🎓"}</span>
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem
-                      onSelect={() => router.push("/expert/apply")}
-                      className="text-xs font-semibold cursor-pointer rounded-xl flex items-center justify-between text-primary font-bold"
-                    >
-                      <span>Apply as Specialist</span>
-                      <span className="text-amber-500">⚡</span>
-                    </DropdownMenuItem>
                   )}
-                  <DropdownMenuSeparator />
+                  {!collapsed && (
+                    <ChevronDown className="size-3.5 text-muted group-hover:text-foreground transition-transform duration-200" />
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl shadow-xl border-border/80">
+                <DropdownMenuLabel className="px-3 py-2">
+                  <p className="font-bold text-xs text-foreground">{user?.name}</p>
+                  <p className="text-[11px] text-muted truncate">{user?.email}</p>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 mt-1 rounded-full text-[10px] font-bold bg-primary/10 text-primary">
+                    {userRoleTag}
+                  </span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => router.push("/account")} className="text-xs font-semibold cursor-pointer rounded-xl">
+                  Account & Preferences
+                </DropdownMenuItem>
+                {isExpertUser ? (
                   <DropdownMenuItem
-                    onSelect={async () => {
-                      await logout();
-                      router.push("/");
-                    }}
-                    className="text-xs font-semibold text-danger focus:bg-danger/10 cursor-pointer rounded-xl"
+                    onSelect={() => (roleMode === "student" ? handleSwitchToExpert() : handleSwitchToStudent())}
+                    className="text-xs font-semibold cursor-pointer rounded-xl flex items-center justify-between"
                   >
-                    <LogOut className="size-3.5 mr-2" />
-                    Log out
+                    <span>Switch to {roleMode === "student" ? "Specialist View" : "Student View"}</span>
+                    <span>{roleMode === "student" ? "⚡" : "🎓"}</span>
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                ) : (
+                  <DropdownMenuItem
+                    onSelect={() => router.push("/expert/apply")}
+                    className="text-xs font-semibold cursor-pointer rounded-xl flex items-center justify-between text-primary font-bold"
+                  >
+                    <span>Apply as Specialist</span>
+                    <span className="text-amber-500">⚡</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={async () => {
+                    await logout();
+                    router.push("/");
+                  }}
+                  className="text-xs font-semibold text-danger focus:bg-danger/10 cursor-pointer rounded-xl"
+                >
+                  <LogOut className="size-3.5 mr-2" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </aside>
 
-              {/* Mobile Menu Drawer Trigger */}
+        {/* 2. Main Area: Slim Top Utility Bar + Balanced Content Canvas */}
+        <div
+          className={cn(
+            "flex flex-1 flex-col transition-all duration-300 min-w-0",
+            collapsed ? "lg:pl-20" : "lg:pl-64",
+          )}
+        >
+          {/* Slim Top Utility Bar */}
+          <header className="sticky top-0 z-20 flex h-14 sm:h-16 items-center justify-between border-b border-border/60 bg-background/85 px-4 sm:px-6 backdrop-blur-md transition-colors">
+            {/* Left: Mobile Drawer Trigger + Workspace Breadcrumb */}
+            <div className="flex items-center gap-3">
+              {/* Mobile Drawer Trigger (Sheet) */}
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="lg:hidden size-9 rounded-full" aria-label="Open menu">
+                  <Button variant="ghost" size="icon" className="lg:hidden size-9 rounded-xl" aria-label="Open menu">
                     <Menu className="size-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-full max-w-xs p-6 space-y-6">
-                  <div className="flex items-center justify-between border-b border-border pb-4">
-                    <span className="font-bold text-sm text-foreground">Workspace Menu</span>
+                <SheetContent side="left" className="w-full max-w-xs p-6 space-y-6">
+                  <div className="flex items-center gap-3 border-b border-border pb-4">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white font-black shadow-xs">
+                      <Sparkles className="size-4" />
+                    </div>
+                    <div>
+                      <span className="font-black text-sm text-foreground">HYBRID PRO</span>
+                      <span className="text-[10px] block text-muted uppercase font-bold tracking-wider">
+                        {roleMode === "student" ? "Student Learning" : "Specialist Hub"}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Mobile Role Switcher (Dual-role for approved experts, apply callout for students) */}
+                  {/* Mobile Role Switcher */}
                   {isExpertUser ? (
                     <div className="grid grid-cols-2 p-1 rounded-2xl bg-surface-2 border border-border/80 text-xs">
                       <button
@@ -514,13 +609,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       </button>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-border bg-surface-2 p-4 space-y-2">
+                    <div className="rounded-2xl border border-border bg-surface-2 p-3.5 space-y-1.5">
                       <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                         <Zap className="size-4 text-warning" />
                         <span>Specialist Candidate</span>
                       </div>
                       <p className="text-[11px] text-muted leading-relaxed">
-                        Earn on academic bounties with 85% net take-home earnings on every completed brief.
+                        Earn 85% net take-home on verified academic briefs.
                       </p>
                       <Link
                         href="/expert/apply"
@@ -548,24 +643,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
                   {/* Mobile Nav Links */}
                   <nav className="flex flex-col gap-1.5" aria-label="Mobile">
-                    {nav.map((item) => (
-                      <SheetClose asChild key={item.href}>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
-                            active(item.href)
-                              ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                              : "text-muted hover:bg-surface-2 hover:text-foreground",
-                          )}
-                        >
-                          {item.label}
-                        </Link>
-                      </SheetClose>
-                    ))}
+                    {nav.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <SheetClose asChild key={item.href}>
+                          <Link
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
+                              active(item.href)
+                                ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                                : "text-muted hover:bg-surface-2 hover:text-foreground",
+                            )}
+                          >
+                            <Icon className="size-4" />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SheetClose>
+                      );
+                    })}
                   </nav>
 
-                  <div className="pt-4 border-t border-border space-y-3">
+                  <div className="pt-4 border-t border-border space-y-2">
                     <SheetClose asChild>
                       <Link
                         href="/account"
@@ -589,16 +688,64 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
                 </SheetContent>
               </Sheet>
-            </div>
-          </div>
-        </header>
 
-        {/* 2. Fluid High-Energy SaaS Canvas Container */}
-        <main className="mx-auto w-full max-w-[1720px] flex-1 px-6 sm:px-8 lg:px-10 py-8 sm:py-10 space-y-8 sm:space-y-10">
-          {notificationShell}
-        </main>
+              {/* Mobile Brand Title */}
+              <div className="lg:hidden flex items-center gap-2">
+                <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-600 text-white font-black shadow-xs">
+                  <Sparkles className="size-3.5" />
+                </div>
+                <span className="text-sm font-black bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+                  HYBRID PRO
+                </span>
+              </div>
+
+              {/* Desktop Workspace Breadcrumb */}
+              <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-muted">
+                <span className="font-semibold text-foreground">Workspace</span>
+                <span>/</span>
+                <span className="text-foreground font-bold">
+                  {roleMode === "student" ? "Student Learning Hub" : "Specialist Cockpit"}
+                </span>
+                <span className="text-muted">•</span>
+                <span className="text-[11px] text-muted">
+                  {roleMode === "student" ? "Milestone Protected" : "85% Payout Active"}
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Search Cmd+K Trigger, Escrow Pill, ThemeToggle, NotificationBell */}
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              {/* Cmd+K Search Trigger Pill */}
+              <button
+                type="button"
+                onClick={() => setCmdOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/80 bg-surface-1 hover:bg-surface-2 text-xs text-muted hover:text-foreground transition-all shadow-xs group"
+                title="Search Workspace (⌘K)"
+              >
+                <Search className="size-3.5 text-muted group-hover:text-primary transition-colors" />
+                <span className="hidden sm:inline text-xs">Search...</span>
+                <kbd className="hidden sm:inline-block font-mono text-[10px] font-bold bg-surface-2 group-hover:bg-surface-3 px-1.5 py-0.5 rounded border border-border/70 text-muted">
+                  ⌘K
+                </kbd>
+              </button>
+
+              {/* Top Escrow Telemetry Badge (Desktop only) */}
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-mono text-[11px] font-bold">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Escrow Safe</span>
+              </div>
+
+              <ThemeToggle />
+              <NotificationBell />
+            </div>
+          </header>
+
+          {/* 3. Balanced Asymmetric Content Canvas Container */}
+          <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            {notificationShell}
+          </main>
+        </div>
       </div>
     </NotificationsProvider>
   );
 }
-

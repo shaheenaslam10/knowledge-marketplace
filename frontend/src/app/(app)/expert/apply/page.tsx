@@ -197,17 +197,49 @@ export default function ExpertApplyPage() {
       )}
 
       {!editable && loaded && status !== "not_applied" && (
-        <Card className="p-6 border-border/80 bg-card">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <p className="text-sm font-bold text-foreground">Application Under Evaluation</p>
-              <p className="text-xs text-muted">
-                Your dossier has been received and is currently being audited by academic operations.
+        <Card className="p-6 sm:p-8 border-amber-500/30 bg-amber-500/5 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
+                  <Clock className="size-3.5" />
+                  <span>Application Under Review (&lt; 48h)</span>
+                </span>
+                <span className="text-xs font-medium text-muted">
+                  Status: {status.replace("_", " ").toUpperCase()}
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-foreground">
+                Your Specialist Accreditation Dossier is Being Audited
+              </h2>
+              <p className="text-xs sm:text-sm text-muted max-w-xl leading-relaxed">
+                Platform operations and faculty coordinators are verifying your credentials and academic background. You will receive an email notification and status update once reviewed.
               </p>
             </div>
-            <Button asChild size="sm">
-              <Link href="/expert/application">View Application Status</Link>
-            </Button>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+              <Button asChild variant="secondary" size="sm">
+                <Link href="/expert/application">View Dossier Details</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/requests">Return to Student Workspace</Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-6 text-xs text-muted">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="size-3.5 text-emerald-500" />
+              <span>Dossier Submitted Successfully</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-3.5 text-primary" />
+              <span>Identity & Credentials Protected</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="size-3.5 text-warning" />
+              <span>Target Review Turnaround: &lt; 48 Hours</span>
+            </div>
           </div>
         </Card>
       )}

@@ -2,19 +2,21 @@
 
 /** Student + expert order list — one implementation for all three sources. */
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  FileText,
-  Search,
-  ArrowRight,
+  PackageCheck,
   ShieldCheck,
   Clock,
+  ArrowRight,
+  Plus,
+  FileCheck2,
   CheckCircle2,
-  AlertCircle,
-  Briefcase,
+  Lock,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ordersApi } from "@/features/orders/api";
 import { EarningsCard } from "@/features/payments/components/earnings-card";
@@ -40,7 +42,6 @@ export function OrdersListClient() {
   const [orders, setOrders] = useState<OrderListItem[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>("all");
-  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -57,78 +58,36 @@ export function OrdersListClient() {
     };
   }, []);
 
-  const metrics = useMemo(() => {
-    if (!orders) return { active: 0, delivered: 0, completed: 0, totalAmount: 0 };
-    return {
-      active: orders.filter((o) => o.status === "active").length,
-      delivered: orders.filter((o) => o.status === "delivered").length,
-      completed: orders.filter((o) => o.status === "completed").length,
-      totalAmount: orders.reduce((sum, o) => sum + (o.amount_display || 0), 0),
-    };
-  }, [orders]);
-
   if (failed) {
     return (
-      <div role="alert" className="rounded-xl border border-danger/30 bg-danger/5 p-4 text-danger text-sm flex items-center gap-2">
-        <AlertCircle className="size-4 shrink-0" />
-        <span>Couldn&apos;t load your orders — refresh to try again.</span>
+      <div className="rounded-2xl border border-danger/30 bg-danger-soft/60 p-4 text-xs font-medium text-danger" role="alert">
+        Couldn&apos;t load your orders — refresh to try again.
       </div>
     );
   }
 
   if (!orders) {
     return (
-      <div className="space-y-4" aria-busy>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="lg:col-span-8 space-y-3" aria-busy>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-24 w-full rounded-2xl" />
           ))}
         </div>
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} className="h-24 w-full rounded-xl" />
-          ))}
+        <div className="lg:col-span-4 space-y-4">
+          <Skeleton className="h-48 w-full rounded-2xl" />
         </div>
       </div>
     );
   }
 
-  const visible = orders.filter((order) => {
-    const matchesFilter = filter === "all" ? true : order.status === filter;
-    const matchesSearch =
-      searchQuery === "" ||
-      order.request_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.number?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  const visible = orders.filter((order) => (filter === "all" ? true : order.status === filter));
 
   return (
-    <div className="space-y-6">
-      <EarningsCard />
-
-      {/* KPI summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-border/70 bg-card p-3.5 shadow-sm">
-          <span className="text-xs text-muted block mb-1">Active In-Progress</span>
-          <span className="text-2xl font-black text-foreground">{metrics.active}</span>
-        </div>
-        <div className="rounded-xl border border-border/70 bg-card p-3.5 shadow-sm">
-          <span className="text-xs text-muted block mb-1">Awaiting Inspection</span>
-          <span className="text-2xl font-black text-amber-500">{metrics.delivered}</span>
-        </div>
-        <div className="rounded-xl border border-border/70 bg-card p-3.5 shadow-sm">
-          <span className="text-xs text-muted block mb-1">Completed Orders</span>
-          <span className="text-2xl font-black text-emerald-500">{metrics.completed}</span>
-        </div>
-        <div className="rounded-xl border border-border/70 bg-card p-3.5 shadow-sm">
-          <span className="text-xs text-muted block mb-1">Total Volume</span>
-          <span className="text-2xl font-black text-primary">{price(metrics.totalAmount)}</span>
-        </div>
-      </div>
-
-      {/* Search & Tabs */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 bg-surface-1 border border-border/70 rounded-xl" role="tablist" aria-label="Filter orders by status">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* Left Column (67% width = 8 cols): Filter pills and structured order cards */}
+      <div className="lg:col-span-8 space-y-4">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0" role="tablist" aria-label="Filter orders by status">
           {STATUS_FILTERS.map((status) => (
             <button
               key={status}
@@ -136,86 +95,125 @@ export function OrdersListClient() {
               role="tab"
               aria-selected={filter === status}
               onClick={() => setFilter(status)}
-              className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold capitalize transition-all ${
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-bold capitalize transition-colors whitespace-nowrap ${
                 filter === status
                   ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted hover:text-foreground hover:bg-surface-2"
+                  : "bg-surface-2 text-muted hover:text-foreground hover:bg-surface-3"
               }`}
             >
-              {status}
+              {status} ({orders.filter((o) => status === "all" || o.status === status).length})
             </button>
           ))}
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted" />
-          <input
-            type="text"
-            placeholder="Search orders..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full sm:w-64 pl-9 pr-3 py-1.5 text-xs rounded-xl bg-surface-1 border border-border/70 focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground"
-          />
-        </div>
+        {visible.length === 0 ? (
+          <Card className="p-10 text-center border-dashed border-border bg-card">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3">
+              <PackageCheck className="size-6" />
+            </div>
+            <h3 className="text-sm font-bold text-foreground">
+              {orders.length === 0 ? "No active orders yet" : "No orders matching this status"}
+            </h3>
+            <p className="mt-1 text-xs text-muted max-w-sm mx-auto leading-relaxed">
+              {orders.length === 0
+                ? "Once a task brief is matched with an expert or an offer is accepted, the escrow-funded working order appears here."
+                : "Try selecting another status tab above to see your order history."}
+            </p>
+            {orders.length === 0 && (
+              <div className="mt-4">
+                <Button asChild size="sm">
+                  <Link href="/requests/new">
+                    <Plus className="size-3.5 mr-1" /> Post a Brief
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </Card>
+        ) : (
+          <ul className="space-y-3">
+            {visible.map((order) => (
+              <li key={order.id}>
+                <Link
+                  href={`/orders/${order.id}`}
+                  className="group block rounded-2xl border border-border/80 bg-card p-4 sm:p-5 hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 shadow-xs"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-[11px] font-bold text-muted bg-surface-2 px-2 py-0.5 rounded-full border border-border">
+                          {order.number}
+                        </span>
+                        <span className="text-[11px] font-semibold text-muted">
+                          {SOURCE_COPY[order.source]}
+                        </span>
+                        <Badge tone={ORDER_STATUS_TONE[order.status as OrderStatus]}>
+                          {ORDER_STATUS_COPY[order.status as OrderStatus]}
+                        </Badge>
+                      </div>
+                      <h2 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate max-w-md">
+                        {order.request_title}
+                      </h2>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
+                      <span className="text-sm font-black font-mono text-foreground">
+                        {price(order.amount_display)}
+                      </span>
+                      <div className="flex items-center text-xs font-semibold text-primary group-hover:translate-x-0.5 transition-transform">
+                        <span>Details</span>
+                        <ArrowRight className="size-3.5 ml-1" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {visible.length === 0 ? (
-        <div className="text-center py-12 px-4 rounded-2xl border border-dashed border-border/80 bg-surface-1 space-y-3">
-          <Briefcase className="size-10 mx-auto text-muted/60" />
-          <h3 className="text-sm font-semibold text-foreground">No orders found</h3>
-          <p className="text-muted text-xs max-w-sm mx-auto">
-            {orders.length === 0
-              ? "Once a request is matched or an offer is accepted, the working order and escrow tracking will appear here."
-              : "No orders match your selected filters. Try searching for a different keyword or reset status."}
-          </p>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {visible.map((order) => (
-            <li key={order.id}>
-              <Link
-                href={`/orders/${order.id}`}
-                className="group relative block rounded-2xl border border-border/80 bg-card p-5 transition-all hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="min-w-0 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
-                        {order.number}
-                      </span>
-                      <span className="text-xs text-muted">·</span>
-                      <span className="text-xs text-muted font-medium">{SOURCE_COPY[order.source]}</span>
-                      <span className="text-xs text-muted">·</span>
-                      <time className="text-xs text-muted">
-                        {new Date(order.created_at).toLocaleDateString()}
-                      </time>
-                    </div>
-                    <h2 className="text-base font-bold text-foreground group-hover:text-primary transition-colors truncate">
-                      {order.request_title}
-                    </h2>
-                  </div>
+      {/* Right Column (33% width = 4 cols, sticky): Earnings/Escrow telemetry and safety */}
+      <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-20">
+        <EarningsCard />
 
-                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
-                    <div className="text-right">
-                      <span className="text-xs text-muted block">Escrow Amount</span>
-                      <span className="text-base font-extrabold text-foreground">{price(order.amount_display)}</span>
-                    </div>
-                    <Badge
-                      tone={ORDER_STATUS_TONE[order.status as OrderStatus]}
-                      className="px-2.5 py-1 text-xs font-semibold capitalize"
-                    >
-                      {ORDER_STATUS_COPY[order.status as OrderStatus]}
-                    </Badge>
-                    <div className="size-8 rounded-full bg-surface-2 flex items-center justify-center text-muted group-hover:text-primary group-hover:bg-primary/10 transition-colors">
-                      <ArrowRight className="size-4" />
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+        {/* Milestone Escrow Security Capsule */}
+        <Card className="p-5 border-border/80 bg-card space-y-3">
+          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs uppercase tracking-wider">
+            <ShieldCheck className="size-4" />
+            <span>Escrow Custody Safe</span>
+          </div>
+          <p className="text-xs text-muted leading-relaxed">
+            Order deposits are held in double-entry custodial vault escrow. Funds are never released until you inspect the submitted deliverables.
+          </p>
+          <div className="pt-2 border-t border-border/60 space-y-2 text-[11px] text-muted">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+              <span>72-hour deliverable inspection window</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Lock className="size-3.5 text-primary shrink-0" />
+              <span>Binding dispute arbitration tribunal</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Quick Actions Card */}
+        <Card className="p-5 border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card space-y-3">
+          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
+            <FileCheck2 className="size-4" />
+            <span>Need More Guidance?</span>
+          </div>
+          <p className="text-xs text-muted leading-relaxed">
+            Have another course, code review, or exam prep requirement? Launch a new brief in under 2 minutes.
+          </p>
+          <Button asChild size="sm" className="w-full font-semibold shadow-xs">
+            <Link href="/requests/new" className="flex items-center justify-center gap-1.5">
+              <Plus className="size-3.5" />
+              <span>Post New Academic Brief</span>
+            </Link>
+          </Button>
+        </Card>
+      </div>
     </div>
   );
 }
