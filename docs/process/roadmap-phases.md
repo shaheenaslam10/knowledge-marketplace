@@ -20,7 +20,7 @@
 | 9 | Files, Reviews & Disputes | 6,7 | ✅ R2 storage adapter + presigned downloads, retention job; review flows + BR-39 weighted aggregates; dispute lifecycle + resolution reusing Phase 7 money services; moderation hooks (report + grounds-gated view); overdue flagging + deadline proposals |
 | 10 | Admin & Analytics | 5–9 | ✅ `(portal)` operations surfaces: KPI dashboard (server-side Postgres aggregation, UTC ranges), moderation report queue (audited review/dismiss/hide), dispute triage queue (resolution deep-links Django admin), audit viewer, PlatformConfig singleton + audited config UI, read-only financial reconciliation, users overview, seed operations funnel |
 | 11 | Security, Testing & Performance | all | ✅ docs-first security audit (F-1..F-8, dispositions recorded), authorization-matrix suite, backend hardening (ops throttles, concurrency races), CSP/headers (CSP report-only; enforcement = Phase 12 gate), pip-audit + npm-audit CI gates, Playwright E2E pack (4 journeys + smoke over compose), query-count budgets + bundle budgets + `docs/architecture/performance.md`, compose smoke 4/4; follow-up fixes (triage form, delivery upload) merged via PR #1 → `3bd92b7` |
-| 12 | Production Deployment | 11 | staging→prod deploy, backups+restore drill, monitoring, legal pages, launch checklist |
+| 12 | Production Deployment | 11 | ✅ **deployment architecture prepared and verified; not yet deployed to a host** — `docker-compose.prod.yml` + `deploy/Caddyfile` (ADR-0016), prod-only image stage + fail-closed `entrypoint.prod.sh`, `deploy.sh`/`rollback.sh`/`smoke_test.sh` (22 checks, run green against a real prod-settings stack), encrypted backups + **restore drill passed incl. BR-33 on restored rows**, production safety checks `hem.E001-E012`/`W001-W006`, `ops_report` CLI signals, **enforced nonce CSP (closes audit F-2)**, legal pages, host-aware routing (ADR-0013), CD workflow + CI `deploy-config` job. Blocked on owner actions only: host, domain, R2, email, uptime monitor |
 
 Notes on ordering: payments after orders (an order must exist to pay for); messaging at 8 (marketplace usable without realtime chat); files core landed in 3 (credentials) + 4 (`request_brief`), delivery-file extensions in 6/9; the operations portal stays scaffolding until Phase 10 (Django admin remains the ops tool, ADR-0010). Sequence rationale (Phase 3.5 refinement): design system ✅ → marketplace domain → managed service → orders/delivery → payments → communication → files/reviews/disputes → admin → hardening → launch.
 
@@ -341,3 +341,378 @@ Found while verifying the E2E pack against real application behavior; each fixed
 | CI (branch) | run **`36128869883`** — ✓ 4/4 on `4ef2353`; PR #1 merge-result run `36222723033` — ✓ 4/4 |
 | Integration | Pre-merge audit: canonical already held every other Phase 11 fix (security, performance, E2E repairs); its only commit not on the branch (`da043cb`) was docs — no duplicate or obsolete implementation, no conflicts. The exact merge tree was verified locally before merging: backend **373 passed** + ruff/format/import-linter/migrations/pip-audit; FE lint/typecheck/audit/vitest **71**/build/bundle budgets; env-docs; Playwright **6/6** on the compose-smoke mirror. `3bd92b7` landed with that identical tree. |
 | CI (final canonical) | run **`36224637860`** — ✓ 4/4 on `3bd92b7` (Backend · Frontend · Docs sync · Compose smoke) |
+
+---
+
+## Phase 12 — Production Deployment (record)
+
+> **Status: deployment architecture prepared, verified and committed. Nothing is
+> deployed.** No hosting, DNS, object-storage, email or payment credentials
+> exist in this project, so staging and production remain unreached. Every
+> claim below was executed locally in this repository; nothing is inferred from
+> a commit message, and no external service was activated.
+
+### The three states, kept apart deliberately
+
+| Stage | State |
+|---|---|
+| Deployment architecture prepared | ✅ done and verified |
+| Staging deployed | ❌ blocked on owner actions (host + domain) |
+| Production deployed | ❌ blocked on the same |
+
+| Area | What shipped |
+|---|---|
+| Docs-first | **ADR-0016** (single-host Caddy + compose, Postgres swappable to Neon, staging = same compose + a different env file) and **ADR-0017** (nonce CSP in middleware, `style-src 'unsafe-inline'` residual) written and committed **before** any implementation, per the handoff's Phase 12 item 1 |
+| Topology | `docker-compose.prod.yml` — db/api/worker/web behind `caddy`. Caddy is the only service publishing ports; **Postgres publishes none**, closing audit F-7's exposure item structurally. `name: hem-${DEPLOY_ENV}` gives staging and production separate volumes/networks on one host. `${VAR:?}` guards fail the deploy on a missing secret instead of at runtime |
+| Ingress/TLS | `deploy/Caddyfile` — automatic Let's Encrypt, static files served straight off the collectstatic volume with immutable caching, 3600 s proxy timeouts on the API host for long-lived WebSockets (ADR-0004), apex→www redirect |
+| Image | `backend/Dockerfile` gains a `deps-prod` stage installing without the `[dev]` extra — pytest/ruff are no longer shipped to production |
+| Boot gate | `backend/docker/entrypoint.prod.sh`: wait for DB → `check --deploy --tag production --fail-level WARNING` → `migrate` → `collectstatic` → exec. **Fail-closed**: a misconfigured container refuses to boot |
+| Safety checks | `apps/core/checks.py` — `hem.E001`–`E012`, `hem.W001`–`W006`. Gated on `DEPLOY_ENV`, because `config.settings.prod` is loaded by staging *and* production and cannot tell them apart |
+| Deploy/rollback | `scripts/deploy.sh` (refuse dirty tree → record release → pre-deploy backup → build → health → smoke → **auto-rollback on failure**), `scripts/rollback.sh` (code only; forward-only/additive-first migration policy documented — a bad migration is a restore, not a rollback) |
+| Smoke | `scripts/smoke_test.sh` — 22 assertions incl. **CSP enforcing, nonce present, header nonce matching the rendered document**, no `unsafe-inline`/`unsafe-eval`, auth boundary on `/api/v1/me` + `/api/v1/ops/kpis`, legal pages. Exit 1 ⇒ roll back |
+| CSP (audit **F-2 CLOSED**) | `frontend/src/middleware.ts` mints a per-request nonce and sets the policy on **both** the request and the response — Next reads the nonce from the request header. `SECURITY_HEADERS_CSP_REPORT_ONLY` now defaults to **False** |
+| Backups | `scripts/backup_db.sh` (`pg_dump -Fc` → AES-256 → SHA256 sidecar → retention → off-host hook) and `scripts/restore_backup.sh` (checksum **before** decrypt → restore → row counts → **BR-33 ledger identity on restored rows**) |
+| Monitoring | `manage.py ops_report` implemented (it had been documented for two phases without existing), reusing `reconciliation_report()` so CLI and portal cannot disagree; nine signals, **non-zero exit** when any needs attention. Uptime/Sentry wiring documented as owner actions |
+| Legal | `/terms`, `/privacy`, `/academic-integrity` on the marketing experience, linked from the footer |
+| Host routing | ADR-0013's three-experience host map implemented in middleware; redirects only when all three host vars are set, so dev/CI keep serving every path from one origin |
+| CD | `.github/workflows/deploy.yml` — refuses commits CI has not passed, runs inside a GitHub Environment (required reviewers = the approval gate), external smoke over real DNS/TLS, auto-rollback. Stops at preflight with an explicit error when deployment secrets are absent rather than appearing to succeed |
+| CI | new **`deploy-config`** job (compose + Caddy validation, every shell script parsed); the Backend job now asserts the production safety checks **in both directions** so the fail-closed gate cannot be quietly neutered |
+| Phase 11 carry-over fixed | `SessionProvider` mapped *any* `/api/v1/me` failure to signed-out, so a 429/5xx/network blip ejected a live session. Now 401/403 sign out immediately while transient failures retry with backoff and surface an `unreachable` state with a retry action |
+
+### Verification actually performed
+
+| Check | Result |
+|---|---|
+| Backend pytest | **407 passed** (373 baseline + 34 new) |
+| ruff / format / import-linter / `makemigrations --check` | ✅ / ✅ / 2 contracts kept / no changes |
+| Frontend eslint / tsc / vitest | ✅ / ✅ / **102 passed** (19 files) |
+| Production build + bundle budgets | ✅ |
+| env-docs gate | ✅ 37 vars |
+| **Smoke test against a real stack** under `config.settings.prod` | **22 passed, 0 failed** |
+| **Safety checks, dangerous config** | refused — `hem.E001/E008/E010/E011`, `W002×2`, `W006`, exit 1 |
+| **Safety checks, correct config** | passed, exit 0 |
+| **Safety checks, local dev** | inert, exit 0 |
+| **Restore drill** | **passed** — 541 objects, BR-33 `identity_violations 0`; negative paths (wrong passphrase / corrupted archive / missing file) each fail distinctly with 0 leftover databases |
+| `ops_report` live run | 9 signals, `payouts.failed 1 [ALERT]`, non-zero exit — the alert path fired on a real anomaly |
+| Playwright E2E, compose-smoke | compose-smoke ❌ not runnable locally (Docker absent, apt blocked); rely on CI. **Playwright: superseded 2026-09-28 — E2E IS runnable here** (browser sourced from the npm package `@sparticuz/chromium`; recipe in PROJECT-HANDOFF.md). Executed 13/13 against a production build, and it immediately caught the release-blocking CSP defect recorded below. |
+
+### Acceptance criteria — honest status
+
+| Criterion | Status |
+|---|---|
+| Staging + production reachable over HTTPS with enforced headers | ❌ **not met** — no host exists. The configuration that produces it is complete and its header posture is verified locally |
+| Restore drill passed with documented evidence | ✅ met — [backup-recovery](../architecture/backup-recovery.md#restore-drill-evidence) |
+| Uptime monitor green | ❌ not met — needs a public URL; probe + runbook documented |
+| Live order cycle in manual-payment mode | ⚠️ exercised end-to-end by the Phase 11 Playwright journeys and the backend suite, **not** against a deployed environment |
+| All standard gates green | ✅ locally; CI authoritative |
+| Roadmap + handoff updated in the completion commit | ✅ |
+
+**Phase 12 is therefore not complete.** What remains is not code: it is
+provisioning a host, a domain, R2, an email sender and an uptime monitor — the
+owner actions listed in [deployment.md](../architecture/deployment.md#owner-actions-required-before-a-real-deploy).
+Marking it done would misrepresent the state of the product.
+
+### Deviations from the Phase 0 plan (recorded, not silent)
+
+| Plan | Reality | Why |
+|---|---|---|
+| `scripts/reset_prod.py` to strip seed data | Not built; the guard lives **inside** `seed_demo`, which refuses `DEPLOY_ENV=production` | A cleanup script only helps if someone remembers to run it; a refusal cannot be forgotten |
+| Stripe live keys + webhook in the launch checklist | Manual gateway remains the payment path | ADR-0005: no credentials exist, and none were fabricated |
+| Restore drill "on staging data" | Drilled on seeded development data | No staging host exists yet. Script path, encryption, checksum, restore and money-integrity verification are all real; only the off-host copy is unproven |
+
+---
+
+## Post-Phase-12 completeness audit (record)
+
+**Why:** Phase 12 ended blocked on owner provisioning. Instead of idling, the whole
+codebase was audited against the four experiences to find work that was genuinely
+incomplete rather than merely unreported. Full narrative in
+[PROJECT-HANDOFF.md](PROJECT-HANDOFF.md#post-phase-12-audit-2026-09-28--two-real-gaps-found-and-closed).
+
+**Came back clean:** 0 TODO/FIXME/HACK markers across 18 backend apps and 37
+frontend pages · 7 `ops/*` routes ↔ 7 portal pages, no orphans · 4 Playwright
+journeys + smoke matching the docs · commission rates correctly `PlatformConfig`-backed
+(`0.1500` / `0.2000`, unchanged — verified, not modified).
+
+**Fixed:**
+
+| # | Finding | Resolution | Commit |
+|---|---|---|---|
+| 1 | 4 of 24 declared notification types had no emit site — the feature was dead | `request_new_offer`, `payout_scheduled`, `payout_failed` wired at their service call sites; `order_auto_approve_warning` added as an hourly job (migration `0008`), deduped via a persisted `auto_approve_warned` event | `7e97faf` |
+| 2 | 15%/20% commission charged but disclosed on no public page; `/pricing` specified since Phase 0, never built | `GET /api/v1/platform/pricing` (`AllowAny`, `PlatformConfig`-backed) + `/pricing` with FAQPage JSON-LD + `sitemap.ts` (also never built) + `robots.ts` hardened to exclude authenticated surfaces | this commit |
+
+**Test deltas:** backend pytest 407 → **426**; frontend vitest 102 → **115**.
+
+**Three defects were caught only by live end-to-end verification**, not by unit
+tests — recorded because the pattern will recur in this codebase:
+
+1. Any marketing route that fetches from the API **must not be prerendered**. The web
+   image builds with no API reachable, so a build-time fetch bakes the degraded state
+   into the HTML and ISR keeps serving it. `/pricing` and `sitemap.ts` are both
+   `force-dynamic` for this reason.
+2. Cache TTL on a price disclosure is a correctness question, not a performance one.
+   Commission is fixed at booking time, so a 1h cache meant orders could book at a
+   rate the page never advertised. 60s.
+3. `to_major()` returns a float suitable for arithmetic, not display. Use
+   `format_money()` for anything a user reads.
+
+**Still deliberately unbuilt** (marketing surface only, docs place them in Phase 4+):
+`/for-experts`, `/about`, `/subjects/[slug]`, `/blog/*`, OG image generation, and
+`request_new_matching` (needs matching fan-out + daily digest).
+
+---
+
+## Public marketing surface completed (record)
+
+**Why:** the Phase-12 audit listed `/for-experts`, `/about`, `/subjects/[slug]` and
+`/blog/*` as the remaining non-owner-blocked gaps. Three were built; the fourth was
+found to be an explicit product decision, not an omission.
+
+| Route | Status | Notes |
+|---|---|---|
+| `/subjects/[slug]` | ✅ built | "Find help in {subject}" over real taxonomy: expert cards, how-it-works snippet, empty state, related subjects, BreadcrumbList + CollectionPage JSON-LD |
+| `/subjects` | ✅ built (**addition**) | seo-ux asked for "hub-and-spoke internal links" but never named a hub; without one the spokes were a crawl island |
+| `/for-experts` | ✅ built | Commission read live and inverted to "what you keep"; requirements mirror `ExpertApplyInfoView`; FAQPage JSON-LD |
+| `/about` | ✅ built | Factual only — no founding story, team, investors or usage claims, because the repository contains no such facts |
+| `/blog/*` | ⛔ **not built, by decision** | `mvp-scope.md` lists Blog/CMS in the *out-of-MVP* table ("Directory + subject pages first") and no content architecture exists. Building one would invent a deferred system |
+
+**Backend:** `GET /api/v1/subjects` and `GET /api/v1/subjects/{slug}`, both `AllowAny`,
+implemented in `apps.experts` (not `apps.taxonomy` — import-linter places experts
+above taxonomy, and these endpoints count experts). Both reuse `directory_queryset()`,
+so a subject page can never advertise an expert the directory would hide.
+
+**Test deltas:** backend pytest 426 → **439**; frontend vitest 115 → **142**.
+
+**Caught by live verification, not by unit tests** — the same lesson as the previous
+milestone, now with a shared abstraction to stop it recurring:
+
+1. Subject **parents are taxonomy categories**, which have no landing page. The first
+   implementation linked them to `/subjects/{parent.slug}`, a guaranteed 404. Parents
+   now render as a label. Found by running the page against seeded data.
+2. `/for-experts` initially reused the pricing API's `description` fields, which are
+   written for students ("you post a request and experts bid") — wrong audience on
+   the supply-side page. Only `percent` and `label` are shared now.
+
+The three decisions that made `/pricing` correct (never prerender, cache the data not
+the route, never cache a failure) are now implemented once in
+`frontend/src/lib/api/public.ts` and reused by all four data-driven marketing pages.
+
+### Latent flaky test found and fixed — likely the CI anomaly from the previous session
+
+Running the full suite repeatedly surfaced `apps/experts/tests/test_services.py::
+test_slug_uniqueness` failing intermittently. `ExpertProfile.Meta` declares no
+`ordering`, so `ExpertProfile.objects.values_list("slug", flat=True)` has **no
+guaranteed row order** — the test's `slugs[1]` assumed insertion order and Postgres
+is free to return either row first depending on heap layout. It passes in isolation
+and fails only once other tests have churned the table, which is precisely the
+signature of the unexplained CI failures on commit `d78196d` (a Backend job failing
+on a SHA that passed the same job in another run). Fixed by ordering on `pk`, which
+is what the test actually meant. A scan for the same pattern across the suite found
+no other instance, and 16 models carry no default ordering, so the class of bug is
+worth remembering.
+
+**SEO consistency verified live** against a `config.settings.prod` stack: 23 internal
+URLs crawled with **0 broken links**; every sitemap URL returns 200 and is indexable;
+empty subjects are `noindex` *and* omitted from the sitemap; canonicals and
+`robots.txt` `Host`/`Sitemap` use the production hostname, not localhost; with the API
+down and a cold cache every page still returns 200, degrades honestly and invents no
+numbers.
+
+### Post-Phase-12 audit — E2E executed for the first time, release-blocking CSP defect found and fixed (2026-09-28)
+
+**What changed:** the Playwright suite had never actually been *run* in this environment
+(the sandbox cannot reach `cdn.playwright.dev`, so `npx playwright install` fails).
+A browser was obtained from the npm package `@sparticuz/chromium`, which ships binaries
+in-package, and the suite was pointed at a **production build** via the pre-existing
+`E2E_CHROMIUM_PATH` override in `playwright.config.ts`.
+
+**What it caught immediately:** the enforced nonce CSP was blocking **all JavaScript on
+33 of 45 routes**. A statically prerendered page is built without a request, so Next
+cannot stamp the per-request nonce; `'strict-dynamic'` then makes `'self'` inert and the
+browser refuses every chunk. Affected routes included `/login`, `/register`, `/account`,
+`/orders`, `/messages`, `/experts`, `/requests`, `/offers`, `/assignments`,
+`/opportunities`, all `/expert/*` and all `/portal/*` — effectively the entire
+authenticated product. Pages still returned `200` with correct SSR HTML and a correct
+CSP header, so every existing gate passed: curl sweeps, link crawls, middleware unit
+tests (header strings), and `scripts/smoke_test.sh` (which compared the nonce only on
+`/`, the one route that was already dynamic). This is the concrete reason the phase
+record now treats "verified by curl" as insufficient evidence for anything that depends
+on client-side execution.
+
+**Fix:** the root layout awaits `headers()`, opting every document route into on-demand
+rendering (**ADR-0018**). The ADR-0017 security posture is unchanged — still enforcing,
+still no `unsafe-inline`/`unsafe-eval` in `script-src`.
+
+**Two further findings, both benign, both recorded rather than changed:**
+- `frontend/Dockerfile`'s `prod` stage does not re-declare the `NEXT_PUBLIC_*` env vars,
+  so the image is not self-sufficient — the middleware would compute `connect-src 'self'`
+  and block API calls. `docker-compose.prod.yml` does pass them as runtime `environment:`,
+  so the supported deployment path is correct; running the bare image is not.
+- Django serves no static files under ASGI by design (no whitenoise); Caddy serves
+  `/static/*` from the shared `staticfiles` volume. Locally this means the Django admin
+  has no CSS/JS under `uvicorn`, which breaks admin-driven E2E steps — `manage.py
+  runserver` (Daphne, `DEBUG=True`) is the faithful local substitute.
+
+**Verified after the fix:** backend `pytest` **439 passed**; frontend `vitest` **143
+passed / 25 files**; `tsc`, `eslint` (covers `e2e/`), `ruff`, `ruff format`,
+`lint-imports` 2/2 all clean; production build clean with all routes `ƒ`;
+**Playwright 13/13 green** (4 business journeys + 2 smoke + 7 new CSP guards);
+`scripts/smoke_test.sh` **24/24**.
+
+**New regression coverage:** `frontend/e2e/csp-nonce.spec.ts` asserts every executable
+script carries the policy nonce and that the app genuinely hydrates with zero
+CSP-blocked requests; `scripts/smoke_test.sh` now samples `/`, `/login` and `/about`.
+
+### Recovery-session audit (2026-09-28, later) — Git recovery blocked; two findings recorded
+
+**Git recovery could NOT be performed.** The sandbox has **no network route to
+GitHub at all**: `github.com`, `api.github.com` and `codeload.github.com` all return
+`000`, and `git fetch` dies with `gnutls_handshake() failed`, while
+`registry.npmjs.org` returns `200`. This is a network block, not an expired token, so
+fetching `d78196d`, inspecting PR #3, reading CI logs and pushing were all impossible.
+
+One durable improvement was made: the clone's fetch refspec was widened from
+`+refs/heads/main:refs/remotes/origin/main` to `+refs/heads/*:refs/remotes/origin/*`,
+so the next session with connectivity can see `arena/*` branches immediately.
+
+**Why no commit was created.** `24437a5` is an *initial commit containing exactly one
+file* — a 1-line `README.md`. Committing the working tree on top of it would produce a
+single 547-file commit that squashes the entire project (phases 0–12, the 10-commit
+chain ending at `d78196d`) into one blob, and would diverge from the remote branch such
+that only a force-push could reconcile it. That is precisely the destructive rewrite the
+recovery procedure in `PROJECT-HANDOFF.md` warns against, so the tree was left
+uncommitted. All build/test artifacts, caches, media and env files are correctly
+gitignored, so the 547 files are genuine source with nothing to prune.
+
+#### Finding 5 — `test_slug_uniqueness`: mechanism proven locally, CI causation still unverified
+
+The ordering hypothesis was tested rather than assumed. In Postgres, updating a row
+rewrites its tuple at the heap tail, which flips the order an unordered sequential scan
+returns:
+
+```
+fresh heap          -> ayra-k, ayra-k-2
+after UPDATE row 1  -> ayra-k-2, ayra-k     <- slugs[1] becomes "ayra-k"
+ORDER BY pk         -> ayra-k, ayra-k-2     (stable)
+```
+
+With the pre-fix code, `slugs[1].startswith("ayra-k-")` fails in the second case, and the
+approval flow the test exercises does update the profile row — so the flake is fully
+explained. The fix (`ExpertProfile.objects.order_by("pk")`) then ran **25/25 green** in
+isolation and the module ran clean five times in a row.
+
+**Status: mechanism demonstrated, CI causation NOT verified.** The failing CI jobs
+(`36394737886`, `36396612154`, `36397172392`) could not be inspected from this sandbox.
+Do not mark the CI anomaly closed until those logs are read.
+
+#### Finding 6 — expert directory pages have no server-side SEO (documentation was wrong)
+
+`frontend.md` claimed `/experts` and `/experts/[slug]` render with `generateMetadata`,
+JSON-LD and canonical. They do not: both files begin with `"use client"` and fetch in a
+`useEffect`. Measured against a production build:
+
+| Route | canonical | JSON-LD | `<title>` |
+|---|---|---|---|
+| `/experts` | 0 | 0 | generic site title |
+| `/experts/[slug]` | 0 | 0 | generic site title |
+| `/subjects/python` | 1 | 2 | per-page |
+| `/pricing`, `/for-experts` | 1 | 2 | per-page |
+| `/about`, `/subjects` | 1 | 0 | per-page |
+
+So every expert profile — the core indexable content of a directory marketplace, and a
+route listed in `sitemap.ts` — shares one generic title and description. The pages do
+render correctly after hydration (verified in a real browser: `h1` = "Ayra K.", working
+`/subjects/python` and `/subjects/statistics` links), so this is an **indexing gap, not a
+broken page**. The documentation has been corrected to describe reality.
+
+**RESOLVED (same day, following session).** Fixed without touching either tested
+client component: a **sibling server `layout.tsx`** was added in each segment.
+`experts/layout.tsx` carries static directory metadata; `experts/[slug]/layout.tsx`
+fetches the expert via a new `getPublicExpert()` on the shared `fetchPublic` helper
+(no duplicated fetch logic) and emits `generateMetadata` + `ProfilePage`/`Person`
+JSON-LD, then renders `{children}` unchanged.
+
+Measured after the fix, against a production build:
+
+| Route | canonical | JSON-LD | `<title>` |
+|---|---|---|---|
+| `/experts` | 1 | 0 | "Find an expert — browse the vetted directory" |
+| `/experts/ayra-k` | 1 | 1 | "Ayra K. — Python, data analysis, statistics tutoring" |
+
+Honest-data rules: unknown expert / unreachable API → `robots: noindex, follow`, no
+JSON-LD, no fabricated name, and the body still renders its own "This expert profile is
+not available" state (verified in a real browser). `aggregateRating` is emitted **only**
+when real reviews exist — for `ayra-k` it published `5.0 / 1 review`, matching the page.
+Client bundles unchanged (`/experts` 2.69 kB, `/experts/[slug]` 3.16 kB). Regression
+suites after the change: pytest 439, vitest 143/25, tsc, eslint, build, budgets,
+E2E 13/13, smoke 24/24, sitemap 18/18 all 200. **Now Complete.**
+
+## Part 11 — whole-repository state matrix (2026-09-28, evidence-based)
+
+Classification is one of **Complete · Partially complete · Missing · Intentionally
+out of MVP · Owner provisioning required · Production verification required**.
+"Complete" here means *implemented and locally verified*; it does **not** mean
+CI-verified or deployed — see the CI and deployment rows.
+
+| Area | Status | Evidence / note |
+|---|---|---|
+| Phases 0–11 | Complete | Per-phase records above; pytest 439, vitest 143/25 green |
+| Phase 12 — deployment architecture | Complete | compose + Caddy + prod image + deploy/rollback scripts |
+| Phase 12 — staging deployed | Owner provisioning required | No host/domain exists. **Not deployed** |
+| Phase 12 — production deployed | Owner provisioning required | **Not deployed** |
+| Backend API | Complete | 54 registered v1 route patterns; OpenAPI served; error envelope |
+| Subjects API + pages | Complete | `GET /subjects`, `/subjects/{slug}` in `apps.experts`; categories 404; parent never linked |
+| Student journey | Complete | E2E `01-student-funnel` green: request → offer → select → pay → deliver → approve → review |
+| Expert journey | Complete | apply → review → approve → profile; E2E covers acceptance + earnings |
+| Managed / direct assignment | Complete | E2E `03-managed` green: submit → assign → accept → payment |
+| Order / payment lifecycle | Complete | Manual gateway active; pay → confirm → ledger → payout → refund |
+| Commissions | Complete | 15% open / 20% managed in `core/services.py` L19–20; publicly disclosed on `/pricing` + `/for-experts`; **unchanged** |
+| Stripe | Intentionally out of MVP | Prepared, non-functional seam; no credentials by standing constraint |
+| Admin / owner portal | Complete | E2E `04-admin-portal` green across KPIs, moderation, disputes, audit, reconciliation, config |
+| Auth / authorization | Complete | JWT-in-httpOnly-cookie, role gates, middleware; smoke asserts 401 boundaries |
+| Notifications / email | Complete | 14 distinct notification types observed at runtime; console/SMTP/Brevo adapters; per-category preferences |
+| File handling | Complete | Local disk dev → R2 adapter prod; presigned downloads |
+| Security | Complete | Enforced nonce CSP (ADR-0017/0018), security headers, audit F-2/F-7 closed |
+| Rate limiting | Complete | DRF Anon + User + Scoped throttles configured; auth views scoped |
+| Audit logging | Complete | 57 `audit_log()` call sites across 11 apps |
+| SEO | Complete | Per-page metadata/canonical/OG across marketing + expert routes; JSON-LD on pricing, subject, for-experts, expert profile; sitemap 18/18 → 200; robots hardened |
+| Blog / CMS | Intentionally out of MVP | `mvp-scope.md` L44 — "Directory + subject pages first". No `/blog` route exists |
+| Responsive UI | Complete | Design system + Tailwind breakpoints; not re-audited this session |
+| Backend tests | Complete | 439 passed; `test_slug_uniqueness` 25/25 after the ordering fix |
+| Frontend tests | Complete | 143 passed / 25 files; eslint 0 warnings; tsc clean |
+| E2E | Complete | 13/13 in a real browser against a production build |
+| Deployment smoke | Complete | `scripts/smoke_test.sh` 24/24 against the live local stack |
+| Compose smoke | Production verification required | Docker absent in this sandbox; CI-only gate |
+| **CI** | **Unknown** | Cannot reach GitHub (SNI-blocked). Last known: push run `36394732444` 5/5, three PR-event runs failed/unknown. **Not verified here** |
+| **Commit / push of current work** | **Missing** | Tree validated but uncommitted; `24437a5` is a 1-file base, so committing here would squash all history |
+| Backups | Complete | `backup_db.sh` + `restore_backup.sh`; restore drill evidence recorded |
+| Object storage (R2) | Owner provisioning required | Adapter complete; bucket + token needed |
+| Database | Complete | Postgres 16; migrations clean (`makemigrations --check`) |
+| Secrets | Owner provisioning required | `.env.staging` / `.env.production` + GH secrets not created |
+| Monitoring / uptime | Owner provisioning required | `/healthz` + `/readyz` exist; UptimeRobot not configured |
+| CI/CD pipeline | Complete (definition) / Unknown (execution) | 5 jobs defined + deploy workflow; execution unverifiable from here |
+
+### Session 4 re-validation from a wiped environment (2026-09-28)
+
+The sandbox was reset between sessions: `.venv`, `.pgvenv`, `pgdata`, `node_modules`,
+`.next` and the `/tmp` Chromium were all gone; only the 550-file source tree survived.
+The entire toolchain was rebuilt from scratch and every gate re-run first-hand:
+
+| Gate | Result |
+|---|---|
+| backend `pytest` | **439 passed** |
+| `test_slug_uniqueness` × 25 | **25 passed / 0 failed** |
+| ruff · ruff format · import-linter · `makemigrations --check` | clean · 264 formatted · 2 contracts kept · no changes |
+| frontend `vitest` | **143 passed / 25 files** |
+| `eslint --max-warnings 0` · `tsc --noEmit` | clean · clean |
+| production build | clean — **45 dynamic**, 1 static (`/robots.txt`), budgets respected |
+| Playwright E2E | **13 / 13** |
+| `scripts/smoke_test.sh` | **24 passed, 0 failed** |
+| sitemap | **14 / 14 → 200** |
+| env-docs gate | 37 vars |
+| Docker Compose smoke | **NOT RUN** — Docker is not installed in this sandbox |
+
+**On the sitemap count:** earlier sessions recorded 18/18. This run shows 14/14 because
+the dev database was seeded fresh, so the extra expert profiles that accumulated from
+previous E2E runs do not exist. Both numbers are correct for their database state; the
+invariant that matters — *every URL the sitemap advertises returns 200* — held in both.

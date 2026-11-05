@@ -184,6 +184,42 @@ Other purposes: `request_brief` (Phase 4), `message` (Phase 8 — 5 MB pdf/png/j
 | POST | `/me/assignments/{id}/decline` | optional reason → back with the owner (BR-21) |
 Owner triage (approve pool / assign direct / supersede / reject / set quote) is **Django admin only** (ADR-0010) — no public API surface by design; every action is staff-guarded and audited server-side.
 
+### Subjects — `/api/v1/subjects` — ✅ **implemented (Phase 12)**
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/subjects` | **`AllowAny`.** Active subject terms + public expert counts. Feeds the sitemap and the `/subjects` hub. |
+| GET | `/subjects/{slug}` | **`AllowAny`.** Subject detail: term, parent category, expert count, sibling subjects. **404** for unknown *or deactivated* subjects, and for non-subject terms (skills/tags share the slug space). |
+
+Implemented in **`apps.experts`**, not `apps.taxonomy`: these endpoints count
+experts, and import-linter places `apps.experts` above `apps.taxonomy`. Both
+reuse `directory_queryset()`, so a subject page can never advertise an expert
+the directory itself would hide — an expert who opts out, is suspended or is
+deactivated disappears from the count in the same query.
+
+This supersedes the never-built `GET /subjects` (tree) sketched under Taxonomy
+below; the tree shape was replaced by `taxonomy/terms?kind=subject`.
+
+### Platform — `/api/v1/platform` — ✅ **implemented (Phase 12)**
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/platform/pricing` | **`AllowAny`.** Commission rates and money floors for the public pricing page. |
+
+Returns `currency`, `commission.open_bid` / `commission.managed` (each `rate`,
+`percent`, `label`, `description`), `min_offer` and `payout_min` (each `minor`,
+`major`, `display`), and `dispute_window_days`.
+
+Every value is read live through `apps.core.services` (`commission_rate_for`,
+`min_offer_minor`, `payout_min_minor`, `dispute_window_days`), so it is
+`PlatformConfig`-backed and always reports the rate the platform will actually
+charge. It exists because the alternative — writing 15%/20% into marketing copy —
+starts lying the first time an operator edits a rate.
+
+Deliberately **not** included: anything operational. Auto-approve windows,
+reminder schedules, payout cadence and similar knobs live in the same config
+object but are not commercial disclosure, and this endpoint is anonymous.
+`apps/core/tests/test_public_pricing.py` asserts the response tracks
+`PlatformConfig` and that no operational keys leak.
+
 ### Health & ops
 | GET | `/healthz` (app+db), `/readyz` (migrations applied) | public | for load balancers/uptime |
 

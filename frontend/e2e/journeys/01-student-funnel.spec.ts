@@ -92,19 +92,23 @@ test("student funnel: request → offer → select → pay → deliver → appro
   await admin.goto(`${ADMIN_BASE}/admin/experts/expertapplication/?q=${expertEmail}`);
 
   const actionSelect = admin.locator("select[name=action]");
-  await admin.locator("#action-toggle").check();
+  await admin.locator("#result_list tbody tr input.action-select").first().waitFor({ state: "visible", timeout: 20_000 });
+  await admin.locator("#result_list tbody tr input.action-select").first().check();
   await actionSelect.selectOption({ label: "Start review (submitted → under review)" });
   await admin.getByRole("button", { name: /go/i }).click();
   await expect(admin.locator(".messagelist")).toContainText(/review/i, { timeout: 20_000 });
 
-  await admin.locator("#action-toggle").check();
+  await admin.goto(`${ADMIN_BASE}/admin/experts/expertapplication/?q=${expertEmail}`);
+  await admin.locator("#result_list tbody tr input.action-select").first().waitFor({ state: "visible", timeout: 20_000 });
+  await admin.locator("#result_list tbody tr input.action-select").first().check();
   await actionSelect.selectOption({ label: "Approve selected applications" });
   await admin.getByRole("button", { name: /go/i }).click();
   await expect(admin.locator(".messagelist")).toContainText(/approved/i, { timeout: 20_000 });
 
   // --- expert offers on the open request ---
   await expert.goto("/opportunities");
-  // the feed card renders the title as an h2; the action link is "View & offer"
+  await expert.getByLabel("Search").fill(requestTitle);
+  await expert.getByRole("button", { name: "Filter" }).click();
   await expert.getByRole("link", { name: "View & offer" }).first().click();
   await expert.waitForURL(/\/opportunities\/[0-9a-f-]{36}/, { timeout: 20_000 });
   await expert.getByLabel("Your price").fill("55");
@@ -126,6 +130,7 @@ test("student funnel: request → offer → select → pay → deliver → appro
   // --- student pays (manual gateway + dev confirm) → order active ---
   await student.goto("/orders");
   await student.getByRole("link", { name: /ORD-/ }).first().click();
+  await student.waitForURL(/\/orders\/\d+/, { timeout: 20_000 });
   await student.getByRole("button", { name: "Pay now" }).click();
   await student.getByRole("button", { name: "Confirm payment (dev)" }).click();
   await expect(student.getByText("In progress").first()).toBeVisible({ timeout: 20_000 });
@@ -133,6 +138,7 @@ test("student funnel: request → offer → select → pay → deliver → appro
   // --- expert delivers ---
   await expert.goto("/orders");
   await expert.getByRole("link", { name: /ORD-/ }).first().click();
+  await expert.waitForURL(/\/orders\/\d+/, { timeout: 20_000 });
   await expert.getByRole("button", { name: /deliver/i }).first().click();
   await expert
     .getByLabel("Delivery summary")

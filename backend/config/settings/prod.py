@@ -33,8 +33,14 @@ COOKIE_SECURE = env.bool("COOKIE_SECURE", default=True)  # auth cookies (audit F
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
-# Security headers (audit F-2): CSP report-only first (env flips to enforce
-# after the Phase 12 pre-launch sweep); admin path exempted (inline handlers).
+# Security headers (audit F-2 — CLOSED in Phase 12, ADR-0017): CSP is now
+# ENFORCING by default on Django-served responses. `CSP_REPORT_ONLY=True` stays
+# available so an operator can drop back to report-only during a canary without
+# shipping code. The Django admin path remains exempt in the middleware
+# (django.contrib.admin relies on inline handlers).
+#
+# The Next app does NOT use this policy — it emits its own nonced policy from
+# the edge middleware, because only the renderer knows the per-request nonce.
 SECURITY_HEADERS_CSP = env.str(
     "CSP",
     default=(
@@ -43,7 +49,7 @@ SECURITY_HEADERS_CSP = env.str(
         "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
     ),
 )
-SECURITY_HEADERS_CSP_REPORT_ONLY = env.bool("CSP_REPORT_ONLY", default=True)
+SECURITY_HEADERS_CSP_REPORT_ONLY = env.bool("CSP_REPORT_ONLY", default=False)
 SECURITY_HEADERS_PERMISSIONS_POLICY = env.str(
     "PERMISSIONS_POLICY",
     default="camera=(), microphone=(), geolocation=(), payment=(), usb=()",
@@ -64,7 +70,11 @@ LOGGING = {
     "root": {"handlers": ["console_json"], "level": env.str("LOG_LEVEL", default="INFO")},
 }
 
-# Static files with manifest storage (collectstatic runs at deploy).
+# Static files with manifest storage (collectstatic runs in the entrypoint).
+# STATIC_ROOT is a volume shared with Caddy, which serves /static/* directly
+# instead of proxying it through the single ASGI worker (ADR-0016).
+STATIC_ROOT = env.str("STATIC_ROOT", default=str(BASE_DIR / "staticfiles"))
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"},

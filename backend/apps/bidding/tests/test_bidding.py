@@ -71,6 +71,28 @@ def test_submit_rules(open_request, django_user_model, student):
         services.submit(student, open_request, payload=_offer_data())
 
 
+def test_self_bidding_prevented(django_user_model):
+    """An expert who also posts a request as a student cannot bid on their own request."""
+    dual_user = make_expert(django_user_model, "dual@demo.local", "Dual Persona")
+    subject = ensure_term(kind="subject", name="Physics")[0]
+    req = request_services.create_request(
+        dual_user,
+        payload={
+            "category": "tutoring",
+            "title": "Quantum Mechanics coaching",
+            "description": "Need guidance with wave equations.",
+            "subject": subject,
+            "budget_min": 5000,
+            "budget_max": 15000,
+        },
+    )
+    published = request_services.publish(dual_user, req, attested=True)
+
+    with pytest.raises(DomainError) as exc:
+        services.submit(dual_user, published, payload=_offer_data())
+    assert exc.value.code == "self_dealing"
+
+
 def test_submit_requires_open_eligible_request(open_request, django_user_model, student):
     expert = make_expert(django_user_model, "bid4@demo.local", "Bid Four")
     request_services.cancel(student, open_request, reason="changed mind")

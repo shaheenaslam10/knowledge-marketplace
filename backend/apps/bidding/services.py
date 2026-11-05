@@ -32,6 +32,8 @@ def _expert_guard(expert, request: ServiceRequest) -> None:
         raise PermissionDeniedError("Only approved, available experts can offer.")
     if not request.is_open_for_offers or request.mode != ServiceRequest.Mode.OPEN:
         raise DomainError("This request is not accepting offers.", code="request_closed")
+    if request.student_id == expert.id:
+        raise DomainError("You cannot submit an offer on your own request.", code="self_dealing")
 
 
 def submit(expert, request: ServiceRequest, *, payload: dict[str, Any]) -> Offer:
@@ -51,6 +53,20 @@ def submit(expert, request: ServiceRequest, *, payload: dict[str, Any]) -> Offer
         ServiceRequest.objects.filter(pk=request.pk).update(offer_count=request.offer_count + 1)
         audit_log(expert, action="offer.submit", obj=offer, detail={"amount": amount})
     offer.refresh_from_db(fields=["request"])
+
+    # The student is the whole point of an offer: without this they would have
+    # to poll their own request to discover a bid arrived (BR-15 blind bidding
+    # means the amount stays hidden until they open it).
+    from apps.notifications.services import notify
+
+    notify(
+        request.student_id,
+        "request_new_offer",
+        title="You have a new offer",
+        body="An expert submitted an offer on your request.",
+        url=f"/requests/{request.pk}",
+        context={"request_id": str(request.pk)},
+    )
     return offer
 
 
@@ -136,6 +152,8 @@ def accept(student, offer: Offer) -> tuple[Offer, Any]:
     request = ServiceRequest.objects.select_for_update().get(pk=offer.request_id)
     if request.student_id != student.id:
         raise PermissionDeniedError("You can only select an expert on your own requests.")
+    if offer.expert_id == student.id:
+        raise DomainError("You cannot select your own offer.", code="self_dealing")
     if offer.status != Offer.Status.PENDING:
         raise DomainError("This offer can no longer be accepted.", code="offer_locked")
     if request.status != ServiceRequest.Status.OPEN:

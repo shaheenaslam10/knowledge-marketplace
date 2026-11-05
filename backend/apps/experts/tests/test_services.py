@@ -196,7 +196,12 @@ def test_slug_uniqueness(django_user_model, reviewer):
         submit_application(user)
         start_review(application.pk, reviewer=reviewer)
         approve(application.pk, reviewer=reviewer)
-    slugs = list(ExpertProfile.objects.values_list("slug", flat=True))
+    # `ExpertProfile.Meta` declares no `ordering`, so an unordered queryset has
+    # no guaranteed row order — Postgres may return either profile first
+    # depending on heap layout. Indexing [1] was therefore an intermittent
+    # failure that only appeared once other tests had churned the table.
+    # Order by pk to pin "the second profile created".
+    slugs = list(ExpertProfile.objects.order_by("pk").values_list("slug", flat=True))
     assert len(slugs) == 2 and len(set(slugs)) == 2 and slugs[1].startswith("ayra-k-")
 
 

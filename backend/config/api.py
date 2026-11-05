@@ -43,6 +43,7 @@ urlpatterns = [
     path("me/deactivate", views.DeactivateView.as_view(), name="me-deactivate"),
     # Phase 3 — profiles, experts, taxonomy, files
     path("me/", include("apps.accounts.api.me_urls")),  # student-profile (sub-path only)
+    path("", include("apps.core.api.urls")),  # public platform facts (pricing)
     path("", include("apps.taxonomy.api.urls")),
     path("", include("apps.files.api.urls")),
     path("", include("apps.experts.api.urls")),

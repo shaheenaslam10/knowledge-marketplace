@@ -4,10 +4,11 @@
 set -e
 
 attempts=0
-until curl -sf http://backend:8000/readyz >/dev/null 2>&1; do
+READYZ_URL="${READYZ_URL:-http://backend:8000/readyz}"
+until curl -sf "$READYZ_URL" >/dev/null 2>&1; do
   attempts=$((attempts + 1))
   if [ "$attempts" -ge 60 ]; then
-    echo "worker entrypoint: API not ready after $attempts attempts" >&2
+    echo "worker entrypoint: $READYZ_URL not ready after $attempts attempts" >&2
     exit 1
   fi
   echo "worker entrypoint: waiting for API ($attempts)..."

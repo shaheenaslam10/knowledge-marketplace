@@ -72,10 +72,77 @@ frontend/
 
 ## Rendering & SEO
 
+**Every document route renders on demand.** The root layout awaits `headers()`, which
+opts the whole tree out of static prerendering. That is a hard requirement of the
+enforced nonce CSP, not a performance preference — see *Why nothing is prerendered*
+below and **ADR-0018**. `/robots.txt` is the one static output (it ships no scripts).
+
 | Route type | Strategy |
 |---|---|
-| `/`, `/how-it-works`, `/pricing` | SSG (+ revalidate) |
-| `/experts`, `/experts/[slug]`, `/subjects/[slug]` | SSR/ISR with `generateMetadata`, JSON-LD, canonical, `sitemap.ts` fed by backend public endpoints |
+| `/`, `/how-it-works` | On-demand render |
+| `/pricing` | On-demand render + **60s** data cache — see note below |
+| `/about` | On-demand render (no live backend data, but see ADR-0018) |
+| `/for-experts`, `/subjects`, `/subjects/[slug]` | On-demand render + **1h** data cache — same build-time constraint as `/pricing` |
+| `/experts`, `/experts/[slug]` | Client-component bodies + **server `layout.tsx` for SEO** — per-page `generateMetadata` (title, description, canonical, OG) and `ProfilePage`/`Person` JSON-LD on the profile |
+
+> **How SEO works on the two expert routes.** Both `page.tsx` files are
+> `"use client"` (they own filter state, the reviews feed, availability and loading
+> states), and a client module has no server render pass, so it cannot export
+> `generateMetadata`. Until 2026-09-28 that meant every expert profile — the most
+> indexable content type in a directory marketplace, and a route listed in
+> `sitemap.ts` — inherited the root layout's generic title with no canonical and no
+> structured data.
+>
+> The fix is a **sibling server layout** in each segment rather than a rewrite of the
+> interactive pages: `experts/layout.tsx` (static directory metadata) and
+> `experts/[slug]/layout.tsx` (fetches the expert through `getPublicExpert()` for
+> metadata + JSON-LD, then renders `{children}` unchanged). The tested client
+> components were not touched and their bundle sizes are identical.
+>
+> Honest-data rules baked in: an unknown expert or an unreachable API yields
+> `title: "Expert profile"` with `robots: noindex, follow` and **no** JSON-LD — never a
+> fabricated name — while the page body still renders its own "This expert profile is
+> not available" state. `aggregateRating` is emitted **only** when real reviews exist,
+> so the structured data can never claim a rating the platform does not have. A missing
+> profile inherits the directory's canonical (`/experts`) from the parent layout, which
+> is the sensible target and is moot under `noindex`.
+
+**Why nothing is prerendered (post-Phase-12 audit).** The production policy is
+`script-src 'self' 'nonce-<n>' 'strict-dynamic'`. `'strict-dynamic'` makes browsers
+**ignore `'self'`**, so the per-request nonce is the only thing that can authorise a
+script. A prerendered page is built with no request, so Next cannot stamp that nonce
+onto its bootstrap scripts — the page then returns `200` with flawless SSR HTML and a
+flawless CSP header while executing **no JavaScript at all**. Before this was fixed,
+33 of 45 routes were prerendered, including `/login`, `/register` and every `/portal/*`
+page; all of them were inert in a production build. Static rendering is therefore not
+available to document routes while the policy is enforced. Regression coverage lives in
+`frontend/e2e/csp-nonce.spec.ts` and in `scripts/smoke_test.sh`.
+
+**Why `/pricing` is not SSG (Phase 12).** It renders live commission rates from
+`GET /api/v1/platform/pricing`, and two things ruled prerendering out:
+
+1. The web image is built independently of the API container (`docker-compose.prod.yml`
+   builds `./frontend` with no API reachable). A prerendered page therefore bakes the
+   degraded "rates unavailable" state into the HTML and ISR keeps serving it. This was
+   observed, not theorised — the first build of the page shipped exactly that.
+2. Commission is fixed at the moment an order is booked. Every second the page shows a
+   stale rate is a second a student can book at a rate the page never advertised, so the
+   data cache is 60s rather than the 1h used for static marketing copy.
+
+Net cost is one config read per minute; `next: { revalidate }` on the fetch keeps repeat
+visitors on the data cache. A failed fetch is deliberately *not* cached, so a transient
+API blip recovers on the next request instead of pinning the degraded state.
+
+`sitemap.ts` is `force-dynamic` for reason (1) as well — a build-time fetch would ship a
+sitemap with no expert profiles in it.
+
+Reason (1) applies to **every** public page that reads backend data, so the three
+decisions it forces (never prerender, cache the data not the route, never cache a
+failure) are implemented once in `src/lib/api/public.ts` rather than copied per page.
+`MARKETING_TTL_SECONDS` is 1h; `PRICING_TTL_SECONDS` is 60s because commission is
+money. Callers receive `{ data, notFound }` so a page can tell "the backend says this
+subject does not exist" (→ `notFound()`) from "the backend is unreachable" (→ degrade
+in place). Conflating those would delete real subject pages during an API outage.
 | dashboards/flows | CSR behind auth, `noindex` |
 
 ## UX system

@@ -83,3 +83,37 @@ class MyPayoutListView(APIView):
             .order_by("-created_at")[:50]
         )
         return Response({"results": [_payout_meta(p) for p in payouts]})
+
+
+class SpecialistEarningsView(APIView):
+    """GET /api/v1/me/expert/earnings — Specialist earnings, GMV breakdown, and withdrawable balance."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.payments.services import expert_financial_analytics
+
+        return Response(expert_financial_analytics(request.user))
+
+
+class SpecialistPayoutRequestView(APIView):
+    """POST /api/v1/me/expert/payouts/request — Request withdrawal of available balance."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.payments.services import request_payout_withdrawal
+
+        amount_minor = request.data.get("amount_minor")
+        payout = request_payout_withdrawal(request.user, amount_minor=amount_minor)
+        return Response(
+            {
+                "id": payout.id,
+                "amount_minor": payout.amount_minor,
+                "amount_display": f"${payout.amount_minor / 100:.2f}",
+                "status": payout.status,
+                "provider_reference": payout.provider_reference,
+                "created_at": payout.created_at.isoformat(),
+            },
+            status=201,
+        )

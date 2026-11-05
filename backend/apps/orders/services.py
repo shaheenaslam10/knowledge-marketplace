@@ -13,6 +13,7 @@ replaces the email layer, not the seams). Payment collection stays in Phase 7:
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -24,9 +25,11 @@ from apps.audit.services import log as audit_log
 from apps.core.exceptions import DomainError, PermissionDeniedError
 from apps.files.models import Attachment
 from apps.orders.delivery import Delivery, OrderEvent
-from apps.orders.models import DeadlineProposal, Order
+from apps.orders.models import DeadlineProposal, LiveSession, Order
 from apps.payments import services as payments_services
 from apps.service_requests import services as request_services
+
+logger = logging.getLogger(__name__)
 
 AUTO_APPROVE_HOURS = 72  # BR-24
 UNPAID_CANCEL_HOURS = 72  # awaiting_payment expiry
@@ -97,10 +100,25 @@ _EVENT_COPY = {
     "completed": (("both",), "order_approved_completed", "Order completed"),
     "cancelled": (("both",), "order_cancelled", "Order cancelled"),
     "deadline_reminder": (("expert",), "order_deadline_warning", "Delivery due within 24 hours"),
+    "live_session_scheduled": (
+        ("both",),
+        "live_session_scheduled",
+        "Live 1:1 coaching session scheduled",
+    ),
+    "live_session_completed": (
+        ("both",),
+        "live_session_completed",
+        "Live coaching session completed",
+    ),
     "dispute_opened": (("both",), "dispute_opened", "A dispute was opened on your order"),
     "dispute_resolved": (("both",), "dispute_resolved", "The dispute on your order was resolved"),
     "overdue_flagged": (("both",), "order_overdue_flagged", "This order is past its deadline"),
     "deadline_extended": (("both",), "order_deadline_extended", "The order deadline was extended"),
+    "auto_approve_warning": (
+        ("student",),
+        "order_auto_approve_warning",
+        "Your delivery auto-approves in 24 hours",
+    ),
 }
 
 
@@ -376,6 +394,8 @@ def create_order_for_request(
     from apps.payments.config import commission_split, rate_for_source
 
     expert_pk = getattr(expert, "pk", expert)
+    if request.student_id == expert_pk:
+        raise DomainError("Student and expert cannot be the same account.", code="self_dealing")
     profile = ExpertProfile.objects.filter(pk=expert_pk).first()
     commission, net = commission_split(amount, rate_for_source(source))
     order = Order.objects.create(
@@ -439,6 +459,38 @@ def deadline_reminder(now: datetime | None = None) -> int:
     return reminded
 
 
+AUTO_APPROVE_WARNING_HOURS = 24
+
+
+def auto_approve_warning(now: datetime | None = None) -> int:
+    """T-24h student warning before an unreviewed delivery auto-approves (BR-24).
+
+    Auto-approval completes the order and releases the expert's money. Doing
+    that silently is the problem: the student gets one last chance to approve
+    deliberately, request a revision, or dispute. Idempotent via the persisted
+    event marker, so the hourly tick cannot re-warn.
+    """
+    now = now or timezone.now()
+    horizon = now + timedelta(hours=AUTO_APPROVE_WARNING_HOURS)
+    warned = 0
+    for order in (
+        Order.objects.filter(
+            status=Order.Status.DELIVERED,
+            auto_approve_at__gt=now,
+            auto_approve_at__lte=horizon,
+        )
+        .exclude(events__event_type=OrderEvent.EventType.AUTO_APPROVE_WARNED)
+        .select_related("request")
+        .iterator()
+    ):
+        OrderEvent.objects.create(
+            order=order, event_type=OrderEvent.EventType.AUTO_APPROVE_WARNED, data={}
+        )
+        _notify(order, "auto_approve_warning", extra_email=order.student_id)
+        warned += 1
+    return warned
+
+
 # --- deadline proposals + overdue flagging (order-lifecycle.md, Phase 9) ----------
 
 
@@ -462,11 +514,14 @@ def propose_deadline(order, *, actor, proposed_due_at, note: str = "") -> Deadli
         proposed_due_at = tz.make_aware(proposed_due_at)
     if proposed_due_at <= tz.now():
         raise DomainError("The proposed deadline must be in the future.", code="validation_error")
-    proposal = DeadlineProposal.objects.create(
+    proposal, _ = DeadlineProposal.objects.update_or_create(
         order=order,
-        proposed_by_id=actor.id,
-        proposed_due_at=proposed_due_at,
-        note=(note or "")[:300],
+        defaults={
+            "proposed_by_id": actor.id,
+            "proposed_due_at": proposed_due_at,
+            "note": (note or "")[:300],
+            "status": DeadlineProposal.Status.PENDING,
+        },
     )
     _record_event(
         order,
@@ -474,6 +529,7 @@ def propose_deadline(order, *, actor, proposed_due_at, note: str = "") -> Deadli
         actor=actor,
         proposal_id=str(proposal.pk),
         proposed_due_at=proposed_due_at.isoformat(),
+        note=(note or "")[:300],
     )
     audit_log(
         actor, action="order.deadline_proposed", obj=order, detail={"proposal": str(proposal.pk)}
@@ -489,11 +545,27 @@ def propose_deadline(order, *, actor, proposed_due_at, note: str = "") -> Deadli
         url=f"/orders/{order.pk}",
         context={"proposal_id": str(proposal.pk)},
     )
+
+    try:
+        from apps.messaging.models import Thread
+        from apps.messaging.services import send_message
+
+        thread = Thread.objects.filter(order=order, context_type=Thread.Context.ORDER).first()
+        if thread:
+            role_label = "Specialist" if actor.id == order.expert_id else "Student"
+            due_str = proposed_due_at.strftime("%b %d, %Y %H:%M UTC")
+            msg_body = f"📅 {role_label} proposed a new delivery deadline: {due_str}."
+            if note:
+                msg_body += f"\nNote: {note}"
+            send_message(thread, sender=actor, body=msg_body)
+    except Exception:
+        logger.exception("Failed to emit chat message for deadline proposal")
+
     return proposal
 
 
 @transaction.atomic
-def respond_deadline_proposal(order, *, actor, accept: bool) -> DeadlineProposal:
+def respond_deadline_proposal(order, *, actor, accept: bool | str) -> DeadlineProposal:
     """Counterpart accepts/declines the pending proposal; acceptance extends
     delivery_due_at (audit-recorded, order-lifecycle.md)."""
     order = Order.objects.select_for_update().get(pk=order.pk)
@@ -504,10 +576,39 @@ def respond_deadline_proposal(order, *, actor, accept: bool) -> DeadlineProposal
     ).first()
     if proposal is None:
         raise DomainError("No pending deadline proposal on this order.", code="not_found")
-    if proposal.proposed_by_id == actor.id:
+
+    is_withdraw = False
+    if isinstance(accept, str):
+        action_lower = accept.lower()
+        if action_lower == "withdraw":
+            is_withdraw = True
+        else:
+            accept = action_lower in ("accept", "true", "1")
+    elif not accept and proposal.proposed_by_id == actor.id:
+        is_withdraw = True
+
+    if proposal.proposed_by_id == actor.id or is_withdraw:
         proposal.status = DeadlineProposal.Status.WITHDRAWN
         proposal.save(update_fields=["status", "updated_at"])
+        _record_event(
+            order,
+            "deadline_withdrawn",
+            actor=actor,
+            proposal_id=str(proposal.pk),
+        )
+        try:
+            from apps.messaging.models import Thread
+            from apps.messaging.services import send_message
+
+            thread = Thread.objects.filter(order=order, context_type=Thread.Context.ORDER).first()
+            if thread:
+                send_message(
+                    thread, sender=actor, body="↩️ Deadline extension proposal was withdrawn."
+                )
+        except Exception:
+            logger.exception("Failed to emit chat message for withdrawn deadline proposal")
         return proposal
+
     proposal.status = (
         DeadlineProposal.Status.ACCEPTED if accept else DeadlineProposal.Status.DECLINED
     )
@@ -523,6 +624,48 @@ def respond_deadline_proposal(order, *, actor, accept: bool) -> DeadlineProposal
             due_at=proposal.proposed_due_at.isoformat(),
         )
         audit_log(actor, action="order.deadline_extended", obj=order)
+        from apps.notifications.services import notify
+
+        notify(
+            proposal.proposed_by_id,
+            "order_deadline_accepted",
+            title="Deadline proposal accepted",
+            body=f"The delivery deadline has been updated to {proposal.proposed_due_at.strftime('%b %d, %Y')}.",
+            url=f"/orders/{order.pk}",
+        )
+    else:
+        _record_event(
+            order,
+            "deadline_declined",
+            actor=actor,
+            proposal_id=str(proposal.pk),
+        )
+        audit_log(actor, action="order.deadline_proposal_declined", obj=order)
+        from apps.notifications.services import notify
+
+        notify(
+            proposal.proposed_by_id,
+            "order_deadline_declined",
+            title="Deadline proposal declined",
+            body="Your proposal for a new delivery deadline was declined.",
+            url=f"/orders/{order.pk}",
+        )
+
+    try:
+        from apps.messaging.models import Thread
+        from apps.messaging.services import send_message
+
+        thread = Thread.objects.filter(order=order, context_type=Thread.Context.ORDER).first()
+        if thread:
+            status_text = "accepted ✅" if accept else "declined ❌"
+            send_message(
+                thread,
+                sender=actor,
+                body=f"📅 Deadline proposal was {status_text}.",
+            )
+    except Exception:
+        logger.exception("Failed to emit chat message for deadline response")
+
     return proposal
 
 
@@ -547,3 +690,472 @@ def flag_overdue(now=None) -> int:
         _notify(order, "overdue_flagged")
         flagged += 1
     return flagged
+
+
+def schedule_live_session(order: Order, *, actor, scheduled_at) -> LiveSession:
+    """Schedule a live 1:1 coaching session on an active/in-progress order."""
+    from django.utils import timezone as tz
+
+    if actor.id not in (order.student_id, order.expert_id) and not getattr(actor, "is_staff", False):
+        raise PermissionDeniedError("Only order participants can schedule live sessions.")
+    if order.status not in ("active", "delivered", "revision_requested"):
+        raise DomainError(
+            "Live sessions can only be scheduled while an order is in progress.",
+            code="invalid_transition",
+        )
+    if tz.is_naive(scheduled_at):
+        scheduled_at = tz.make_aware(scheduled_at)
+
+    session = LiveSession.objects.create(
+        order=order,
+        scheduled_at=scheduled_at,
+        status=LiveSession.Status.SCHEDULED,
+        created_by=actor,
+    )
+
+    _record_event(
+        order,
+        "live_session_scheduled",
+        actor=actor,
+        session_id=str(session.pk),
+        scheduled_at=scheduled_at.isoformat(),
+    )
+    audit_log(
+        actor,
+        action="order.live_session_scheduled",
+        obj=order,
+        detail={"session": str(session.pk), "scheduled_at": scheduled_at.isoformat()},
+    )
+
+    counterpart = order.expert_id if actor.id == order.student_id else order.student_id
+    try:
+        from apps.notifications.services import notify
+        notify(
+            counterpart,
+            "live_session_scheduled",
+            title="Live coaching session scheduled",
+            url=f"/orders/{order.pk}",
+            context={"order_id": str(order.pk)},
+        )
+    except Exception:
+        logger.exception("Failed to emit notification for live session scheduling")
+
+    try:
+        from apps.messaging.models import Thread
+        from apps.messaging.services import send_message
+        thread = Thread.objects.filter(context_id=order.pk, context=Thread.Context.ORDER).first()
+        if thread:
+            send_message(
+                thread,
+                sender=actor,
+                body=f"Live 1:1 coaching session scheduled for {scheduled_at.strftime('%b %d, %Y at %H:%M UTC')}.",
+            )
+    except Exception:
+        logger.exception("Failed to emit chat message for live session scheduling")
+
+    return session
+
+
+def start_live_session(order: Order, *, actor) -> LiveSession:
+    """Start or join an instant live coaching session on an order."""
+    from django.utils import timezone as tz
+
+    if actor.id not in (order.student_id, order.expert_id) and not getattr(actor, "is_staff", False):
+        raise PermissionDeniedError("Only order participants can join live sessions.")
+
+    session = (
+        order.live_sessions.filter(status__in=[LiveSession.Status.LIVE, LiveSession.Status.SCHEDULED])
+        .order_by("-created_at")
+        .first()
+    )
+    if not session:
+        session = LiveSession.objects.create(
+            order=order,
+            status=LiveSession.Status.LIVE,
+            started_at=tz.now(),
+            created_by=actor,
+        )
+    elif session.status != LiveSession.Status.LIVE:
+        session.status = LiveSession.Status.LIVE
+        if not session.started_at:
+            session.started_at = tz.now()
+        session.save(update_fields=["status", "started_at", "updated_at"])
+
+    return session
+
+
+def end_live_session(
+    order: Order, *, actor, duration_seconds: int = 0, scratchpad_content: str = ""
+) -> LiveSession:
+    """End a live coaching session, record duration and snapshot scratchpad notes."""
+    from django.utils import timezone as tz
+
+    if actor.id not in (order.student_id, order.expert_id) and not getattr(actor, "is_staff", False):
+        raise PermissionDeniedError("Only order participants can end live sessions.")
+
+    session = (
+        order.live_sessions.filter(status__in=[LiveSession.Status.LIVE, LiveSession.Status.SCHEDULED])
+        .order_by("-created_at")
+        .first()
+    )
+    if not session:
+        session = LiveSession.objects.create(
+            order=order,
+            status=LiveSession.Status.ENDED,
+            started_at=tz.now() - timedelta(seconds=duration_seconds),
+            ended_at=tz.now(),
+            duration_seconds=duration_seconds,
+            scratchpad_content=scratchpad_content,
+            created_by=actor,
+        )
+    else:
+        session.status = LiveSession.Status.ENDED
+        session.ended_at = tz.now()
+        session.duration_seconds = duration_seconds
+        session.scratchpad_content = scratchpad_content
+        session.save(
+            update_fields=[
+                "status",
+                "ended_at",
+                "duration_seconds",
+                "scratchpad_content",
+                "updated_at",
+            ]
+        )
+
+    _record_event(
+        order,
+        "live_session_completed",
+        actor=actor,
+        session_id=str(session.pk),
+        duration_seconds=duration_seconds,
+        scratchpad_content=scratchpad_content,
+    )
+    audit_log(
+        actor,
+        action="order.live_session_completed",
+        obj=order,
+        detail={"session": str(session.pk), "duration_seconds": duration_seconds},
+    )
+
+    counterpart = order.expert_id if actor.id == order.student_id else order.student_id
+    try:
+        from apps.notifications.services import notify
+        notify(
+            counterpart,
+            "live_session_completed",
+            title="Live coaching session completed",
+            url=f"/orders/{order.pk}",
+            context={"order_id": str(order.pk)},
+        )
+    except Exception:
+        logger.exception("Failed to emit notification for live session completion")
+
+    try:
+        from apps.messaging.models import Thread
+        from apps.messaging.services import send_message
+        thread = Thread.objects.filter(context_id=order.pk, context=Thread.Context.ORDER).first()
+        if thread:
+            mins = max(1, round(duration_seconds / 60))
+            send_message(
+                thread,
+                sender=actor,
+                body=f"Live coaching session completed ({mins} min). Scratchpad notes saved to order timeline.",
+            )
+    except Exception:
+        logger.exception("Failed to emit chat message for live session completion")
+
+    return session
+
+# ---------------------------------------------------------------------------
+# Sprint 5: Direct 1:1 Instant Session & Consultation Speed-Booking (Feature 1)
+# ---------------------------------------------------------------------------
+
+
+@transaction.atomic
+def book_direct_session(
+    student,
+    *,
+    expert_slug: str,
+    duration_minutes: int = 30,
+    topic_title: str = "1:1 Live Consultation",
+    notes: str = "",
+    scheduled_at: datetime | None = None,
+) -> tuple[Order, LiveSession]:
+    """Feature 1: Direct 1:1 consultation speed-booking.
+
+    Atomically creates:
+    1. Matched ServiceRequest
+    2. Active funded Order (ORD-...) with paid_at set
+    3. Succeeded Payment record
+    4. Balanced Double-Entry Ledger rows (charge = 15% commission + 85% expert_credit)
+    5. Scheduled LiveSession WebRTC room
+    """
+    from django.utils import timezone as tz
+
+    from apps.core.exceptions import DomainError, NotFoundError
+    from apps.experts.models import ExpertProfile
+    from apps.payments.config import commission_split
+    from apps.payments.models import LedgerEntry, Payment
+    from apps.service_requests.models import ServiceRequest
+
+    profile = ExpertProfile.objects.filter(slug=expert_slug).first()
+    if profile is None or not profile.is_public:
+        raise NotFoundError("Specialist not found or unavailable.", code="not_found")
+    if profile.user_id == student.id:
+        raise DomainError("You cannot book a consultation with your own account.", code="self_dealing")
+
+    duration = 60 if int(duration_minutes) == 60 else 30
+    price_minor = profile.session_60m_price if duration == 60 else profile.session_30m_price
+    if not price_minor or price_minor < 500:
+        price_minor = 8000 if duration == 60 else 4500
+
+    title = (topic_title or f"1:1 Coaching ({duration} min)").strip()[:120]
+    desc = notes.strip() or f"Direct 1:1 speed-booked coaching session with {profile.display_name} ({duration} min)."
+
+    if scheduled_at is None:
+        scheduled_at = tz.now() + timedelta(hours=2)
+    elif tz.is_naive(scheduled_at):
+        scheduled_at = tz.make_aware(scheduled_at)
+
+    first_subject = profile.subjects.first()
+
+    # 1. Matched ServiceRequest
+    request = ServiceRequest.objects.create(
+        student=student,
+        mode=ServiceRequest.Mode.OPEN,
+        category=ServiceRequest.Category.TUTORING,
+        title=title,
+        description=desc,
+        subject=first_subject,
+        pricing_type=ServiceRequest.PricingType.FIXED,
+        budget_min=price_minor,
+        budget_max=price_minor,
+        currency="USD",
+        status=ServiceRequest.Status.MATCHED,
+        integrity_attested_at=tz.now(),
+    )
+
+    # 2. Active funded Order
+    commission, net = commission_split(price_minor)
+    order = Order.objects.create(
+        number=_next_number(),
+        request=request,
+        student=student,
+        expert_id=profile.user_id,
+        expert_name=profile.display_name,
+        expert_slug=profile.slug,
+        source=Order.Source.OPEN_BID,
+        amount=price_minor,
+        currency="USD",
+        commission_amount=commission,
+        expert_amount=net,
+        status=Order.Status.ACTIVE,
+        accepted_at=tz.now(),
+        paid_at=tz.now(),
+    )
+
+    # 3. Payment record (Succeeded)
+    ref = f"speed-book-{uuid.uuid4().hex[:12]}"
+    Payment.objects.create(
+        order=order,
+        gateway=Payment.Gateway.MANUAL,
+        provider_reference=ref,
+        amount_minor=price_minor,
+        currency="USD",
+        status=Payment.Status.SUCCEEDED,
+        paid_at=tz.now(),
+    )
+
+    # 4. Double-Entry Ledger rows: charge = commission + expert_credit
+    LedgerEntry.objects.create(
+        entry_type=LedgerEntry.EntryType.CHARGE,
+        amount_minor=price_minor,
+        currency="USD",
+        order=order,
+        user=student,
+        description=f"Speed-booking charge: {title[:80]}",
+        provider_object_id=ref,
+    )
+    LedgerEntry.objects.create(
+        entry_type=LedgerEntry.EntryType.COMMISSION,
+        amount_minor=commission,
+        currency="USD",
+        order=order,
+        description=f"Platform commission for speed-booking {order.number}",
+        provider_object_id=ref,
+    )
+    LedgerEntry.objects.create(
+        entry_type=LedgerEntry.EntryType.EXPERT_CREDIT,
+        amount_minor=net,
+        currency="USD",
+        order=order,
+        user=profile.user,
+        description=f"Expert credit for speed-booking {order.number}",
+        provider_object_id=ref,
+    )
+
+    # 5. Scheduled LiveSession
+    live_session = LiveSession.objects.create(
+        order=order,
+        scheduled_at=scheduled_at,
+        status=LiveSession.Status.SCHEDULED,
+        created_by=student,
+        scratchpad_content=f"# Live 1:1 Coaching: {title}\n\n**Specialist:** {profile.display_name}\n**Student:** {student.name or student.email}\n**Duration:** {duration} minutes\n**Notes:** {desc}\n",
+    )
+
+    _record_event(
+        order,
+        OrderEvent.EventType.CREATED,
+        actor=student,
+        data={"source": "speed_booking", "amount": price_minor},
+    )
+    _record_event(
+        order,
+        OrderEvent.EventType.PAYMENT_CONFIRMED,
+        actor=student,
+        via="instant_escrow",
+    )
+    _record_event(
+        order,
+        "live_session_scheduled",
+        actor=student,
+        session_id=str(live_session.pk),
+        scheduled_at=scheduled_at.isoformat(),
+    )
+    audit_log(student, action="order.speed_booked", obj=order, detail={"order": order.number, "amount": price_minor})
+
+    return order, live_session
+
+
+# ---------------------------------------------------------------------------
+# Sprint 5: Student Knowledge Vault & Printable Official Invoices (Feature 2)
+# ---------------------------------------------------------------------------
+
+
+def get_student_vault(user) -> dict:
+    from apps.experts.models import KnowledgePurchase
+    from apps.orders.models import Order
+
+    # 1. Products purchased by this student
+    purchases = (
+        KnowledgePurchase.objects.filter(buyer=user)
+        .select_related("product", "product__expert", "product__subject", "product__file")
+        .order_by("-created_at")
+    )
+    products_data = []
+    for p in purchases:
+        prod = p.product
+        products_data.append({
+            "purchase_id": p.id,
+            "product_id": prod.id,
+            "title": prod.title,
+            "summary": prod.summary,
+            "description": prod.description,
+            "product_type": prod.product_type,
+            "price_display": f"${prod.price_minor / 100:.2f}",
+            "amount_minor": p.amount_minor,
+            "expert_name": prod.expert.display_name,
+            "expert_slug": prod.expert.slug,
+            "subject_name": prod.subject.name if prod.subject else None,
+            "purchased_at": p.created_at.isoformat(),
+            "download_count": p.download_count,
+            "has_file": prod.file_id is not None,
+            "file_name": prod.file.original_name if prod.file else None,
+            "resource_content": (
+                prod.description
+                or f"Full access granted for {prod.title}. Includes downloadable templates and specialist walkthrough notes."
+            ),
+        })
+
+    # 2. Completed / Delivered orders and live sessions
+    orders = (
+        Order.objects.filter(student=user)
+        .exclude(status=Order.Status.CANCELLED)
+        .prefetch_related("live_sessions", "deliveries", "deliveries__attachments")
+        .order_by("-created_at")
+    )
+    deliveries_data = []
+    for o in orders:
+        sessions = [
+            {
+                "id": s.id,
+                "status": s.status,
+                "scheduled_at": s.scheduled_at.isoformat() if s.scheduled_at else None,
+                "duration_seconds": s.duration_seconds,
+                "scratchpad_content": s.scratchpad_content,
+            }
+            for s in o.live_sessions.all()
+        ]
+        order_deliveries = [
+            {
+                "id": str(d.id),
+                "revision_number": d.revision_number,
+                "summary": d.summary,
+                "submitted_at": d.submitted_at.isoformat() if d.submitted_at else None,
+                "attachments": [
+                    {"id": str(a.id), "name": a.original_name, "size": a.size}
+                    for a in d.attachments.all()
+                ],
+            }
+            for d in o.deliveries.all()
+        ]
+        if sessions or order_deliveries:
+            deliveries_data.append({
+                "order_id": str(o.pk),
+                "order_number": o.number,
+                "status": o.status,
+                "expert_name": o.expert_name,
+                "expert_slug": o.expert_slug,
+                "request_title": o.request.title if o.request else "Direct Consultation",
+                "sessions": sessions,
+                "deliveries": order_deliveries,
+            })
+
+    # 3. Itemized Tax Invoices / Receipts
+    invoices = []
+    for p in purchases:
+        inv_num = f"INV-CAT-{p.id:05d}"
+        commission = round(p.amount_minor * 0.15)
+        expert_net = p.amount_minor - commission
+        invoices.append({
+            "invoice_number": inv_num,
+            "type": "catalog_purchase",
+            "title": p.product.title,
+            "buyer_name": user.name or user.email,
+            "specialist_name": p.product.expert.display_name,
+            "gross_amount_display": f"${p.amount_minor / 100:.2f}",
+            "gross_amount_minor": p.amount_minor,
+            "platform_fee_display": f"${commission / 100:.2f}",
+            "specialist_net_display": f"${expert_net / 100:.2f}",
+            "currency": p.currency,
+            "date": p.created_at.isoformat(),
+            "ledger_ref": p.ledger_ref or f"CAT-{p.id}",
+            "status": "Paid & Settled",
+        })
+
+    paid_orders = Order.objects.filter(student=user, paid_at__isnull=False).order_by("-created_at")
+    for o in paid_orders:
+        inv_num = f"INV-{o.number}"
+        invoices.append({
+            "invoice_number": inv_num,
+            "type": "consultation_order",
+            "title": o.request.title if o.request else f"Consultation with {o.expert_name}",
+            "buyer_name": user.name or user.email,
+            "specialist_name": o.expert_name,
+            "gross_amount_display": f"${o.amount / 100:.2f}",
+            "gross_amount_minor": o.amount,
+            "platform_fee_display": f"${o.commission_amount / 100:.2f}",
+            "specialist_net_display": f"${o.expert_amount / 100:.2f}",
+            "currency": o.currency,
+            "date": (o.paid_at or o.created_at).isoformat(),
+            "ledger_ref": f"ORD-{o.number}",
+            "status": "Escrow Funded" if o.status != "completed" else "Completed & Released",
+        })
+
+    return {
+        "products": products_data,
+        "deliveries": deliveries_data,
+        "invoices": invoices,
+        "total_unlocked_resources": len(products_data) + len(deliveries_data),
+    }

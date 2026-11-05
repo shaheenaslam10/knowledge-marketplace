@@ -103,7 +103,9 @@ class Payout(TimeStampedModel):
         FAILED = "failed", "Failed"
         REVERSED = "reversed", "Reversed"
 
-    order = models.ForeignKey("orders.Order", on_delete=models.PROTECT, related_name="payouts")
+    order = models.ForeignKey(
+        "orders.Order", on_delete=models.PROTECT, related_name="payouts", null=True, blank=True
+    )
     expert = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="payouts"
     )

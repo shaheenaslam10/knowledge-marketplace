@@ -5,6 +5,10 @@ admin-only (user-roles matrix)."""
 
 from __future__ import annotations
 
+import csv
+
+from django.db.models import Q, Sum
+from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -14,8 +18,10 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsAdmin, IsSupport
 from apps.audit.models import AuditEvent
 from apps.core.exceptions import DomainError, NotFoundError
+from apps.core.money import to_major
 from apps.disputes.models import Dispute
 from apps.messaging.models import MessageReport
+from apps.payments.models import LedgerEntry
 
 RANGES = ("today", "7d", "30d")
 MAX_CUSTOM_RANGE_DAYS = 190
@@ -150,40 +156,136 @@ class ReportReviewView(APIView):
 
 
 class DisputeQueueView(APIView):
-    """GET /ops/disputes?status= — operational dispute queue (read-only;
-    resolution stays the Django admin service action, deep-linked from here)."""
+    """GET /ops/disputes?status= — operational dispute queue with full evidence workbench telemetry."""
 
     permission_classes = [IsAuthenticated, IsSupport | IsAdmin]
 
     def get(self, request):
-        qs = Dispute.objects.select_related("order").order_by("-created_at")
-        status = request.query_params.get("status")
-        if status in Dispute.Status.values:
-            qs = qs.filter(status=status)
+        qs = Dispute.objects.select_related(
+            "order",
+            "order__student",
+        ).prefetch_related(
+            "order__deliveries",
+            "order__deliveries__attachments",
+            "order__live_sessions",
+        ).order_by("-created_at")
+        status_filter = request.query_params.get("status")
+        if status_filter in Dispute.Status.values:
+            qs = qs.filter(status=status_filter)
         total = qs.count()
         limit = min(int(request.query_params.get("limit", 50)), 200)
-        results = [
-            {
+        results = []
+        for dispute in qs[:limit]:
+            order = dispute.order
+            deliveries = [
+                {
+                    "id": str(d.id),
+                    "revision_number": d.revision_number,
+                    "summary": d.summary,
+                    "status": d.status,
+                    "submitted_at": d.submitted_at.isoformat() if d.submitted_at else None,
+                    "attachments": [
+                        {"id": str(a.id), "name": a.original_name, "file_size": a.file_size}
+                        for a in d.attachments.all()
+                    ],
+                }
+                for d in order.deliveries.all()
+            ]
+            live_session = order.live_sessions.first() if hasattr(order, "live_sessions") else None
+            scratchpad_content = live_session.scratchpad_content if live_session else ""
+
+            thread = getattr(order, "thread", None)
+            recent_messages = []
+            if thread:
+                recent_messages = [
+                    {
+                        "id": str(m.id),
+                        "sender_name": (
+                            m.sender.email
+                            if m.sender
+                            else "System"
+                        ),
+                        "body": m.body[:200],
+                        "created_at": m.created_at.isoformat(),
+                    }
+                    for m in thread.messages.order_by("-created_at")[:5]
+                ]
+
+            results.append({
                 "id": str(dispute.pk),
                 "status": dispute.status,
                 "reason": dispute.reason,
                 "reason_display": dispute.get_reason_display(),
+                "description": dispute.description,
                 "outcome": dispute.outcome or None,
+                "resolution_notes": dispute.resolution_notes or "",
                 "order_id": dispute.order_id,
-                "order_number": dispute.order.number,
-                "order_status": dispute.order.status,
-                "amount": dispute.order.amount,
-                "currency": dispute.order.currency,
-                "student_id": dispute.order.student_id,
-                "expert_id": dispute.order.expert_id,
+                "order_number": order.number,
+                "order_status": order.status,
+                "amount": order.amount,
+                "currency": order.currency,
+                "student_id": order.student_id,
+                "student_name": getattr(order.student, "display_name", None) or order.student.email,
+                "student_email": order.student.email,
+                "expert_id": order.expert_id,
+                "expert_name": order.expert_name,
+                "expert_email": f"expert-{order.expert_id}@demo.local",
                 "opened_by": dispute.opened_by_id,
                 "admin_url": f"/admin/disputes/dispute/{dispute.pk}/change/",
                 "created_at": dispute.created_at.isoformat(),
                 "resolved_at": dispute.resolved_at.isoformat() if dispute.resolved_at else None,
-            }
-            for dispute in qs[:limit]
-        ]
+                "deliveries": deliveries,
+                "scratchpad_content": scratchpad_content,
+                "messages_count": thread.messages.count() if thread else 0,
+                "recent_messages": recent_messages,
+            })
         return Response({"total": total, "results": results})
+
+
+class DisputeResolveView(APIView):
+    """POST /ops/disputes/{pk}/resolve — operational dispute resolution (support or admin)."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "ops_write"
+    permission_classes = [IsAuthenticated, IsSupport | IsAdmin]
+
+    def post(self, request, pk: str):
+        from apps.disputes.services import resolve, take_case
+
+        dispute = Dispute.objects.select_related("order").filter(pk=pk).first()
+        if dispute is None:
+            raise NotFoundError("Dispute not found.")
+
+        outcome = request.data.get("outcome")
+        resolution_notes = str(request.data.get("resolution_notes", "")).strip()
+        refund_amount_minor = request.data.get("refund_amount_minor")
+        split_percent = request.data.get("split_percent")
+
+        if split_percent is not None and refund_amount_minor is None:
+            pct = max(0.0, min(100.0, float(split_percent)))
+            refund_amount_minor = round(dispute.order.amount * (pct / 100.0))
+
+        if not outcome:
+            raise DomainError("Outcome is required.", code="validation_error")
+
+        if dispute.status == Dispute.Status.OPEN:
+            dispute = take_case(dispute, actor=request.user)
+
+        dispute = resolve(
+            dispute,
+            actor=request.user,
+            outcome=outcome,
+            resolution_notes=resolution_notes,
+            refund_amount_minor=refund_amount_minor,
+        )
+
+        return Response({
+            "id": str(dispute.pk),
+            "status": dispute.status,
+            "outcome": dispute.outcome,
+            "resolution_notes": dispute.resolution_notes,
+            "resolved_at": dispute.resolved_at.isoformat() if dispute.resolved_at else None,
+        })
 
 
 class AuditViewerView(APIView):
@@ -286,4 +388,239 @@ class UsersOverviewView(APIView):
                 limit=limit,
                 offset=offset,
             )
+        )
+
+
+class LedgerExplorerView(APIView):
+    """GET /ops/finance/ledger — Granular Double-Entry Financial Ledger Explorer."""
+
+    permission_classes = [IsAuthenticated, IsSupport | IsAdmin]
+
+    def get(self, request):
+        entry_type = request.query_params.get("entry_type")
+        q = request.query_params.get("q", "").strip()
+        order_number = request.query_params.get("order_number", "").strip()
+
+        try:
+            limit = min(int(request.query_params.get("limit", 50)), 200)
+            offset = max(int(request.query_params.get("offset", 0)), 0)
+        except ValueError:
+            limit, offset = 50, 0
+
+        qs = LedgerEntry.objects.select_related("order", "user").order_by("-created_at", "-id")
+
+        if entry_type and entry_type.lower() not in ("all", ""):
+            qs = qs.filter(entry_type=entry_type.lower())
+
+        if order_number:
+            qs = qs.filter(order__number__icontains=order_number)
+
+        if q:
+            qs = qs.filter(
+                Q(order__number__icontains=q)
+                | Q(user__email__icontains=q)
+                | Q(description__icontains=q)
+                | Q(provider_object_id__icontains=q)
+            )
+
+        total_count = qs.count()
+        page_entries = list(qs[offset : offset + limit])
+
+        # Precompute invariant status for relevant orders in page
+        order_ids = {entry.order_id for entry in page_entries if entry.order_id}
+        order_balances: dict[int, dict] = {}
+        if order_ids:
+            order_sums = (
+                LedgerEntry.objects.filter(order_id__in=order_ids)
+                .values("order_id", "entry_type")
+                .annotate(total=Sum("amount_minor"))
+            )
+            for row in order_sums:
+                oid = row["order_id"]
+                if oid not in order_balances:
+                    order_balances[oid] = {"lhs": 0, "rhs": 0, "entries": {}}
+                etype = row["entry_type"]
+                amt = int(row["total"] or 0)
+                order_balances[oid]["entries"][etype] = amt
+                if etype in ("charge", "refund"):
+                    order_balances[oid]["lhs"] += amt
+                elif etype in ("commission", "expert_credit", "fee"):
+                    order_balances[oid]["rhs"] += amt
+
+        results = []
+        for e in page_entries:
+            bal_info = order_balances.get(e.order_id)
+            is_balanced = True
+            lhs, rhs = 0, 0
+            if bal_info is not None:
+                lhs, rhs = bal_info["lhs"], bal_info["rhs"]
+                is_balanced = lhs == rhs
+
+            results.append(
+                {
+                    "id": str(e.id),
+                    "created_at": e.created_at,
+                    "entry_type": e.entry_type,
+                    "entry_type_label": e.get_entry_type_display(),
+                    "amount_minor": e.amount_minor,
+                    "amount_display": to_major(e.amount_minor, e.currency),
+                    "currency": e.currency,
+                    "order_id": str(e.order_id) if e.order_id else None,
+                    "order_number": e.order.number if e.order else None,
+                    "user_id": e.user_id,
+                    "user_email": e.user.email if e.user else None,
+                    "description": e.description,
+                    "provider_object_id": e.provider_object_id,
+                    "is_balanced": is_balanced,
+                    "t_account": {
+                        "charge_plus_refund": lhs,
+                        "allocations": rhs,
+                    }
+                    if bal_info
+                    else None,
+                }
+            )
+
+        totals_by_type = {
+            row["entry_type"]: int(row["total"] or 0)
+            for row in LedgerEntry.objects.values("entry_type").annotate(total=Sum("amount_minor"))
+        }
+
+        total_charges = totals_by_type.get("charge", 0)
+        total_commissions = totals_by_type.get("commission", 0)
+        total_credits = totals_by_type.get("expert_credit", 0)
+        total_refunds = totals_by_type.get("refund", 0)
+        total_fees = totals_by_type.get("fee", 0)
+
+        lhs_system = total_charges + total_refunds
+        rhs_system = total_commissions + total_credits + total_fees
+
+        return Response(
+            {
+                "count": total_count,
+                "results": results,
+                "summary": {
+                    "total_charges": total_charges,
+                    "total_commissions": total_commissions,
+                    "total_credits": total_credits,
+                    "total_refunds": total_refunds,
+                    "total_fees": total_fees,
+                    "system_balanced": (lhs_system == rhs_system),
+                },
+            }
+        )
+
+
+class LedgerExportCsvView(APIView):
+    """GET /ops/finance/ledger/export-csv — download full ledger audit CSV."""
+
+    permission_classes = [IsAuthenticated, IsSupport | IsAdmin]
+
+    def get(self, request):
+        entry_type = request.query_params.get("entry_type")
+        q = request.query_params.get("q", "").strip()
+
+        qs = LedgerEntry.objects.select_related("order", "user").order_by("-created_at", "-id")
+
+        if entry_type and entry_type.lower() not in ("all", ""):
+            qs = qs.filter(entry_type=entry_type.lower())
+
+        if q:
+            qs = qs.filter(
+                Q(order__number__icontains=q)
+                | Q(user__email__icontains=q)
+                | Q(description__icontains=q)
+                | Q(provider_object_id__icontains=q)
+            )
+
+        response = HttpResponse(content_type="text/csv")
+        ts = timezone.now().strftime("%Y%m%d_%H%M%S")
+        response["Content-Disposition"] = f'attachment; filename="ledger_export_{ts}.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "Entry ID",
+                "Created At (UTC)",
+                "Order Number",
+                "User Email",
+                "Entry Type",
+                "Amount Minor",
+                "Amount Display",
+                "Currency",
+                "Description",
+                "Provider Ref",
+            ]
+        )
+
+        for e in qs[:5000]:
+            writer.writerow(
+                [
+                    str(e.id),
+                    e.created_at.isoformat() if e.created_at else "",
+                    e.order.number if e.order else "N/A",
+                    e.user.email if e.user else "N/A",
+                    e.entry_type,
+                    e.amount_minor,
+                    to_major(e.amount_minor, e.currency),
+                    e.currency,
+                    e.description,
+                    e.provider_object_id,
+                ]
+            )
+
+        return response
+
+
+class OpsPayoutListView(APIView):
+    """GET /api/v1/ops/payouts — Operations view of all scheduled and pending payout requests."""
+
+    permission_classes = [IsAuthenticated, IsSupport | IsAdmin]
+
+    def get(self, request):
+        from apps.payments.models import Payout
+
+        payouts = Payout.objects.select_related("expert", "order").order_by("-created_at")[:50]
+        results = [
+            {
+                "id": p.id,
+                "expert_id": p.expert_id,
+                "expert_name": p.expert.name or p.expert.email,
+                "expert_email": p.expert.email,
+                "order_number": p.order.number if p.order else "Balance Withdrawal",
+                "amount_minor": p.amount_minor,
+                "amount_display": f"${p.amount_minor / 100:.2f}",
+                "currency": p.currency,
+                "status": p.status,
+                "provider_reference": p.provider_reference,
+                "created_at": p.created_at.isoformat(),
+                "settled_at": p.settled_at.isoformat() if p.settled_at else None,
+            }
+            for p in payouts
+        ]
+        return Response({"results": results})
+
+
+class OpsPayoutSettleView(APIView):
+    """POST /api/v1/ops/payouts/<id>/settle — Staff approval & settlement of payout."""
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request, payout_id: int):
+        from apps.core.exceptions import NotFoundError
+        from apps.payments.models import Payout
+        from apps.payments.services import settle_payout
+
+        payout = Payout.objects.filter(pk=payout_id).first()
+        if not payout:
+            raise NotFoundError("Payout not found.")
+        settled = settle_payout(payout, actor=request.user)
+        return Response(
+            {
+                "id": settled.id,
+                "status": settled.status,
+                "settled_at": settled.settled_at.isoformat() if settled.settled_at else None,
+                "provider_reference": settled.provider_reference,
+                "amount_display": f"${settled.amount_minor / 100:.2f}",
+            }
         )

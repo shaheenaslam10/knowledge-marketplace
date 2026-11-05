@@ -38,7 +38,29 @@
 
 ## Catalog backlog (design target — NOT all implemented)
 
-The original MVP catalog below records the full design target. Types **wired in the category map but not yet emitted**: `request_new_matching` (new-matching fan-out + daily digest — the matching loop does not emit it yet), `payout_scheduled`, `order_auto_approve_warning`. All Phase 9+ types (disputes, reviews, refunds beyond the two shipped, admin reports) are unimplemented — treat this backlog as the roadmap of types, not a claim of shipping.
+The original MVP catalog below records the full design target.
+
+> **Phase 12 correction.** This section previously listed
+> `request_new_matching`, `payout_scheduled` and `order_auto_approve_warning`
+> as declared-but-unemitted, and claimed all Phase 9+ types (disputes,
+> reviews) were unimplemented. **Both halves were wrong.** An audit found that
+> disputes and reviews *were* emitting, while two further types —
+> `request_new_offer` and `payout_failed` — were dead and undocumented as such.
+> The four dead types have since been wired; see below.
+
+**Now emitted (repaired in Phase 12):**
+
+| Type | Emitted from | Recipient | Why it mattered |
+|---|---|---|---|
+| `request_new_offer` | `bidding.services.submit()` | student | A student was never told a bid arrived — they had to poll their own request. This broke the core marketplace loop. Blind bidding (BR-15) is preserved: the body carries no amount. |
+| `payout_scheduled` | `payments.services.schedule_payout()` | expert | The expert was never told their money was scheduled. Idempotent — the hourly sweeper cannot re-notify. |
+| `payout_failed` | `payments.services.mark_payout_failed()` | expert | `ops_report` alerted staff, but the person actually missing money got silence. |
+| `order_auto_approve_warning` | `orders.services.auto_approve_warning()` (hourly) | student | Auto-approval completes the order and releases funds at 72h (BR-24). It used to happen with no warning; the student now gets 24 hours to approve deliberately, request a revision, or dispute. Deduped by the `auto_approve_warned` order event. |
+
+**Still not emitted (genuine backlog, by decision):** `request_new_matching` —
+the new-matching fan-out and its daily digest activate together; the matching
+loop does not emit it yet, and no digest emails exist. This remains a design
+target, not a shipped feature.
 
 | ID | Event | Recipient | Channels |
 |---|---|---|---|

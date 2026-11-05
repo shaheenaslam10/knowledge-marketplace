@@ -74,13 +74,14 @@ test("dispute: build order → open with evidence → owner resolves → refund 
   await expect(student.getByText(/expert selected/i).first()).toBeVisible({ timeout: 20_000 });
   await student.goto("/orders");
   await student.getByRole("link", { name: /ORD-/ }).first().click();
+  await student.waitForURL(/\/orders\/\d+/, { timeout: 20_000 });
+  const orderUrl = student.url();
   await student.getByRole("button", { name: "Pay now" }).click();
   await student.getByRole("button", { name: "Confirm payment (dev)" }).click();
   await expect(student.getByText("In progress").first()).toBeVisible({ timeout: 20_000 });
 
   // --- expert delivers → student approves → completed (dispute-eligible) ---
-  await expert.goto("/orders");
-  await expert.getByRole("link", { name: /ORD-/ }).first().click();
+  await expert.goto(orderUrl);
   await expert.getByRole("button", { name: /deliver/i }).first().click();
   await expert
     .getByLabel("Delivery summary")
@@ -124,16 +125,16 @@ test("dispute: build order → open with evidence → owner resolves → refund 
   await student.getByRole("button", { name: /log in/i }).click();
   await student.waitForURL(/\/admin\//, { timeout: 20_000 });
   // scope to OUR dispute via its (unique) description so seeded open disputes
-  // never leak into this flow; the token is distinctive enough for icontains
   const disputeQuery = encodeURIComponent("material did not match the brief");
   await student.goto(`${ADMIN_BASE}/admin/disputes/dispute/?status__exact=open&q=${disputeQuery}`);
-  // resolution only runs from under_review (BR-41) — take the case first
-  await student.locator("#action-toggle").check();
-  await student.locator("select[name=action]").selectOption({ label: "Take case (open → under_review)" });
+  const actionSelect = student.locator("select[name=action]");
+  await student.locator("#result_list tbody tr input.action-select").first().waitFor({ state: "visible", timeout: 20_000 });
+  await student.locator("#result_list tbody tr input.action-select").first().check();
+  await actionSelect.selectOption({ label: "Take case (open → under_review)" });
   await student.getByRole("button", { name: /go/i }).click();
-  // the bulk action re-renders the changelist; the scoped list is now empty
-  await student.waitForLoadState("networkidle");
-  await expect(student.locator("#result_list tbody a")).toHaveCount(0, { timeout: 20_000 });
+  await expect(student.locator(".messagelist")).toContainText(/under review/i, { timeout: 20_000 });
+
+  // navigate to under_review to perform resolution
   await student.goto(`${ADMIN_BASE}/admin/disputes/dispute/?status__exact=under_review&q=${disputeQuery}`);
   await student.locator("#result_list tbody a").first().click();
   await student.locator("#outcome").selectOption("refund_student_full");
@@ -144,7 +145,6 @@ test("dispute: build order → open with evidence → owner resolves → refund 
   await expect(student.locator(".messagelist")).toContainText(/resolved/i, { timeout: 20_000 });
 
   // --- financial outcome: the refund lands on the order (ledger via payments) ---
-  await student.goto("/orders");
-  await student.getByRole("link", { name: /ORD-/ }).first().click();
+  await student.goto(orderUrl);
   await expect(student.getByText(/refunded|disputed|resolved/i).first()).toBeVisible({ timeout: 20_000 });
 });

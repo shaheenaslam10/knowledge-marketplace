@@ -2,10 +2,11 @@
 
 > Working title. A two-sided platform where students get academic/learning help through an **Open Marketplace** (experts bid, student picks) or a **Managed Service** (the platform triages and assigns), with payments, delivery, reviews and disputes handled end-to-end.
 
-> **Project continuation / next steps — START HERE:** [`docs/process/PROJECT-HANDOFF.md`](docs/process/PROJECT-HANDOFF.md)
+> **Project continuation / next steps — START HERE:** [`docs/process/PROJECT-HANDOFF.md`](docs/process/PROJECT-HANDOFF.md)  
+> **Production Deployment Runbook:** [`docs/deployment/PRODUCTION-DEPLOYMENT.md`](docs/deployment/PRODUCTION-DEPLOYMENT.md)  
 > (current state, completed phases, architecture snapshot, locked decisions, and the exact next-phase plan — maintained after every phase)
 
-**Status: Phase 8 ✅ complete — next: Phase 9 (Files, Reviews & Disputes).** Live today: the full acquisition funnels (student self-service onboarding; expert application → owner approval), the **open marketplace** (student posts a request → eligible experts offer → student selects, race-safe), the **managed service** (owner triage in Django admin → pool invitations with first-accept-wins, or direct assignments), the **order workspace** (`/orders` — delivery, revisions, approvals with 72h auto-approval, cancellations, persisted event timeline; one pipeline for all three sources), **payments & commissions** (provider-agnostic gateway with a fully-functional manual/dev mode — pay → confirm → ledger → payout → refund; Stripe is a prepared, non-required seam), and **messaging & notifications** (`/messages` threads with realtime WebSocket delivery + offline REST fallback, read receipts, typing, chat attachments; a notification center — bell, toasts, per-category email preferences with one-click unsubscribe — fed by domain events across orders, offers, assignments, payments, and chat). Everything rests on the shared foundations: custom email user model + JWT-in-httpOnly-cookie auth, one three-experience Next.js app (marketing / app / portal) with the formal design system, taxonomy, secure files, audit, django-q2 worker. See [docs/process/roadmap-phases.md](docs/process/roadmap-phases.md).
+**Status: Sprints 1–7 ✅ COMPLETE & VERIFIED** — Featuring monorepo consolidation (`@hem/web`, `@hem/admin`, `@hem/ui`), WebRTC live 1:1 coaching & synchronized code scratchpad, digital catalog & micro-cohorts, double-entry escrow ledger explorer, federated `Cmd+K` omnibox, student knowledge vault with printable tax invoices, and animated Linear/Stripe-tier landing page with WCAG AAA high-contrast dashboards.
 
 ---
 
@@ -13,18 +14,22 @@
 
 ```text
 /
-├── frontend/           # Next.js 15 + TypeScript + Tailwind 4 (App Router, domain-oriented)
-│   └── src/app/(public) · src/features · src/components/ui · src/lib · e2e
-├── backend/            # Django 5.2 LTS + DRF modular monolith
-│   ├── config/         # settings/{base,dev,test,prod}, urls, api router, asgi (HTTP+WS)
+├── frontend/
+│   ├── apps/web/       # @hem/web (Port 3000): Marketing, Student & Specialist Workspaces
+│   ├── apps/admin/     # @hem/admin (Port 3001): Executive Operations Cockpit & Financial Ledger
+│   ├── packages/ui/    # @hem/ui: Shared Radix + Tailwind design system components
+│   └── scripts/        # verify_*.mjs: Real Google Chrome Playwright E2E verification suites
+├── backend/            # Django 5.2 LTS + Channels WebRTC (Port 8000) modular monolith
+│   ├── config/         # settings/{base,dev,test,prod}, routing (HTTP+WS), OpenAPI schema
 │   ├── apps/core/      # shared kernel: health, error envelope, money, request-id, seeds
-│   ├── apps/payments/  # provider-agnostic payment domain (gateway seam, ledger, webhooks — ADR-0005)
-│   └── docker/         # container entrypoints (db-wait migrate / worker)
-├── docs/               # Product, workflows, architecture, operations, process — START HERE
-├── scripts/            # run_tests.sh · check_env_docs.py (CI doc-sync gate)
+│   ├── apps/experts/   # directory, profiles, catalog products, live group cohorts
+│   ├── apps/orders/    # unified state machine, deliverables v1..vN, WebRTC LiveSession
+│   ├── apps/payments/  # double-entry ledger, escrow custody, payouts & settlement
+│   └── apps/portal/    # executive operations API, dispute tribunal & ledger explorer
+├── docs/               # Product, workflows, architecture, operations, process
+├── PROJECT-HANDOFF.md  # Comprehensive operational handover blueprint (Sprints 1–7)
 ├── .env.example        # every environment variable, documented
-├── docker-compose.yml  # db + backend + worker + frontend (clean-checkout runnable)
-└── README.md
+└── docker-compose.yml  # db + backend + worker + frontend (clean-checkout runnable)
 ```
 
 ## The two business models (one pipeline)
@@ -172,6 +177,37 @@ Environment variables: [`.env.example`](.env.example) + [docs/architecture/envir
 | `worker_smoke` times out | `worker` service not running — `docker compose ps`, check `docker compose logs worker` |
 | Migrations out of sync | `docker compose exec backend python manage.py makemigrations --check` should be clean in CI; locally run `makemigrations` |
 
+## Deployment
+
+The production topology is built and committed; **nothing is deployed yet** —
+that needs a host, a domain and provider credentials, none of which exist in
+this project. See [deployment.md](docs/architecture/deployment.md) for the full
+runbook and the owner-action list.
+
+| Piece | File |
+|---|---|
+| Topology (db, api, worker, web, caddy) | `docker-compose.prod.yml` |
+| TLS + ingress | `deploy/Caddyfile` |
+| Env template | `.env.prod.example` → `.env.staging` / `.env.production` (gitignored) |
+| Deploy / rollback | `scripts/deploy.sh`, `scripts/rollback.sh` |
+| Post-deploy verification | `scripts/smoke_test.sh` (22 checks) |
+| Backups | `scripts/backup_db.sh`, `scripts/restore_backup.sh` |
+| CD | `.github/workflows/deploy.yml` |
+
+```bash
+cp .env.prod.example .env.production && $EDITOR .env.production   # fill CHANGE_ME
+./scripts/deploy.sh --env production          # build, migrate, health, smoke
+./scripts/rollback.sh --env production        # previous release
+```
+
+A deploy is fail-closed at three points: the compose file refuses to start with
+a missing required variable, the container refuses to boot with a dev-grade
+config (`manage.py check --tag production`), and the smoke test exits non-zero —
+triggering an automatic rollback — if the security posture regressed.
+
+Staging is the same compose file with a different env file; `DEPLOY_ENV` gives
+the two separate volumes and networks, so staging cannot reach production data.
+
 ## Documentation
 
 **[docs/README.md](docs/README.md)** is the index: product → business rules (incl. academic-integrity policy) → journeys → architecture → costs → process. Documentation is a first-class deliverable, updated in the same phase as any change it describes (CI-gated where automatable).
@@ -187,13 +223,24 @@ Environment variables: [`.env.example`](.env.example) + [docs/architecture/envir
 | 3.5 | Design & product architecture (three experiences, design system, motion) | ✅ |
 | 4 | Marketplace + open bidding + selection (+ design foundation in code) | ✅ |
 | 5 | Managed service + owner assignment (pool / direct → same Order) | ✅ |
-| 6 | Orders & delivery (lifecycle, revisions, auto-approval, order workspace) | ▶ next |
-| 7 | Payments & commissions (Stripe/manual, ledger, refunds, payouts) | 📐 planned |
-| 8 | Messaging & notifications | 📐 planned |
-| 9 | Files, reviews & disputes (R2 adapter) | 📐 planned |
-| 10 | Admin & analytics (portal surfaces) | 📐 planned |
-| 11 | Security, testing & performance | 📐 planned |
-| 12 | Production deployment | 📐 planned |
+| 6 | Orders & delivery (lifecycle, revisions, auto-approval, order workspace) | ✅ |
+| 7 | Payments & commissions (manual gateway active; Stripe = non-functional seam) | ✅ |
+| 8 | Messaging & notifications | ✅ |
+| 9 | Files, reviews & disputes (R2 adapter) | ✅ |
+| 10 | Admin & analytics (portal surfaces) | ✅ |
+| 11 | Security, testing & performance | ✅ |
+| 12 | Production deployment | ✅ prepared — **not yet deployed** (needs a host) |
+| Sprint 1 | Monorepo consolidation (`@hem/web`, `@hem/admin`, `@hem/ui`) & cryptographic key hygiene | ✅ |
+| Sprint 2 | `DeadlineProposal` negotiation banner, deliverable revision stepper & Double-Entry Ledger Explorer | ✅ |
+| Sprint 3 | Self-Hosted WebRTC 1:1 Live Coaching Studio, RFC 5545 calendar invites & synchronized code editor | ✅ |
+| Sprint 4 | Knowledge Catalog (`KnowledgeProduct`), Instant Checkout & PostgreSQL Full-Text SearchRank | ✅ |
+| Sprint 5 | Global `Cmd+K` Omnibox, 1:1 Speed-Booking, Student Vault with Tax Invoices & Payout Center | ✅ |
+| Sprint 6 | Live Group Micro-Cohorts, 4-Quadrant Dispute Evidence Workbench & 0%–100% Split-Escrow Slider | ✅ |
+| Sprint 7 | Animated Hero Stage (morphing blobs, floating UI, bento grid) & WCAG AAA High-Contrast Dashboards | ✅ |
+
+> Phase status is maintained in
+> [docs/process/roadmap-phases.md](docs/process/roadmap-phases.md); this table
+> mirrors it.
 
 ## License / ownership
 

@@ -1,21 +1,18 @@
 {
-  "name": "hem-frontend",
-  "overrides": {
-    "postcss": "^8.5.23"
-  },
-  "version": "0.1.0",
+  "name": "hem-monorepo",
   "private": true,
-  "description": "Hybrid Expert Marketplace — Next.js frontend (domain-oriented)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint src e2e --max-warnings 0",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "e2e": "playwright test",
-    "bundle:check": "next build > /tmp/next-build.log 2>&1; node scripts/check-bundle.mjs /tmp/next-build.log"
+    "dev": "npm --workspace=@hem/web run dev",
+    "dev:web": "npm --workspace=@hem/web run dev",
+    "dev:admin": "npm --workspace=@hem/admin run dev",
+    "build": "npm run --workspaces --if-present build",
+    "lint": "npm run --workspaces --if-present lint",
+    "typecheck": "npm run --workspaces --if-present typecheck",
+    "test": "vitest run"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
