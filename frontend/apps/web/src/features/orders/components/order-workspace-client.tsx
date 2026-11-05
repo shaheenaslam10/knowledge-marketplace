@@ -99,6 +99,12 @@ export function OrderWorkspaceClient() {
         const { disputeId, evidenceIds } = payload as { disputeId: string; evidenceIds: string[] };
         await disputesApi.addEvidence(disputeId, evidenceIds);
         setDispute(await disputesApi.detail(disputeId));
+      } else if (key === "propose-deadline" && typeof payload === "object" && payload !== null) {
+        const { proposedDueAt, note } = payload as { proposedDueAt: string; note: string };
+        await ordersApi.proposeDeadline(orderId, proposedDueAt, note);
+      } else if (key === "respond-deadline" && typeof payload === "object" && payload !== null) {
+        const { action } = payload as { action: "accept" | "decline" | "withdraw" };
+        await ordersApi.respondDeadlineProposal(orderId, action);
       }
       await load();
     } finally {
@@ -113,7 +119,7 @@ export function OrderWorkspaceClient() {
           This order isn&apos;t available — it may not exist, or your account may not be a participant.
         </p>
         <Button variant="ghost" asChild>
-          <Link href="/orders">← Back to my orders</Link>
+          <Link href="/orders">Back to my orders</Link>
         </Button>
       </div>
     );
@@ -121,24 +127,22 @@ export function OrderWorkspaceClient() {
 
   if (!order) {
     return (
-      <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-8" aria-busy>
-        <Skeleton className="h-40 w-full rounded-xl" />
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Skeleton className="h-64 w-full rounded-xl lg:col-span-2" />
-          <Skeleton className="h-64 w-full rounded-xl" />
-        </div>
+      <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-8" aria-busy="true">
+        <Skeleton className="h-44 w-full rounded-2xl" />
+        <Skeleton className="h-96 w-full rounded-2xl" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
-      <Button variant="ghost" asChild>
-        <Link href="/orders" className="text-sm">
-          ← My orders
-        </Link>
-      </Button>
-      <OrderWorkspace order={order} review={review} dispute={dispute} onAction={onAction} busy={busy} />
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+      <OrderWorkspace
+        order={order}
+        review={review}
+        dispute={dispute}
+        busy={busy}
+        onAction={onAction}
+      />
     </div>
   );
 }

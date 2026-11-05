@@ -19,7 +19,10 @@ env = environ.Env()
 environ.Env.read_env(BASE_DIR.parent / ".env", overwrite=False)
 
 # --- Core Django ---
-SECRET_KEY = env.str("SECRET_KEY", default="dev-only-insecure-key-change-me")
+SECRET_KEY = env.str(
+    "SECRET_KEY",
+    default="dev-only-insecure-key-change-me-must-be-at-least-64-bytes-for-jwt-and-argon2",
+)
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = [
     h.strip()

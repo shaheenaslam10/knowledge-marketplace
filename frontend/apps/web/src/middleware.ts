@@ -151,7 +151,9 @@ export function toOrigin(value: string | undefined | null): string | null {
  */
 export function connectSources(env: Record<string, string | undefined>): string[] {
   const sources = new Set<string>(["'self'"]);
-  for (const raw of [env.NEXT_PUBLIC_API_URL, env.NEXT_PUBLIC_WS_URL]) {
+  const apiUrl = env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+  const wsUrl = env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8000'
+  for (const raw of [apiUrl, wsUrl]) {
     const origin = toOrigin(raw);
     if (origin) sources.add(origin);
   }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { SessionProvider } from "@/features/auth/SessionProvider";
 import { ThemeProvider } from "@/features/theme/ThemeProvider";
+import { CommandPalette } from "@/components/CommandPalette";
 import { SITE_URL } from "@/lib/config";
 import "./globals.css";
 
@@ -21,7 +22,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased">
         <ThemeProvider>
-          <SessionProvider>{children}</SessionProvider>
+          <SessionProvider>
+            {children}
+            <CommandPalette />
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

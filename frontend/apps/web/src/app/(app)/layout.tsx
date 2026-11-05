@@ -18,10 +18,15 @@ import {
   User,
   Layers,
   Star,
+  FolderOpen,
+  DollarSign,
+  BookOpen,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+import { DashboardOrientationBanner } from "@/components/patterns/dashboard/workflow-banner";
 
 import { Button } from "@/components/ui/Button";
 import {
@@ -193,6 +198,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/requests", label: "Learning Dashboard", icon: GraduationCap },
     { href: "/requests/new", label: "New Task Brief", icon: PlusCircle },
     { href: "/orders", label: "Active Orders", icon: PackageCheck },
+    { href: "/vault", label: "Knowledge Vault", icon: FolderOpen },
+    { href: "/catalog", label: "Catalog & Workshops", icon: BookOpen },
     { href: "/messages", label: "Direct Messages", icon: MessageSquare },
     { href: "/account", label: "Account Settings", icon: User },
   ];
@@ -201,6 +208,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/opportunities", label: "Opportunity Radar", icon: Zap },
     { href: "/assignments", label: "Managed Tasks", icon: Layers },
     { href: "/orders", label: "Active Orders", icon: PackageCheck },
+    { href: "/expert/earnings", label: "Earnings & Payouts", icon: DollarSign },
+    { href: "/catalog", label: "Catalog & Workshops", icon: BookOpen },
     { href: "/expert/reviews", label: "Reviews & Ratings", icon: Star },
     { href: isExpertUser ? "/expert/profile" : "/expert/apply", label: "Specialist Cockpit", icon: ShieldCheck },
     { href: "/messages", label: "Direct Messages", icon: MessageSquare },
@@ -556,8 +565,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             collapsed ? "lg:pl-20" : "lg:pl-64",
           )}
         >
+          {/* Persona Mode Accent Top Strip */}
+          <div
+            className={cn(
+              "h-1 w-full transition-colors z-30 sticky top-0",
+              roleMode === "student"
+                ? "bg-gradient-to-r from-indigo-500 via-blue-500 to-indigo-600"
+                : "bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600",
+            )}
+          />
+
           {/* Slim Top Utility Bar */}
-          <header className="sticky top-0 z-20 flex h-14 sm:h-16 items-center justify-between border-b border-border/60 bg-background/85 px-4 sm:px-6 backdrop-blur-md transition-colors">
+          <header className="sticky top-1 z-20 flex h-14 sm:h-16 items-center justify-between border-b border-border/60 bg-background/85 px-4 sm:px-6 backdrop-blur-md transition-colors">
             {/* Left: Mobile Drawer Trigger + Workspace Breadcrumb */}
             <div className="flex items-center gap-3">
               {/* Mobile Drawer Trigger (Sheet) */}
@@ -742,6 +761,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* 3. Balanced Asymmetric Content Canvas Container */}
           <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            <DashboardOrientationBanner roleMode={roleMode} />
             {notificationShell}
           </main>
         </div>

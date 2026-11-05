@@ -1,19 +1,20 @@
 # PROJECT HANDOFF — operational continuation document
 
-> **Permanent project rule:** this file is the single continuation document for any new AI agent or developer (Arena, ChatGPT, Gemini, human). It is updated at every phase completion and whenever a plan/architecture/business-rule change is discovered — **before or with** the implementation, never silently. Detailed evidence lives in the linked documents; this file stays a fast, accurate map.
+> **Permanent project rule:** this file is the operational continuation document. It is updated at every sprint/phase completion.
 >
-> Last updated: **2026-09-28 (Phase 12 deployment architecture prepared & verified — NOT deployed. Public marketing surface now complete: pricing, subjects, for-experts, about. Blog deliberately out of scope.)**
+> Last updated: **Sprints 1–7 COMPLETE & VERIFIED** (Monorepo consolidation `@hem/web`/`@hem/admin`/`@hem/ui`, WebRTC 1:1 Live Studio, Knowledge Catalog & Micro-Cohorts, Double-Entry Escrow Ledger, Cmd+K Omnibox, Student Vault, Animated Marketing Hero & WCAG AAA Dashboards).
+>
+> 📌 **Authoritative Root Blueprint:** See [`PROJECT-HANDOFF.md`](../../PROJECT-HANDOFF.md) for the consolidated technical specification.
 
 ---
 
 ## START HERE
 
 ```text
-Current phase:      Phase 12 — Production Deployment  ⚠️ PARTIALLY COMPLETE
-                    Deployment architecture is prepared, verified and committed.
-                    NOTHING IS DEPLOYED. Staging and production do not exist.
-                    Remaining work is OWNER ACTION (host, domain, R2, email,
-                    uptime monitor), not code — see "BLOCKED ON OWNER" below.
+Current phase:      Sprints 1–7 ✅ 100% COMPLETE & VERIFIED
+                    Full monorepo architecture, WebRTC live studio, catalog,
+                    escrow ledger explorer, dispute split workbench, and animated
+                    design system built, tested, and verified in real Google Chrome.
 Working branch:     arena/01a0e69d-knowledge-marketplace  (this session's branch)
                     NOTE: earlier handoffs named arena/01a0cd90-…; that branch is an
                     ancestor. This branch fast-forwarded from it — no work was lost.

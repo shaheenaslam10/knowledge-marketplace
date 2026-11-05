@@ -6,7 +6,7 @@
 > **Production Deployment Runbook:** [`docs/deployment/PRODUCTION-DEPLOYMENT.md`](docs/deployment/PRODUCTION-DEPLOYMENT.md)  
 > (current state, completed phases, architecture snapshot, locked decisions, and the exact next-phase plan — maintained after every phase)
 
-**Status: Phases 0–11 ✅ complete. Phase 12 (production deployment) is ✅ prepared and verified but ⚠️ NOT deployed** — the remaining work is p33, offers, assignments, payments, and chat). Since then: **files, reviews & disputes**, the **operations portal** (`/portal` — KPIs, moderation, disputes, finance, audit, users, config), **security/performance hardening**, and the **public marketing site** (`/`, `/how-it-works`, `/pricing`, `/experts`, `/subjects`, `/for-experts`, `/about`, legal pages, `sitemap.xml`, `robots.txt`). Everything rests on the shared foundations: custom email user model + JWT-in-httpOnly-cookie auth, one three-experience Next.js app (marketing / app / portal) with the formal design system, taxonomy, secure files, audit, django-q2 worker. See [docs/process/roadmap-phases.md](docs/process/roadmap-phases.md).
+**Status: Sprints 1–7 ✅ COMPLETE & VERIFIED** — Featuring monorepo consolidation (`@hem/web`, `@hem/admin`, `@hem/ui`), WebRTC live 1:1 coaching & synchronized code scratchpad, digital catalog & micro-cohorts, double-entry escrow ledger explorer, federated `Cmd+K` omnibox, student knowledge vault with printable tax invoices, and animated Linear/Stripe-tier landing page with WCAG AAA high-contrast dashboards.
 
 ---
 
@@ -14,18 +14,22 @@
 
 ```text
 /
-├── frontend/           # Next.js 15 + TypeScript + Tailwind 4 (App Router, domain-oriented)
-│   └── src/app/(public) · src/features · src/components/ui · src/lib · e2e
-├── backend/            # Django 5.2 LTS + DRF modular monolith
-│   ├── config/         # settings/{base,dev,test,prod}, urls, api router, asgi (HTTP+WS)
+├── frontend/
+│   ├── apps/web/       # @hem/web (Port 3000): Marketing, Student & Specialist Workspaces
+│   ├── apps/admin/     # @hem/admin (Port 3001): Executive Operations Cockpit & Financial Ledger
+│   ├── packages/ui/    # @hem/ui: Shared Radix + Tailwind design system components
+│   └── scripts/        # verify_*.mjs: Real Google Chrome Playwright E2E verification suites
+├── backend/            # Django 5.2 LTS + Channels WebRTC (Port 8000) modular monolith
+│   ├── config/         # settings/{base,dev,test,prod}, routing (HTTP+WS), OpenAPI schema
 │   ├── apps/core/      # shared kernel: health, error envelope, money, request-id, seeds
-│   ├── apps/payments/  # provider-agnostic payment domain (gateway seam, ledger, webhooks — ADR-0005)
-│   └── docker/         # container entrypoints (db-wait migrate / worker)
-├── docs/               # Product, workflows, architecture, operations, process — START HERE
-├── scripts/            # run_tests.sh · check_env_docs.py (CI doc-sync gate)
+│   ├── apps/experts/   # directory, profiles, catalog products, live group cohorts
+│   ├── apps/orders/    # unified state machine, deliverables v1..vN, WebRTC LiveSession
+│   ├── apps/payments/  # double-entry ledger, escrow custody, payouts & settlement
+│   └── apps/portal/    # executive operations API, dispute tribunal & ledger explorer
+├── docs/               # Product, workflows, architecture, operations, process
+├── PROJECT-HANDOFF.md  # Comprehensive operational handover blueprint (Sprints 1–7)
 ├── .env.example        # every environment variable, documented
-├── docker-compose.yml  # db + backend + worker + frontend (clean-checkout runnable)
-└── README.md
+└── docker-compose.yml  # db + backend + worker + frontend (clean-checkout runnable)
 ```
 
 ## The two business models (one pipeline)
@@ -226,6 +230,13 @@ the two separate volumes and networks, so staging cannot reach production data.
 | 10 | Admin & analytics (portal surfaces) | ✅ |
 | 11 | Security, testing & performance | ✅ |
 | 12 | Production deployment | ✅ prepared — **not yet deployed** (needs a host) |
+| Sprint 1 | Monorepo consolidation (`@hem/web`, `@hem/admin`, `@hem/ui`) & cryptographic key hygiene | ✅ |
+| Sprint 2 | `DeadlineProposal` negotiation banner, deliverable revision stepper & Double-Entry Ledger Explorer | ✅ |
+| Sprint 3 | Self-Hosted WebRTC 1:1 Live Coaching Studio, RFC 5545 calendar invites & synchronized code editor | ✅ |
+| Sprint 4 | Knowledge Catalog (`KnowledgeProduct`), Instant Checkout & PostgreSQL Full-Text SearchRank | ✅ |
+| Sprint 5 | Global `Cmd+K` Omnibox, 1:1 Speed-Booking, Student Vault with Tax Invoices & Payout Center | ✅ |
+| Sprint 6 | Live Group Micro-Cohorts, 4-Quadrant Dispute Evidence Workbench & 0%–100% Split-Escrow Slider | ✅ |
+| Sprint 7 | Animated Hero Stage (morphing blobs, floating UI, bento grid) & WCAG AAA High-Contrast Dashboards | ✅ |
 
 > Phase status is maintained in
 > [docs/process/roadmap-phases.md](docs/process/roadmap-phases.md); this table

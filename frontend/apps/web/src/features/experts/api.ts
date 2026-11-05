@@ -39,6 +39,26 @@ export const expertsApi = {
   publicExpert: (slug: string, baseUrl = API_URL_BROWSER) =>
     apiFetch<PublicExpert>({ path: `/api/v1/experts/${encodeURIComponent(slug)}`, baseUrl }),
 
+  bookSession: (
+    slug: string,
+    payload: { duration_minutes: number; topic_title: string; notes?: string; scheduled_at?: string },
+    baseUrl = API_URL_BROWSER
+  ) =>
+    apiFetch<{
+      order_id: number;
+      request_id: number;
+      session_id: number;
+      amount_minor: number;
+      duration_minutes: number;
+      topic_title: string;
+      status: string;
+    }>({
+      path: `/api/v1/experts/${encodeURIComponent(slug)}/book-session`,
+      baseUrl,
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   applyInfo: (baseUrl = API_URL_BROWSER) =>
     apiFetch<{
       requirements: {

@@ -4,6 +4,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -141,6 +142,19 @@ export default function RequestDetailPage() {
                     <span className="font-bold text-foreground text-sm">{offer.expert?.display_name ?? "Specialist"}</span>
                     <Badge tone={OFFER_STATUS_TONE[offer.status]} className="text-xs">{OFFER_STATUS_COPY[offer.status]}</Badge>
                   </div>
+                  {offer.match_score != null && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1" data-testid={`match-rank-${offer.id}`}>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                        <Sparkles className="size-3 text-primary" />
+                        {offer.match_score}% Match &middot; Top Specialist Pick
+                      </span>
+                      {offer.match_reasons?.map((reason, idx) => (
+                        <span key={idx} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-surface-2 text-muted border border-border/70">
+                          ✓ {reason}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {offer.expert?.headline && <p className="text-xs text-muted leading-tight">{offer.expert.headline}</p>}
                   <p className="mt-2 text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed">{offer.message}</p>
                   <p className="mt-2 text-[11px] text-muted font-medium">Proposed Timeline: <strong className="text-foreground">{offer.timeline_text}</strong></p>

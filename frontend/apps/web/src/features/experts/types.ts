@@ -28,6 +28,9 @@ export interface PublicExpert {
   rating_count: number;
   completed_orders: number;
   approved_at: string | null;
+  session_30m_price?: number;
+  session_60m_price?: number;
+  has_published_assets?: boolean;
 }
 
 /** Expert application lifecycle (ADR-0012) — `not_applied` = no application yet. */

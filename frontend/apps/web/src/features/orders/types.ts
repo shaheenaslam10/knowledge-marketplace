@@ -22,15 +22,37 @@ export interface OrderListItem {
   created_at: string;
 }
 
+export interface DeliveryAttachment {
+  id: string;
+  original_name: string;
+  size: number;
+  content_type: string;
+  download_url?: string | null;
+}
+
 export interface DeliveryRecord {
   id: string;
   revision_number: number;
+  version_label?: string;
   summary: string;
   status: "submitted" | "approved" | "revision_requested";
   submitted_at: string | null;
   approved_at: string | null;
   approval_source: string;
-  attachments: { id: string; original_name: string; size: number; content_type: string }[];
+  student_revision_note?: string | null;
+  is_latest?: boolean;
+  attachments: DeliveryAttachment[];
+}
+
+export interface DeadlineProposalRecord {
+  id: number;
+  status: "pending" | "accepted" | "declined" | "withdrawn";
+  proposed_due_at: string;
+  proposed_by_id: number;
+  proposed_by_role: "student" | "expert";
+  note: string;
+  delta_hours?: number | null;
+  created_at: string;
 }
 
 export interface OrderEventRecord {
@@ -65,6 +87,27 @@ export const PAYMENT_STATUS_COPY: Record<PaymentInfo["status"], string> = {
   partially_refunded: "Partially refunded",
 };
 
+export interface LiveSessionRecord {
+  id: number;
+  status: "scheduled" | "live" | "ended";
+  scheduled_at: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  duration_seconds: number;
+  scratchpad_content: string;
+  created_by?: {
+    id: number | null;
+    name: string;
+    email: string;
+  } | null;
+  created_at: string;
+}
+
+export interface LiveSessionPayload {
+  active_session: LiveSessionRecord | null;
+  recent_sessions: LiveSessionRecord[];
+}
+
 export interface OrderDetail extends OrderListItem {
   request_id: string;
   request_category: string;
@@ -74,6 +117,7 @@ export interface OrderDetail extends OrderListItem {
   commission_display: number;
   currency: string;
   deadline: string | null;
+  delivery_due_at?: string | null;
   revisions_allowed: number;
   revisions_used: number;
   auto_approve_at: string | null;
@@ -84,6 +128,8 @@ export interface OrderDetail extends OrderListItem {
   cancellation_reason: string;
   events: OrderEventRecord[];
   deliveries: DeliveryRecord[];
+  deadline_proposal?: DeadlineProposalRecord | null;
+  live_session?: LiveSessionPayload | null;
   payment: PaymentInfo | null;
 }
 
@@ -160,4 +206,10 @@ export const EVENT_COPY: Record<string, string> = {
   completed: "Order completed",
   cancelled: "Order cancelled",
   dispute_opened: "Dispute opened",
+  deadline_proposed: "New deadline proposed",
+  deadline_extended: "Deadline extended",
+  deadline_declined: "Deadline proposal declined",
+  deadline_withdrawn: "Deadline proposal withdrawn",
+  live_session_scheduled: "Live 1:1 coaching scheduled",
+  live_session_completed: "Live coaching session completed",
 };

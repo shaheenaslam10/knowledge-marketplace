@@ -83,6 +83,7 @@ class PublicExpertSerializer(serializers.ModelSerializer):
     subjects = TaxonomyRefSerializer(many=True, read_only=True)
     skills = TaxonomyRefSerializer(many=True, read_only=True)
     availability = serializers.CharField(read_only=True)
+    has_published_assets = serializers.SerializerMethodField()
 
     class Meta:
         model = ExpertProfile
@@ -103,8 +104,14 @@ class PublicExpertSerializer(serializers.ModelSerializer):
             "rating_count",
             "completed_orders",
             "approved_at",
+            "session_30m_price",
+            "session_60m_price",
+            "has_published_assets",
         ]
         read_only_fields = fields
+
+    def get_has_published_assets(self, obj: ExpertProfile) -> bool:
+        return obj.knowledge_products.filter(status="published").exists()
 
 
 class ExpertApplicationSubmitResponseSerializer(serializers.Serializer):

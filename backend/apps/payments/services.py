@@ -443,10 +443,11 @@ def settle_payout(payout: Payout, *, actor=None) -> Payout:
         Payout.Status.IN_TRANSIT,
     ):
         raise DomainError("Payout is not settleable.", code="invalid_transition")
-    # BR-40 freeze: re-read the order under lock (same lock open_dispute takes)
-    order = type(payout.order).objects.select_for_update().get(pk=payout.order_id)
-    if order.has_open_dispute:
-        raise DomainError("This payout is frozen by an open dispute (BR-40).", code="payout_frozen")
+    # BR-40 freeze: re-read the order under lock if payout is order-linked
+    if payout.order_id:
+        order = type(payout.order).objects.select_for_update().get(pk=payout.order_id)
+        if order.has_open_dispute:
+            raise DomainError("This payout is frozen by an open dispute (BR-40).", code="payout_frozen")
     gateway = get_gateway()
     gateway_ref = gateway.transfer(
         destination_account=f"expert:{payout.expert_id}",
@@ -461,13 +462,18 @@ def settle_payout(payout: Payout, *, actor=None) -> Payout:
     payout.save(
         update_fields=["status", "provider_reference", "failure_reason", "settled_at", "updated_at"]
     )
+    payout_desc = (
+        f"Payout for order {payout.order.number}"
+        if payout.order
+        else f"Earnings payout withdrawal for user:{payout.expert_id}"
+    )
     _ledger(
         entry_type=LedgerEntry.EntryType.PAYOUT,
         amount_minor=-payout.amount_minor,
         currency=payout.currency,
         order=payout.order,
         user_id=payout.expert_id,
-        description=f"Payout for order {payout.order.number}",
+        description=payout_desc,
         provider_object_id=gateway_ref.reference,
     )
     audit_log(
@@ -592,3 +598,142 @@ def remaining_payable(order) -> int:
 
 def webhook_events_reprocessable() -> list[WebhookEvent]:
     return list(WebhookEvent.objects.filter(status=WebhookEvent.Status.FAILED))
+
+
+# ---------------------------------------------------------------------------
+# Sprint 5: Specialist Earnings, Analytics & Payout Withdrawal Center (Feature 3)
+# ---------------------------------------------------------------------------
+
+
+def expert_financial_analytics(user) -> dict:
+    """Specialist financial dashboard data (GMV, net, order vs catalog breakdown,
+    withdrawable balance and recent ledger activity)."""
+    from django.db.models import Sum
+
+    credits = LedgerEntry.objects.filter(
+        user=user, entry_type=LedgerEntry.EntryType.EXPERT_CREDIT
+    ).order_by("-created_at")
+
+    total_net_credit_minor = credits.aggregate(total=Sum("amount_minor"))["total"] or 0
+
+    orders_credits = credits.filter(order__isnull=False)
+    orders_net_minor = orders_credits.aggregate(total=Sum("amount_minor"))["total"] or 0
+    orders_count = orders_credits.values("order_id").distinct().count()
+    orders_gmv_minor = round(orders_net_minor / 0.85) if orders_net_minor else 0
+    orders_commission_minor = orders_gmv_minor - orders_net_minor
+
+    catalog_credits = credits.filter(order__isnull=True)
+    catalog_net_minor = catalog_credits.aggregate(total=Sum("amount_minor"))["total"] or 0
+    catalog_count = catalog_credits.count()
+    catalog_gmv_minor = round(catalog_net_minor / 0.85) if catalog_net_minor else 0
+    catalog_commission_minor = catalog_gmv_minor - catalog_net_minor
+
+    total_gmv_minor = orders_gmv_minor + catalog_gmv_minor
+    total_commission_minor = orders_commission_minor + catalog_commission_minor
+
+    payouts = Payout.objects.filter(expert=user).order_by("-created_at")
+    withdrawn_minor = (
+        payouts.filter(status__in=[Payout.Status.PAID, Payout.Status.SCHEDULED, Payout.Status.IN_TRANSIT])
+        .aggregate(total=Sum("amount_minor"))["total"]
+        or 0
+    )
+
+    withdrawable_minor = max(0, total_net_credit_minor - withdrawn_minor)
+
+    recent_credits = [
+        {
+            "id": c.id,
+            "created_at": c.created_at.isoformat(),
+            "amount_minor": c.amount_minor,
+            "amount_display": f"${c.amount_minor / 100:.2f}",
+            "description": c.description,
+            "type": "order" if c.order_id else "catalog_product",
+            "reference": c.provider_object_id or (c.order.number if c.order else f"TX-{c.id}"),
+        }
+        for c in credits[:25]
+    ]
+
+    payout_history = [
+        {
+            "id": p.id,
+            "amount_minor": p.amount_minor,
+            "amount_display": f"${p.amount_minor / 100:.2f}",
+            "status": p.status,
+            "currency": p.currency,
+            "provider_reference": p.provider_reference or f"PO-{p.id:04d}",
+            "settled_at": p.settled_at.isoformat() if p.settled_at else None,
+            "created_at": p.created_at.isoformat(),
+            "order_number": p.order.number if p.order else "Balance Withdrawal",
+        }
+        for p in payouts[:25]
+    ]
+
+    return {
+        "total_gmv_minor": total_gmv_minor,
+        "total_gmv_display": f"${total_gmv_minor / 100:.2f}",
+        "total_commission_minor": total_commission_minor,
+        "total_commission_display": f"${total_commission_minor / 100:.2f}",
+        "net_earnings_minor": total_net_credit_minor,
+        "net_earnings_display": f"${total_net_credit_minor / 100:.2f}",
+        "withdrawable_balance_minor": withdrawable_minor,
+        "withdrawable_balance_display": f"${withdrawable_minor / 100:.2f}",
+        "breakdown": {
+            "orders": {
+                "gmv_display": f"${orders_gmv_minor / 100:.2f}",
+                "net_display": f"${orders_net_minor / 100:.2f}",
+                "count": orders_count,
+            },
+            "catalog": {
+                "gmv_display": f"${catalog_gmv_minor / 100:.2f}",
+                "net_display": f"${catalog_net_minor / 100:.2f}",
+                "count": catalog_count,
+            },
+        },
+        "recent_credits": recent_credits,
+        "recent_ledger_entries": recent_credits,
+        "payouts": payout_history,
+        "payout_history": payout_history,
+        "total_net_minor": total_net_credit_minor,
+        "orders_gmv_minor": orders_gmv_minor,
+        "orders_commission_minor": orders_commission_minor,
+        "orders_net_minor": orders_net_minor,
+        "orders_count": orders_count,
+        "catalog_gmv_minor": catalog_gmv_minor,
+        "catalog_commission_minor": catalog_commission_minor,
+        "catalog_net_minor": catalog_net_minor,
+        "catalog_count": catalog_count,
+    }
+
+
+def request_payout_withdrawal(user, amount_minor: int | None = None) -> Payout:
+    """Specialist requests payout of their available balance."""
+    from django.db import transaction
+
+    from apps.core.exceptions import DomainError
+    from apps.payments.models import Payout
+
+    analytics = expert_financial_analytics(user)
+    available = analytics["withdrawable_balance_minor"]
+
+    if available < 1000:
+        raise DomainError("Minimum withdrawable balance is $10.00.", code="insufficient_funds")
+
+    amount = int(amount_minor) if amount_minor else available
+    if amount < 1000:
+        raise DomainError("Minimum withdrawal request is $10.00 (1000 minor units).", code="amount_too_low")
+    if amount > available:
+        raise DomainError(
+            f"Requested amount exceeds withdrawable balance of ${available / 100:.2f}.",
+            code="insufficient_funds",
+        )
+
+    with transaction.atomic():
+        payout = Payout.objects.create(
+            expert=user,
+            order=None,
+            amount_minor=amount,
+            currency="USD",
+            status=Payout.Status.SCHEDULED,
+            provider_reference=f"req-po-{uuid.uuid4().hex[:10]}",
+        )
+    return payout

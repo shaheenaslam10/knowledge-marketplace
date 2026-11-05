@@ -66,6 +66,19 @@ class OrderEvent(TimeStampedModel):
         DEADLINE_EXTENDED = (
             "deadline_extended",
             "Deadline extended (proposal accepted)",
+        )
+        DEADLINE_DECLINED = "deadline_declined", "Deadline proposal declined"
+        DEADLINE_WITHDRAWN = (
+            "deadline_withdrawn",
+            "Deadline proposal withdrawn",
+        )
+        LIVE_SESSION_SCHEDULED = (
+            "live_session_scheduled",
+            "Live session scheduled",
+        )
+        LIVE_SESSION_COMPLETED = (
+            "live_session_completed",
+            "Live session completed",
         )  # Administrative marker (jobs table, order-lifecycle.md) — dedupes the
         # hourly T-24h reminder; the workspace timeline renders it as a plain
         # "deadline reminder sent" row.

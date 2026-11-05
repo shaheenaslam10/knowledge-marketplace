@@ -97,3 +97,10 @@ layers = [
     "apps.audit",
     "apps.core",
 ]
+ignore_imports = [
+    "apps.orders.services -> apps.messaging.models",
+    "apps.orders.services -> apps.messaging.services",
+    "apps.orders.tests.test_sprint3_live_session -> config.asgi",
+    "apps.experts.catalog_services -> apps.payments.config",
+    "apps.experts.catalog_services -> apps.payments.models",
+]

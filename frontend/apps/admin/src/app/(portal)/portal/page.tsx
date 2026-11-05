@@ -172,49 +172,53 @@ export default function PortalDashboardPage() {
               Executive KPI Ribbon
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm relative overflow-hidden">
+              <div className="rounded-2xl border border-border/80 border-t-4 border-t-emerald-500 bg-emerald-500/5 p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
                 <span className="text-xs text-muted block mb-1">Gross Marketplace Volume</span>
-                <span className="text-2xl font-black text-foreground block">
+                <span className="text-2xl font-black font-mono tracking-tight text-foreground block">
                   {money(kpis.financial.gmv_minor, kpis.financial.default_currency)}
                 </span>
-                <span className="text-[10px] text-muted">Authoritative ledger sum</span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 mt-1">
+                  <span className="size-1.5 rounded-full bg-emerald-500 inline-block" /> Authoritative ledger sum
+                </span>
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm relative overflow-hidden">
+              <div className="rounded-2xl border border-border/80 border-t-4 border-t-indigo-500 bg-indigo-500/5 p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
                 <span className="text-xs text-muted block mb-1">Platform Revenue (15%)</span>
-                <span className="text-2xl font-black text-primary block">
+                <span className="text-2xl font-black font-mono tracking-tight text-indigo-600 dark:text-indigo-400 block">
                   {money(kpis.financial.commission_minor, kpis.financial.default_currency)}
                 </span>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                  Take rate: {kpis.financial.take_rate != null ? `${(kpis.financial.take_rate * 100).toFixed(1)}%` : "15.0%"}
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1 mt-1">
+                  <span className="size-1.5 rounded-full bg-indigo-500 inline-block" /> Take rate: {kpis.financial.take_rate != null ? `${(kpis.financial.take_rate * 100).toFixed(1)}%` : "15.0%"}
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm relative overflow-hidden">
+              <div className="rounded-2xl border border-border/80 border-t-4 border-t-cyan-500 bg-cyan-500/5 p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
                 <span className="text-xs text-muted block mb-1">Active Escrow in Custody</span>
-                <span className="text-2xl font-black text-indigo-500 block">
+                <span className="text-2xl font-black font-mono tracking-tight text-cyan-600 dark:text-cyan-400 block">
                   {money(kpis.financial.expert_payable_minor, kpis.financial.default_currency)}
                 </span>
-                <span className="text-[10px] text-muted">{kpis.marketplace.active_orders} orders in progress</span>
+                <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-semibold flex items-center gap-1 mt-1">
+                  <span className="size-1.5 rounded-full bg-cyan-500 inline-block" /> {kpis.marketplace.active_orders} orders in progress
+                </span>
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm relative overflow-hidden">
+              <div className="rounded-2xl border border-border/80 border-t-4 border-t-amber-500 bg-amber-500/5 p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
                 <span className="text-xs text-muted block mb-1">Managed Queue Depth</span>
-                <span className="text-2xl font-black text-foreground block">
+                <span className="text-2xl font-black font-mono tracking-tight text-amber-600 dark:text-amber-400 block">
                   {kpis.marketplace.open_requests}
                 </span>
-                <Link href="/portal/dispatch" className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-1">
+                <Link href="/portal/dispatch" className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline font-semibold flex items-center gap-1 mt-1">
                   Open Dispatch Desk <ArrowRight className="size-2.5" />
                 </Link>
               </div>
 
-              <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm relative overflow-hidden">
+              <div className="rounded-2xl border border-border/80 border-t-4 border-t-rose-500 bg-rose-500/5 p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
                 <span className="text-xs text-muted block mb-1">Open Triage Flags</span>
-                <span className="text-2xl font-black text-amber-500 block">
+                <span className="text-2xl font-black font-mono tracking-tight text-rose-600 dark:text-rose-400 block">
                   {triageItems.length}
                 </span>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                  {reports.length} reports · {disputes.length} disputes
+                <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1 mt-1">
+                  <span className="size-1.5 rounded-full bg-rose-500 inline-block animate-pulse" /> {reports.length} reports · {disputes.length} disputes
                 </span>
               </div>
             </div>

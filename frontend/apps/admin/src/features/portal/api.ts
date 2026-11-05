@@ -72,22 +72,54 @@ export interface ReportRow {
   created_at: string;
 }
 
+export interface DisputeDelivery {
+  id: string;
+  revision_number: number;
+  summary: string;
+  status: string;
+  submitted_at: string | null;
+  attachments: { id: string; name: string; file_size: number }[];
+}
+
 export interface DisputeRow {
   id: string;
   status: string;
+  reason?: string;
   reason_display: string;
+  description?: string;
   outcome: string | null;
+  resolution_notes?: string;
   order_id: string;
   order_number: string;
   order_status: string;
   amount: number;
   currency: string;
   student_id: number;
+  student_name?: string;
+  student_email?: string;
   expert_id: number;
+  expert_name?: string;
+  expert_email?: string;
   opened_by: number;
   admin_url: string;
   created_at: string;
   resolved_at: string | null;
+  deliveries?: DisputeDelivery[];
+  scratchpad_content?: string;
+  messages_count?: number;
+  recent_messages?: { id: string; sender_name: string; body: string; created_at: string }[];
+}
+
+export interface OpsPayoutRow {
+  id: number;
+  order_id: number | null;
+  expert_id: number;
+  expert_name: string;
+  amount_minor: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  settled_at: string | null;
 }
 
 export interface AuditRow {
@@ -146,6 +178,40 @@ export interface UsersOverview {
   }[];
 }
 
+export interface LedgerEntryRow {
+  id: string;
+  created_at: string;
+  entry_type: "charge" | "commission" | "expert_credit" | "refund" | "payout" | "fee" | "adjustment";
+  entry_type_label: string;
+  amount_minor: number;
+  amount_display: number;
+  currency: string;
+  order_id: string | null;
+  order_number: string | null;
+  user_id: number | null;
+  user_email: string | null;
+  description: string;
+  provider_object_id: string;
+  is_balanced: boolean;
+  t_account?: {
+    charge_plus_refund: number;
+    allocations: number;
+  } | null;
+}
+
+export interface LedgerPayload {
+  count: number;
+  results: LedgerEntryRow[];
+  summary: {
+    total_charges: number;
+    total_commissions: number;
+    total_credits: number;
+    total_refunds: number;
+    total_fees: number;
+    system_balanced: boolean;
+  };
+}
+
 function query(params: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -177,6 +243,22 @@ export const portalApi = {
       path: `/api/v1/ops/disputes${query(filters)}`,
     }),
 
+  resolveDispute: (
+    disputeId: string,
+    payload: {
+      outcome: string;
+      resolution_notes: string;
+      refund_amount_minor?: number;
+      split_percent?: number;
+    }
+  ) =>
+    apiFetch<{ id: string; status: string; outcome: string; resolution_notes: string; resolved_at: string | null }>({
+      path: `/api/v1/ops/disputes/${disputeId}/resolve`,
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+    }),
+
   audit: (filters: { action?: string; actor_id?: string; object_type?: string; from?: string; to?: string } = {}) =>
     apiFetch<{ total: number; results: AuditRow[] }>({
       path: `/api/v1/ops/audit${query(filters)}`,
@@ -196,6 +278,25 @@ export const portalApi = {
 
   users: (filters: { role?: string; q?: string } = {}) =>
     apiFetch<UsersOverview>({ path: `/api/v1/ops/users${query(filters)}` }),
+
+  ledger: (filters: { entry_type?: string; q?: string; order_number?: string; limit?: number; offset?: number } = {}) =>
+    apiFetch<LedgerPayload>({ path: `/api/v1/ops/finance/ledger${query(filters)}` }),
+
+  ledgerExportCsvUrl: (filters: { entry_type?: string; q?: string } = {}) =>
+    `/api/v1/ops/finance/ledger/export-csv${query(filters)}`,
+
+  payouts: (filters: { status?: string } = {}) =>
+    apiFetch<{ total: number; results: OpsPayoutRow[] }>({
+      path: `/api/v1/ops/payouts${query(filters)}`,
+    }),
+
+  settlePayout: (payoutId: number) =>
+    apiFetch<{ id: number; status: string; settled_at: string }>({
+      path: `/api/v1/ops/payouts/${payoutId}/settle`,
+      method: "POST",
+      body: "{}",
+      headers: { "Content-Type": "application/json" },
+    }),
 };
 
 /** Minor units → compact display (USD by contract; 2-decimal currencies). */

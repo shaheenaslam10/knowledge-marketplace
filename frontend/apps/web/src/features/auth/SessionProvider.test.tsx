@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/client";
 import type { SessionUser } from "./types";
@@ -176,10 +176,14 @@ describe("SessionProvider — transient API failures do not sign the user out", 
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
 
     meMock.mockRejectedValue(new ApiError(500, "server_error", "boom"));
-    screen.getByTestId("refresh").click();
+    await act(async () => {
+      screen.getByTestId("refresh").click();
+    });
 
     // Never flips away from authenticated — a blip must not eject a live session.
-    await new Promise((resolve) => setTimeout(resolve, 5200));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5200));
+    });
     expect(screen.getByTestId("status")).toHaveTextContent("authenticated");
   }, 12000);
 });

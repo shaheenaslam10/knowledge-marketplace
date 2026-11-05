@@ -38,7 +38,7 @@ services:
     command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     environment: &backend_env
       DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.dev}
-      SECRET_KEY: ${SECRET_KEY:-dev-only-insecure-key-change-me}
+      SECRET_KEY: ${SECRET_KEY:-dev-only-insecure-key-change-me-must-be-at-least-64-bytes-for-jwt-and-argon2}
       DEBUG: ${DEBUG:-True}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
       DATABASE_URL: ${DATABASE_URL:-postgres://hem:hem@db:5432/hem}

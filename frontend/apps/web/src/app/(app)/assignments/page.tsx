@@ -1,8 +1,19 @@
 "use client";
 
-/** Expert: managed invitations + direct assignments (accept/decline). */
+/** Expert: managed invitations + direct assignments (accept/decline) with visual TTL urgency rings. */
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import {
+  Clock,
+  Sparkles,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  Briefcase,
+  ArrowRight,
+  TrendingUp,
+  Zap,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -21,8 +32,25 @@ import {
 import { ApiError } from "@/lib/api/client";
 
 function TTL({ expiresAt }: { expiresAt: string }) {
-  const hours = Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 3_600_000));
-  return <span className="text-xs text-muted"> · respond within {hours}h</span>;
+  const diffMs = new Date(expiresAt).getTime() - Date.now();
+  const hours = Math.max(0, Math.round(diffMs / 3_600_000));
+  const isUrgent = hours <= 6;
+  const isModerate = hours > 6 && hours <= 24;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+        isUrgent
+          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/30 animate-pulse"
+          : isModerate
+            ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30"
+            : "bg-surface-2 text-muted"
+      }`}
+    >
+      <Clock className="size-3" />
+      <span>{hours === 0 ? "Expiring now" : `${hours}h left to respond`}</span>
+    </span>
+  );
 }
 
 export default function AssignmentsPage() {
@@ -55,63 +83,117 @@ export default function AssignmentsPage() {
   }
 
   const section = (title: string, count: number, children: React.ReactNode) => (
-    <section className="space-y-3" aria-label={title}>
-      <h2 className="text-lg font-semibold tracking-tight">
-        {title} <span className="text-muted">({count})</span>
-      </h2>
+    <section className="space-y-4" aria-label={title}>
+      <div className="flex items-center justify-between border-b border-border/70 pb-2">
+        <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+          <span>{title}</span>
+          <span className="rounded-full bg-primary/10 text-primary text-xs px-2 py-0.5 font-bold">
+            {count}
+          </span>
+        </h2>
+      </div>
       {children}
     </section>
   );
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Assignments</h1>
-        <p className="mt-1 text-sm text-muted">
-          Requests our team routed to you. For pool invitations, the first expert to accept is assigned (the
-          platform-set price applies).
+      {/* 1. Header & Managed Context */}
+      <div className="border-b border-border/70 pb-6">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+            Managed Assignments & Pool Invitations
+          </h1>
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+            <Zap className="size-3" /> White-Glove Routing
+          </span>
+        </div>
+        <p className="mt-1.5 text-sm text-muted max-w-3xl leading-relaxed">
+          Curated requests matched directly by platform coordinators. For pool invitations, the first vetted specialist to accept locks the engagement at the guaranteed platform-set price.
         </p>
       </div>
 
-      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
-      {!invitations && !assignments && <Skeleton className="h-32 w-full" />}
+      {error && (
+        <div role="alert" className="rounded-xl border border-danger/30 bg-danger/5 p-4 text-danger text-sm flex items-center gap-2">
+          <AlertCircle className="size-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
-      {section("Pool invitations", invitations?.length ?? 0,
+      {!invitations && !assignments && (
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full rounded-2xl" />
+          <Skeleton className="h-32 w-full rounded-2xl" />
+        </div>
+      )}
+
+      {/* 2. Pool Invitations */}
+      {section(
+        "Pool invitations",
+        invitations?.length ?? 0,
         invitations?.length === 0 ? (
-          <Card><p className="text-sm text-muted">No invitations right now.</p></Card>
+          <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-border/80 bg-surface-1">
+            <Briefcase className="size-8 mx-auto text-muted/60 mb-2" />
+            <p className="text-sm font-semibold text-foreground">No active pool invitations</p>
+            <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
+              When student requests match your doctoral qualifications, white-glove invitations will appear here.
+            </p>
+          </div>
         ) : (
           <div className="grid gap-4">
             {invitations?.map((inv) => (
-              <Card key={inv.id}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Link href={`/opportunities/${inv.request}`} className="font-semibold tracking-tight hover:underline">
+              <Card
+                key={inv.id}
+                className="group relative border-border/80 p-5 transition-all hover:border-primary/40 hover:shadow-md"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/opportunities/${inv.request}`}
+                        className="text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors"
+                      >
                         {inv.request_title}
                       </Link>
-                      <Badge tone={ASSIGNMENT_STATUS_TONE[inv.status as AssignmentStatus]}>
+                      <Badge tone={ASSIGNMENT_STATUS_TONE[inv.status as AssignmentStatus]} className="capitalize text-xs font-semibold">
                         {ASSIGNMENT_STATUS_COPY[inv.status as AssignmentStatus]}
                       </Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-muted">
-                      {inv.request_subject ?? "General"} · platform-set price {inv.quote_amount_display} ·
-                      student budget up to {inv.request_budget_max ?? "—"}
                       {isRespondable(inv.status) && <TTL expiresAt={inv.expires_at} />}
-                    </p>
-                    {inv.decline_reason && <p className="mt-1 text-xs text-muted">Reason: {inv.decline_reason}</p>}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+                      <span className="font-medium text-foreground bg-surface-2 px-2 py-0.5 rounded">
+                        {inv.request_subject ?? "General"}
+                      </span>
+                      <span>·</span>
+                      <span>Platform Guaranteed Rate: <strong className="text-emerald-600 dark:text-emerald-400 font-extrabold">{inv.quote_amount_display}</strong></span>
+                      {inv.request_budget_max && (
+                        <>
+                          <span>·</span>
+                          <span>Student max budget: {inv.request_budget_max}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {inv.decline_reason && (
+                      <p className="text-xs text-danger font-medium">Decline reason: {inv.decline_reason}</p>
+                    )}
                   </div>
+
+                  {/* Actions */}
                   {isRespondable(inv.status) && (
-                    <div className="flex flex-wrap items-end gap-2">
+                    <div className="flex flex-wrap items-end gap-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
                       <div>
-                        <label htmlFor={`exp-${inv.id}`} className="block text-xs text-muted">
-                          Your expected amount (optional)
+                        <label htmlFor={`exp-${inv.id}`} className="block text-[11px] font-medium text-muted mb-1">
+                          Counter-amount (optional)
                         </label>
                         <Input
                           id={`exp-${inv.id}`}
-                          className="mt-1 w-40"
+                          className="h-9 w-36 text-xs bg-background"
                           type="number"
                           min="0"
                           step="0.01"
+                          placeholder="e.g. 180"
                           value={expected[inv.id] ?? ""}
                           onChange={(e) => setExpected((m) => ({ ...m, [inv.id]: e.target.value }))}
                         />
@@ -119,14 +201,25 @@ export default function AssignmentsPage() {
                       <Button
                         size="sm"
                         disabled={busyId === inv.id}
-                        onClick={() => act(() => assignmentsApi.acceptInvitation(inv.id, expected[inv.id] ? Number(expected[inv.id]) : undefined), inv.id)}
+                        className="h-9 px-4 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                        onClick={() =>
+                          act(
+                            () =>
+                              assignmentsApi.acceptInvitation(
+                                inv.id,
+                                expected[inv.id] ? Number(expected[inv.id]) : undefined,
+                              ),
+                            inv.id,
+                          )
+                        }
                       >
-                        {busyId === inv.id ? "Accepting…" : "Accept"}
+                        {busyId === inv.id ? "Accepting…" : "Accept & Lock"}
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
                         disabled={busyId === inv.id}
+                        className="h-9 px-3 text-xs text-muted hover:text-danger"
                         onClick={() => act(() => assignmentsApi.declineInvitation(inv.id), inv.id)}
                       >
                         Decline
@@ -137,47 +230,85 @@ export default function AssignmentsPage() {
               </Card>
             ))}
           </div>
-        )
+        ),
       )}
 
-      {section("Direct assignments", assignments?.length ?? 0,
+      {/* 3. Direct Assignments */}
+      {section(
+        "Direct assignments",
+        assignments?.length ?? 0,
         assignments?.length === 0 ? (
-          <Card><p className="text-sm text-muted">No direct assignments right now.</p></Card>
+          <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-border/80 bg-surface-1">
+            <Briefcase className="size-8 mx-auto text-muted/60 mb-2" />
+            <p className="text-sm font-semibold text-foreground">No direct assignments assigned</p>
+            <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
+              Direct appointments allocated exclusively to you by managed account coordinators will appear here.
+            </p>
+          </div>
         ) : (
           <div className="grid gap-4">
             {assignments?.map((a) => (
-              <Card key={a.id}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Link href={`/opportunities/${a.request}`} className="font-semibold tracking-tight hover:underline">
+              <Card
+                key={a.id}
+                className="group relative border-border/80 p-5 transition-all hover:border-primary/40 hover:shadow-md"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/opportunities/${a.request}`}
+                        className="text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors"
+                      >
                         {a.request_title}
                       </Link>
-                      <Badge tone={ASSIGNMENT_STATUS_TONE[a.status as AssignmentStatus]}>
+                      <Badge tone={ASSIGNMENT_STATUS_TONE[a.status as AssignmentStatus]} className="capitalize text-xs font-semibold">
                         {ASSIGNMENT_STATUS_COPY[a.status as AssignmentStatus]}
                       </Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-muted">
-                      {a.request_subject ?? "General"} · proposed {a.amount_display} {a.currency}
-                      {a.deadline && ` · deadline ${a.deadline}`}
                       {isRespondable(a.status) && <TTL expiresAt={a.expires_at} />}
-                    </p>
-                    {a.scope_note && <p className="mt-1 text-sm">{a.scope_note}</p>}
-                    {a.decline_reason && <p className="mt-1 text-xs text-muted">Reason: {a.decline_reason}</p>}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+                      <span className="font-medium text-foreground bg-surface-2 px-2 py-0.5 rounded">
+                        {a.request_subject ?? "General"}
+                      </span>
+                      <span>·</span>
+                      <span>Agreed Compensation: <strong className="text-emerald-600 dark:text-emerald-400 font-extrabold">{a.amount_display} {a.currency}</strong></span>
+                      {a.deadline && (
+                        <>
+                          <span>·</span>
+                          <span>Deadline: {new Date(a.deadline).toLocaleDateString()}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {a.scope_note && (
+                      <div className="rounded-lg bg-surface-1 p-3 text-xs text-foreground border border-border/60">
+                        <strong className="text-muted block mb-0.5">Coordinator Scope Note:</strong>
+                        {a.scope_note}
+                      </div>
+                    )}
+
+                    {a.decline_reason && (
+                      <p className="text-xs text-danger font-medium">Decline reason: {a.decline_reason}</p>
+                    )}
                   </div>
+
+                  {/* Actions */}
                   {isRespondable(a.status) && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
                       <Button
                         size="sm"
                         disabled={busyId === a.id}
+                        className="h-9 px-4 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                         onClick={() => act(() => assignmentsApi.acceptAssignment(a.id), a.id)}
                       >
-                        {busyId === a.id ? "Accepting…" : "Accept"}
+                        {busyId === a.id ? "Accepting…" : "Accept Direct Order"}
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
                         disabled={busyId === a.id}
+                        className="h-9 px-3 text-xs text-muted hover:text-danger"
                         onClick={() => act(() => assignmentsApi.declineAssignment(a.id), a.id)}
                       >
                         Decline
@@ -188,7 +319,7 @@ export default function AssignmentsPage() {
               </Card>
             ))}
           </div>
-        )
+        ),
       )}
     </div>
   );

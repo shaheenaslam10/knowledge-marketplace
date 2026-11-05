@@ -107,4 +107,37 @@ class DeadlineProposal(TimeStampedModel):
 
 # Delivery + OrderEvent live in delivery.py (imported here so app loading,
 # migrations and `from apps.orders.models import X` all see them).
+
+
+class LiveSession(TimeStampedModel):
+    """Live 1:1 Coaching session with synchronized scratchpad on an Order."""
+
+    class Status(models.TextChoices):
+        SCHEDULED = "scheduled", "Scheduled"
+        LIVE = "live", "Live"
+        ENDED = "ended", "Ended"
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="live_sessions")
+    scheduled_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.PositiveIntegerField(default=0)
+    scratchpad_content = models.TextField(default="", blank=True)
+    status = models.CharField(
+        max_length=15, choices=Status.choices, default=Status.SCHEDULED, db_index=True
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_live_sessions",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"live-session:{self.order_id}:{self.status}"
+
 from apps.orders.delivery import Delivery, OrderEvent  # noqa: E402,F401

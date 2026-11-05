@@ -14,14 +14,14 @@
   --surface-glass: rgba(255, 255, 255, 0.75);
   --border: #e2e8f0;
   --border-glass: rgba(226, 232, 240, 0.8);
-  --muted: #64748b;
+  --muted: #475569;
 
   --primary: #4f46e5;
   --primary-strong: #4338ca;
   --primary-soft: #e0e7ff;
   --primary-foreground: #ffffff;
   --accent-flow: #0d9488;
-  --glow-primary: rgba(79, 70, 229, 0.15);
+  --glow-primary: rgba(79, 70, 229, 0.2);
 
   --success: #16a34a;
   --success-soft: #dcfce7;

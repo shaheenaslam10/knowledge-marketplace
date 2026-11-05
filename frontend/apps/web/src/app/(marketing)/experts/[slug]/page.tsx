@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { expertsApi } from "@/features/experts/api";
+import { SpeedBookingCard } from "@/features/experts/components/SpeedBookingCard";
 import type { PublicExpert } from "@/features/experts/types";
 import { reviewsApi } from "@/features/reviews/api";
 import { ReviewCard, Stars } from "@/features/reviews/components/review-card";
@@ -60,11 +61,11 @@ export default function ExpertPublicProfilePage({ params }: { params: Promise<{ 
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10">
+    <div className="mx-auto w-full max-w-3xl px-4 py-10 space-y-6">
       <Link href="/experts" className="text-sm text-slate-500 hover:underline dark:text-slate-400">
         ← Directory
       </Link>
-      <div className="mt-4 flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{expert.display_name}</h1>
           <p className="mt-1 text-sm text-muted">{expert.headline}</p>
@@ -83,13 +84,18 @@ export default function ExpertPublicProfilePage({ params }: { params: Promise<{ 
           </p>
         </div>
         {expert.availability === "available" ? (
-          <Badge tone="success">Available</Badge>
+          <Badge tone="success">Available for Booking</Badge>
         ) : (
           <Badge tone="neutral">Paused</Badge>
         )}
       </div>
 
-      <Card className="mt-6">
+      {/* Speed-Booking Card: Feature 1 */}
+      {expert.availability === "available" && (
+        <SpeedBookingCard expert={expert} />
+      )}
+
+      <Card>
         <h2 className="text-sm font-semibold text-foreground">About</h2>
         <p className="mt-2 whitespace-pre-line text-sm text-muted">{expert.bio}</p>
         <dl className="mt-6 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
@@ -113,8 +119,6 @@ export default function ExpertPublicProfilePage({ params }: { params: Promise<{ 
           <dd className="text-foreground">{expert.timezone}</dd>
         </dl>
         <div className="mt-4 flex flex-wrap gap-1.5">
-          {/* Subjects link to their landing page — this is the "spoke" half of
-              the hub-and-spoke internal linking seo-ux.md asks for. */}
           {expert.subjects.map((s) => (
             <Link key={s.id} href={`/subjects/${s.slug}`}>
               <Badge tone="info">{s.name}</Badge>
@@ -126,7 +130,7 @@ export default function ExpertPublicProfilePage({ params }: { params: Promise<{ 
         </div>
       </Card>
 
-      <Card className="mt-6" data-testid="expert-reviews">
+      <Card data-testid="expert-reviews">
         <h2 className="text-sm font-semibold text-foreground">Reviews</h2>
         {feed === null ? null : feed.results.length === 0 ? (
           <p className="mt-2 text-sm text-muted">

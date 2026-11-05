@@ -49,7 +49,7 @@ class TestInertOutsideDeployments:
         # Everything is wrong on purpose; DEPLOY_ENV says this is not a deployment.
         result = run(
             DEPLOY_ENV=env_name,
-            SECRET_KEY="dev-only-insecure-key-change-me",
+            SECRET_KEY="dev-only-insecure-key-change-me-must-be-at-least-64-bytes-for-jwt-and-argon2",
             DEBUG=True,
             COOKIE_SECURE=False,
             EMAIL_BACKEND_MODE="console",
@@ -65,7 +65,9 @@ class TestInertOutsideDeployments:
 
 class TestSecrets:
     def test_dev_secret_key_is_an_error(self):
-        result = run(SECRET_KEY="dev-only-insecure-key-change-me")
+        result = run(
+            SECRET_KEY="dev-only-insecure-key-change-me-must-be-at-least-64-bytes-for-jwt-and-argon2"
+        )
         assert "hem.E001" in ids(result)
         assert all(isinstance(i, Error) for i in result)
 

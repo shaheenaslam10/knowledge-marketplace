@@ -414,6 +414,25 @@ class Command(BaseCommand):
         # disputes→reports). Idempotent: every step goes through domain
         # services and is skipped once its unique state exists.
         self._seed_portal_funnel(student, ayra, admin)
+
+        # --- Sprint 5: Speed Booking & Specialist Payouts (idempotent)
+        from apps.experts.models import ExpertProfile
+        ExpertProfile.objects.filter(pk=ayra.pk).update(
+            session_30m_price=4500,
+            session_60m_price=8000,
+        )
+        from apps.payments.models import Payout
+        if not Payout.objects.filter(expert=ayra, status=Payout.Status.SCHEDULED).exists():
+            Payout.objects.create(
+                expert=ayra,
+                amount_minor=5000,
+                currency="USD",
+                status=Payout.Status.SCHEDULED,
+            )
+
+        # --- Sprint 4: Knowledge Catalog (idempotent) ------------------
+        self._seed_knowledge_catalog(ayra, student, subj_python, subj_stats, subj_calc, subj_web)
+
         from apps.experts.services import directory_queryset
 
         visible = directory_queryset().count()
@@ -553,3 +572,148 @@ class Command(BaseCommand):
                 messaging.report_message(message, actor=student, reason="off_platform")
         except DomainError as exc:  # reseed safety — never abort the whole seed
             self.stdout.write(self.style.WARNING(f"  Portal funnel skipped: {exc}"))
+
+
+    def _seed_knowledge_catalog(self, expert_user, student_user, subj_python, subj_stats, subj_calc, subj_web) -> None:
+        """Sprint 4: Seed 4-6 realistic KnowledgeProduct items idempotently.
+
+        Uses catalog_services.publish_product via direct model creation to avoid
+        requiring an expert profile for the seed call. Guards: skips any product
+        whose title already exists in the catalog.
+        """
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.experts.models import ExpertProfile, KnowledgeProduct
+
+        expert_profile = ExpertProfile.objects.filter(pk=expert_user.pk).first()
+        if expert_profile is None:
+            self.stdout.write(self.style.WARNING("  Catalog seed skipped: Ayra has no ExpertProfile."))
+            return
+
+        PRODUCTS = [
+            {
+                "title": "Python Pandas Mastery Guide",
+                "summary": "End-to-end reference covering groupby, merge, pivot and real-world "
+                           "data cleaning patterns with annotated code examples.",
+                "description": "Structured around 12 common student pain-points: indexing, apply/map, "
+                               "time-series, and more. Includes 30+ runnable snippets and a cheat sheet.",
+                "product_type": KnowledgeProduct.ProductType.STUDY_GUIDE,
+                "price_minor": 2500,
+                "subject": subj_python,
+            },
+            {
+                "title": "Statistics for Data Science — Exam Prep Pack",
+                "summary": "Hypothesis testing, confidence intervals, regression, and ANOVA explained "
+                           "through worked problems and worked-solution walkthroughs.",
+                "description": "Covers the syllabus for most university-level stats finals. "
+                               "Includes 60 practice questions with full solutions.",
+                "product_type": KnowledgeProduct.ProductType.RESEARCH_PACK,
+                "price_minor": 3500,
+                "subject": subj_stats,
+            },
+            {
+                "title": "Django REST Framework — Code Template Pack",
+                "summary": "Production-ready DRF boilerplate: ViewSets, serializers, JWT auth, "
+                           "pagination, filtering, and OpenAPI schema generation.",
+                "description": "10 reusable templates covering the most common DRF patterns. "
+                               "Drop them into your project and customise.",
+                "product_type": KnowledgeProduct.ProductType.CODE_TEMPLATE,
+                "price_minor": 1999,
+                "subject": subj_python,
+            },
+            {
+                "title": "Calculus I — Limits & Derivatives Recorded Masterclass",
+                "summary": "Three-hour recorded coaching session walking through limits, derivatives, "
+                           "chain rule, implicit differentiation, and applied optimisation.",
+                "description": "Each segment includes a warm-up problem, step-by-step solution, "
+                               "and a student exercise with worked answer.",
+                "product_type": KnowledgeProduct.ProductType.RECORDED_MASTERCLASS,
+                "price_minor": 4999,
+                "subject": subj_calc,
+            },
+            {
+                "title": "Web Dev Quick-Start: HTML, CSS & Flexbox Template Kit",
+                "summary": "10 responsive page layouts with annotated CSS and a Flexbox reference "
+                           "card — ideal for beginners and CS1 projects.",
+                "description": "Designed for students who need to build a web project quickly. "
+                               "Each template is fully commented and mobile-ready.",
+                "product_type": KnowledgeProduct.ProductType.CODE_TEMPLATE,
+                "price_minor": 1499,
+                "subject": subj_web,
+            },
+            {
+                "title": "Applied Statistics Research Pack — Regression & ANOVA",
+                "summary": "Real-world research methodology guide: when to use which test, "
+                           "assumption checks, SPSS/R output interpretation, and write-up tips.",
+                "description": "Based on 200+ student questions about inferential statistics. "
+                               "Includes APA write-up templates and a diagnostic decision tree.",
+                "product_type": KnowledgeProduct.ProductType.RESEARCH_PACK,
+                "price_minor": 2999,
+                "subject": subj_stats,
+            },
+            {
+                "title": "Production Python & Distributed Systems Masterclass (Live Cohort)",
+                "summary": "Live, high-intensity micro-cohort with Ayra Vance. Architectural breakdowns, live code reviews, and high-concurrency systems design.",
+                "description": "Interactive cohort capped at 20 seats. Two 90-minute live sessions with real-world debugging, architecture diagrams, and direct specialist feedback.",
+                "product_type": KnowledgeProduct.ProductType.LIVE_COHORT,
+                "price_minor": 7900,
+                "max_seats": 20,
+                "enrolled_count": 14,
+                "cohort_scheduled_at": timezone.now() + timedelta(days=3, hours=2),
+                "live_room_code": "COHORT-PY-DIST-2026",
+                "subject": subj_python,
+            },
+            {
+                "title": "Advanced Causal Inference & Econometrics Workshop (Live Cohort)",
+                "summary": "Intensive small-group cohort examining real-world experimental design, regression diagnostics, and instrumental variables.",
+                "description": "Hands-on analysis of non-linear models and synthetic control methods. Strictly limited to 15 students for personal mentorship.",
+                "product_type": KnowledgeProduct.ProductType.LIVE_COHORT,
+                "price_minor": 9500,
+                "max_seats": 15,
+                "enrolled_count": 11,
+                "cohort_scheduled_at": timezone.now() + timedelta(days=6, hours=4),
+                "live_room_code": "COHORT-ECON-CAUSAL-2026",
+                "subject": subj_stats,
+            },
+            {
+                "title": "High-Throughput Web Architecture & Cache Engineering (Live Cohort)",
+                "summary": "Master database partitioning, cache stampede prevention, and Redis/Postgres synchronization with live interactive whiteboarding.",
+                "description": "25-seat intensive workshop. Live Q&A, mock incident response, and performance tracing walkthroughs.",
+                "product_type": KnowledgeProduct.ProductType.LIVE_COHORT,
+                "price_minor": 12000,
+                "max_seats": 25,
+                "enrolled_count": 23,
+                "cohort_scheduled_at": timezone.now() + timedelta(days=9, hours=1),
+                "live_room_code": "COHORT-CACHE-ARCH-2026",
+                "subject": subj_web,
+            },
+        ]
+
+        from django.utils import timezone
+
+        created_count = 0
+        for p in PRODUCTS:
+            if KnowledgeProduct.objects.filter(title=p["title"]).exists():
+                continue
+            KnowledgeProduct.objects.create(
+                expert=expert_profile,
+                title=p["title"],
+                summary=p["summary"],
+                description=p.get("description", ""),
+                product_type=p["product_type"],
+                price_minor=p["price_minor"],
+                currency="USD",
+                subject=p.get("subject"),
+                max_seats=p.get("max_seats", 0),
+                enrolled_count=p.get("enrolled_count", 0),
+                cohort_scheduled_at=p.get("cohort_scheduled_at"),
+                live_room_code=p.get("live_room_code", ""),
+                status=KnowledgeProduct.Status.PUBLISHED,
+                published_at=timezone.now(),
+            )
+            created_count += 1
+
+        self.stdout.write(f"  Catalog seed  : {created_count} KnowledgeProduct(s) created "
+                          f"({len(PRODUCTS) - created_count} already existed)")

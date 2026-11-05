@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Sparkles, ArrowRight } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Menu, Sparkles, ArrowRight, Search, FolderOpen, Layers, DollarSign, UserCheck, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -10,12 +11,18 @@ import { useSession } from "@/features/auth/SessionProvider";
 
 export function SiteHeader() {
   const { user, status, logout } = useSession();
+  const pathname = usePathname();
+
+  const isLinkActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur-xl transition-colors">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* Brand Logo with Illuminated Icon */}
-        <Link href="/" className="flex items-center gap-2.5 transition-transform hover:scale-[1.01]">
+        <Link href="/" className="flex items-center gap-2.5 transition-transform hover:scale-[1.01] shrink-0">
           <div className="relative flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-indigo-600 to-primary-strong text-white shadow-md shadow-primary/30 ring-1 ring-white/20">
             <Sparkles className="size-4 animate-pulse" />
           </div>
@@ -24,51 +31,105 @@ export function SiteHeader() {
               Knowledge<span className="text-primary">Marketplace</span>
             </span>
             <span className="hidden text-[9px] font-bold tracking-widest text-muted sm:inline-block uppercase">
-              Maven &middot; Linear &middot; Intro Caliber
+              Linear &middot; Stripe &middot; Maven Caliber
             </span>
           </div>
         </Link>
 
-        {/* Center navigation for desktop */}
-        <nav className="hidden items-center gap-7 lg:flex" aria-label="Main navigation">
+        {/* Global Omnibox Search Trigger (Cmd+K) */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-command-palette"))}
+          className="hidden md:flex items-center gap-2 rounded-xl border border-border/80 bg-surface-1/70 px-3 py-1.5 text-xs text-muted hover:border-primary/50 hover:bg-surface-2 transition-all shadow-sm max-w-xs w-full lg:max-w-sm"
+          aria-label="Search specialists, catalog and commands"
+          data-testid="navbar-command-trigger"
+        >
+          <Search className="size-3.5 text-primary shrink-0" />
+          <span className="font-medium truncate">Search specialists, catalog, topics...</span>
+          <kbd className="ml-auto rounded border border-border/80 bg-background px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground">
+            ⌘K
+          </kbd>
+        </button>
+
+        {/* Center navigation for desktop with glowing active pills */}
+        <nav className="hidden items-center gap-1.5 lg:flex" aria-label="Main navigation">
           <Link
             href="/experts"
-            className="text-xs font-semibold text-muted transition-colors hover:text-foreground"
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+              isLinkActive("/experts")
+                ? "bg-primary text-white shadow-sm shadow-primary/30"
+                : "text-muted hover:text-foreground hover:bg-surface-2"
+            }`}
           >
-            Explore Experts
+            <UserCheck className="size-3.5" />
+            <span>Specialists</span>
           </Link>
           <Link
-            href="/how-it-works"
-            className="text-xs font-semibold text-muted transition-colors hover:text-foreground"
+            href="/catalog"
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+              isLinkActive("/catalog")
+                ? "bg-primary text-white shadow-sm shadow-primary/30"
+                : "text-muted hover:text-foreground hover:bg-surface-2"
+            }`}
           >
-            How It Works
+            <BookOpen className="size-3.5" />
+            <span>Catalog &amp; Cohorts</span>
+            <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-extrabold text-emerald-600 dark:text-emerald-300">
+              Live
+            </span>
           </Link>
           <Link
-            href="/subjects"
-            className="text-xs font-semibold text-muted transition-colors hover:text-foreground inline-flex items-center gap-1.5"
+            href="/vault"
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+              isLinkActive("/vault")
+                ? "bg-primary text-white shadow-sm shadow-primary/30"
+                : "text-muted hover:text-foreground hover:bg-surface-2"
+            }`}
           >
-            <span>Masterclasses</span>
-            <span className="rounded-full bg-primary-soft px-1.5 py-0.5 text-[9px] font-bold text-primary">New</span>
+            <FolderOpen className="size-3.5" />
+            <span>Vault</span>
           </Link>
+          <Link
+            href="/orders"
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+              isLinkActive("/orders")
+                ? "bg-primary text-white shadow-sm shadow-primary/30"
+                : "text-muted hover:text-foreground hover:bg-surface-2"
+            }`}
+          >
+            <Layers className="size-3.5" />
+            <span>Orders</span>
+          </Link>
+          {user?.roles.expert && (
+            <Link
+              href="/expert/earnings"
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+                isLinkActive("/expert/earnings")
+                  ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/30"
+                  : "text-muted hover:text-foreground hover:bg-surface-2"
+              }`}
+            >
+              <DollarSign className="size-3.5 text-emerald-400" />
+              <span>Earnings</span>
+              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.2 text-[9px] font-extrabold text-amber-500">
+                85%
+              </span>
+            </Link>
+          )}
           <Link
             href="/pricing"
-            className="text-xs font-semibold text-muted transition-colors hover:text-foreground"
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+              isLinkActive("/pricing")
+                ? "bg-primary text-white shadow-sm shadow-primary/30"
+                : "text-muted hover:text-foreground hover:bg-surface-2"
+            }`}
           >
             Pricing
-          </Link>
-          <Link
-            href="/for-experts"
-            className="text-xs font-semibold text-muted transition-colors hover:text-foreground inline-flex items-center gap-1.5"
-          >
-            <span>Become a Mentor</span>
-            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              Keep 85%
-            </span>
           </Link>
         </nav>
 
         {/* Right actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <ThemeToggle />
 
           {status === "loading" ? (
@@ -110,7 +171,7 @@ export function SiteHeader() {
           {/* Mobile Navigation Drawer */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
+              <Button variant="ghost" size="icon" className="xl:hidden" aria-label="Open menu">
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
@@ -119,47 +180,74 @@ export function SiteHeader() {
                 <span className="font-bold text-sm tracking-tight text-foreground">Navigation</span>
               </div>
 
-              <nav className="flex flex-col gap-2" aria-label="Mobile navigation">
+              <div className="pb-2">
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("open-command-palette"))}
+                  className="flex w-full items-center justify-between rounded-xl border border-border/80 bg-surface-2 px-3 py-2 text-xs font-medium text-muted hover:text-foreground"
+                >
+                  <span className="flex items-center gap-2">
+                    <Search className="size-4 text-primary" />
+                    <span>Search Omnibox</span>
+                  </span>
+                  <kbd className="rounded border border-border/80 bg-background px-1.5 py-0.5 font-mono text-[10px]">
+                    ⌘K
+                  </kbd>
+                </button>
+              </div>
+
+              <nav className="flex flex-col gap-1.5" aria-label="Mobile navigation">
                 <SheetClose asChild>
                   <Link
                     href="/experts"
                     className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
                   >
-                    Explore Experts
+                    Specialists Directory
                   </Link>
                 </SheetClose>
                 <SheetClose asChild>
                   <Link
-                    href="/how-it-works"
-                    className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
-                  >
-                    How It Works
-                  </Link>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Link
-                    href="/subjects"
+                    href="/catalog"
                     className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors flex items-center justify-between"
                   >
-                    <span>Masterclasses</span>
-                    <span className="rounded-full bg-primary-soft px-1.5 py-0.5 text-[10px] font-bold text-primary">New</span>
+                    <span>Knowledge Catalog</span>
+                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">S4</span>
                   </Link>
                 </SheetClose>
+                <SheetClose asChild>
+                  <Link
+                    href="/vault"
+                    className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors flex items-center justify-between"
+                  >
+                    <span>Knowledge Vault</span>
+                    <span className="text-[10px] font-bold text-primary">Library</span>
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link
+                    href="/orders"
+                    className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
+                  >
+                    Active Orders
+                  </Link>
+                </SheetClose>
+                {user?.roles.expert && (
+                  <SheetClose asChild>
+                    <Link
+                      href="/expert/earnings"
+                      className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors flex items-center justify-between"
+                    >
+                      <span>Specialist Earnings</span>
+                      <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600">85%</span>
+                    </Link>
+                  </SheetClose>
+                )}
                 <SheetClose asChild>
                   <Link
                     href="/pricing"
                     className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
                   >
                     Pricing
-                  </Link>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Link
-                    href="/for-experts"
-                    className="px-3 py-2 text-sm font-medium rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors flex items-center justify-between"
-                  >
-                    <span>Become a Mentor</span>
-                    <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">85% Split</span>
                   </Link>
                 </SheetClose>
               </nav>

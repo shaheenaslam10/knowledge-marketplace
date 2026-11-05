@@ -68,7 +68,7 @@ jobs:
           ALLOWED_HOSTS: api.example.com
         run: |
           echo "--- a dangerous production config must be REFUSED ---"
-          if DEPLOY_ENV=production SECRET_KEY=dev-only-insecure-key-change-me \
+          if DEPLOY_ENV=production SECRET_KEY=dev-only-insecure-key-change-me-must-be-at-least-64-bytes-for-jwt-and-argon2 \
              python manage.py check --deploy --tag production --fail-level WARNING 2>/dev/null; then
             echo "::error::production safety checks did NOT refuse a dev SECRET_KEY"
             exit 1

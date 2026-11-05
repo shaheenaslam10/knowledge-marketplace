@@ -25,8 +25,8 @@ function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("admin@demo.local");
+  const [password, setPassword] = useState("demo-password-1234");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +108,7 @@ function AdminLoginForm() {
                 Platform Administrator
               </span>
               <span className="text-[10px] font-mono text-muted">
-                admin@example.com · Superuser
+                admin@demo.local · Superuser
               </span>
             </div>
           </div>
@@ -122,7 +122,7 @@ function AdminLoginForm() {
           variant="primary"
           className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-xl shadow-sm"
           disabled={submitting}
-          onClick={() => performLogin("admin@example.com", "password123")}
+          onClick={() => performLogin("admin@demo.local", "demo-password-1234")}
         >
           {submitting ? (
             <Loader2 className="size-4 animate-spin" />
@@ -167,7 +167,7 @@ function AdminLoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
+              placeholder="admin@demo.local"
               className="w-full rounded-xl border border-border/80 bg-surface-1 pl-10 pr-4 py-2.5 text-xs text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>

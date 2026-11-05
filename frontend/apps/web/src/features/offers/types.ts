@@ -23,6 +23,8 @@ export interface Offer {
   response_reason: string;
   net_preview: { commission: number; net: number } | null;
   expert?: ExpertCard | null;
+  match_score?: number;
+  match_reasons?: string[];
 }
 
 export const OFFER_STATUS_TONE: Record<OfferStatus, "neutral" | "info" | "success" | "warning" | "danger"> = {

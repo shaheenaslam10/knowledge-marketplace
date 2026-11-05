@@ -3,6 +3,8 @@
 Thin views: authn/authz → services. Business rules never live here.
 """
 
+import contextlib
+
 from django.core import exceptions as django_exceptions
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
@@ -202,6 +204,16 @@ class ExpertDirectoryView(APIView):
                 qs = qs.filter(rating_avg__gte=float(rating_min))
             except ValueError:
                 raise DomainError("rating_min must be a number.", code="validation_error") from None
+        availability = request.query_params.get("availability")
+        if availability:
+            qs = qs.filter(availability=availability)
+        has_assets = request.query_params.get("has_assets")
+        if has_assets and has_assets.lower() in ("true", "1", "yes"):
+            qs = qs.filter(knowledge_products__status="published")
+        max_price = request.query_params.get("max_price")
+        if max_price:
+            with contextlib.suppress(ValueError):
+                qs = qs.filter(session_30m_price__lte=int(max_price))
         qs = qs.distinct()
         paginator = ExpertDirectoryPagination()
         page = paginator.paginate_queryset(qs, request)

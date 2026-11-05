@@ -25,7 +25,7 @@ from django.core.checks import Error, Warning, register
 
 # Values shipped as development defaults. If any of these reach a deployment,
 # the deployment is misconfigured — they are public in this repository.
-DEV_SECRET_KEY = "dev-only-insecure-key-change-me"
+DEV_SECRET_KEY = "dev-only-insecure-key-change-me-must-be-at-least-64-bytes-for-jwt-and-argon2"
 DEV_WEBHOOK_SECRET = "dev-only-webhook-secret"
 MIN_SECRET_KEY_LENGTH = 50
 

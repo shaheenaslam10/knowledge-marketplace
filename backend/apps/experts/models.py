@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.db import models
+from django.utils.text import slugify
 
 from apps.core.models import TimeStampedModel
 from apps.files.models import Attachment
@@ -156,6 +157,16 @@ class ExpertProfile(TimeStampedModel):
 
     approved_at = models.DateTimeField(null=True, blank=True)
 
+    # --- Sprint 5: Direct 1:1 Consultation Speed-Booking ---
+    session_30m_price = models.PositiveIntegerField(
+        default=4500,
+        help_text="Price for 30-min live session in minor units (e.g. 4500 = $45.00 USD).",
+    )
+    session_60m_price = models.PositiveIntegerField(
+        default=8000,
+        help_text="Price for 60-min live session in minor units (e.g. 8000 = $80.00 USD).",
+    )
+
     class Meta:
         indexes = [
             models.Index(fields=["is_public", "availability"]),
@@ -164,3 +175,142 @@ class ExpertProfile(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"expert:{self.slug}"
+
+
+# ---------------------------------------------------------------------------
+# Sprint 4: Self-Serve Digital Knowledge Catalog
+# ---------------------------------------------------------------------------
+
+
+class KnowledgeProduct(TimeStampedModel):
+    """A pre-packaged digital knowledge resource published by an approved Specialist.
+
+    Product types: study_guide, code_template, recorded_masterclass, research_pack.
+    Price is in integer minor units (ADR-0009) — e.g. 2500 = $25.00 USD.
+    """
+
+    class ProductType(models.TextChoices):
+        STUDY_GUIDE = "study_guide", "Study Guide"
+        CODE_TEMPLATE = "code_template", "Code Template"
+        RECORDED_MASTERCLASS = "recorded_masterclass", "Recorded Masterclass"
+        RESEARCH_PACK = "research_pack", "Research Pack"
+        LIVE_COHORT = "live_cohort", "Live Group Workshop"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PUBLISHED = "published", "Published"
+        ARCHIVED = "archived", "Archived"
+
+    expert = models.ForeignKey(
+        ExpertProfile,
+        on_delete=models.PROTECT,
+        related_name="knowledge_products",
+    )
+    slug = models.SlugField(max_length=220, unique=True, editable=False)
+    title = models.CharField(max_length=200)
+    summary = models.CharField(max_length=500)
+    description = models.TextField(blank=True)
+    product_type = models.CharField(
+        max_length=25, choices=ProductType.choices, default=ProductType.STUDY_GUIDE, db_index=True
+    )
+    subject = models.ForeignKey(
+        "taxonomy.TaxonomyTerm",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="knowledge_products",
+        limit_choices_to={"kind__in": ["subject", "category"]},
+    )
+    price_minor = models.PositiveIntegerField(
+        help_text="Price in integer minor units (e.g. 2500 = $25.00 USD)."
+    )
+    currency = models.CharField(max_length=3, default="USD")
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.DRAFT, db_index=True
+    )
+    # The downloadable file (upload-first contract via /files)
+    file = models.ForeignKey(
+        Attachment,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="knowledge_products",
+    )
+    # Cover image for the catalog grid
+    cover_image = models.ForeignKey(
+        Attachment,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="product_covers",
+    )
+    sales_count = models.PositiveIntegerField(default=0)
+    max_seats = models.PositiveIntegerField(
+        default=0, help_text="Maximum seats for live cohorts (0 = unlimited digital asset)"
+    )
+    enrolled_count = models.PositiveIntegerField(
+        default=0, help_text="Number of enrolled students in this live cohort"
+    )
+    cohort_scheduled_at = models.DateTimeField(
+        null=True, blank=True, help_text="Scheduled live workshop date and time"
+    )
+    live_room_code = models.CharField(
+        max_length=64, blank=True, help_text="WebRTC session room code for live workshop"
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["status", "-published_at"]),
+            models.Index(fields=["expert", "status"]),
+            models.Index(fields=["product_type", "status"]),
+        ]
+        ordering = ["-published_at", "-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.title)[:180]
+            slug = base
+            n = 1
+            while KnowledgeProduct.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base}-{n}"
+                n += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"product:{self.slug}:{self.status}"
+
+
+class KnowledgePurchase(TimeStampedModel):
+    """Records a buyer's purchase of a KnowledgeProduct (instant ledger transaction)."""
+
+    product = models.ForeignKey(
+        KnowledgeProduct,
+        on_delete=models.PROTECT,
+        related_name="purchases",
+    )
+    buyer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="knowledge_purchases",
+    )
+    amount_minor = models.PositiveIntegerField()
+    currency = models.CharField(max_length=3, default="USD")
+    download_count = models.PositiveSmallIntegerField(default=0)
+    # Link to the three LedgerEntry rows created atomically at purchase time
+    ledger_ref = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text="Shared provider_object_id prefix for the 3 ledger entries.",
+    )
+
+    class Meta:
+        unique_together = [("product", "buyer")]
+        indexes = [
+            models.Index(fields=["buyer", "-created_at"]),
+            models.Index(fields=["product", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"purchase:{self.product_id}:{self.buyer_id}"

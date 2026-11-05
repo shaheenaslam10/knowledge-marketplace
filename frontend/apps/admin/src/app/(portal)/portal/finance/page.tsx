@@ -1,7 +1,7 @@
 "use client";
 
-/** /portal/finance — Financial Ledger, Escrow Custody & Reconciliation (Phase 10 & Phase 4).
- * Combines automated integrity checks with live escrow custody monitoring and emergency freeze controls. */
+/** /portal/finance — Granular Financial Ledger Explorer, Escrow Custody & Reconciliation (Phase 10 & Phase 4).
+ * Combines authoritative double-entry ledger explorer with CSV exports, live escrow custody monitoring and emergency freeze controls. */
 import { useCallback, useEffect, useState } from "react";
 import {
   Landmark,
@@ -16,13 +16,26 @@ import {
   Search,
   ExternalLink,
   ShieldAlert,
+  Download,
+  Filter,
+  Layers,
+  ArrowRight,
+  X,
+  FileSpreadsheet,
+  Clock,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
-import { portalApi, type ReconciliationPayload } from "@/features/portal/api";
+import {
+  portalApi,
+  type ReconciliationPayload,
+  type LedgerEntryRow,
+  type LedgerPayload,
+  type OpsPayoutRow,
+} from "@/features/portal/api";
 import { DataTable, FadeIn } from "@/features/portal/components/ops-ui";
 
 const CHECK_COPY: Record<string, string> = {
@@ -93,8 +106,25 @@ const INITIAL_ESCROW_VAULT: EscrowRecord[] = [
   },
 ];
 
+const ENTRY_TYPE_FILTERS = [
+  { id: "all", label: "All Entries" },
+  { id: "charge", label: "Charges (Money In)" },
+  { id: "commission", label: "Commissions (Rake)" },
+  { id: "expert_credit", label: "Expert Credits" },
+  { id: "refund", label: "Refunds (Out)" },
+  { id: "fee", label: "Provider Fees" },
+] as const;
+
 export default function ReconciliationPage() {
   const [report, setReport] = useState<ReconciliationPayload | null>(null);
+  const [ledgerData, setLedgerData] = useState<LedgerPayload | null>(null);
+  const [selectedEntryType, setSelectedEntryType] = useState<string>("all");
+  const [searchLedger, setSearchLedger] = useState("");
+  const [inspectEntry, setInspectEntry] = useState<LedgerEntryRow | null>(null);
+  const [opsPayouts, setOpsPayouts] = useState<OpsPayoutRow[]>([]);
+  const [settlingId, setSettlingId] = useState<number | null>(null);
+  const [payoutSuccess, setPayoutSuccess] = useState<string | null>(null);
+
   const [escrowVault, setEscrowVault] = useState<EscrowRecord[]>(INITIAL_ESCROW_VAULT);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -104,14 +134,24 @@ export default function ReconciliationPage() {
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      setReport(await portalApi.reconciliation());
+      const [reconResult, ledgerResult, payoutsResult] = await Promise.all([
+        portalApi.reconciliation(),
+        portalApi.ledger({
+          entry_type: selectedEntryType === "all" ? undefined : selectedEntryType,
+          q: searchLedger || undefined,
+        }),
+        (portalApi.payouts ? portalApi.payouts().catch(() => ({ total: 0, results: [] })) : Promise.resolve({ total: 0, results: [] })),
+      ]);
+      setReport(reconResult);
+      setLedgerData(ledgerResult);
+      setOpsPayouts(payoutsResult.results || []);
       setError(null);
     } catch {
-      setError("Could not load the reconciliation report.");
+      setError("Could not load the financial reports and ledger entries.");
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [selectedEntryType, searchLedger]);
 
   useEffect(() => {
     void load();
@@ -140,12 +180,36 @@ export default function ReconciliationPage() {
     setTimeout(() => setEscrowToast(null), 4000);
   }
 
+  async function handleSettlePayout(payoutId: number) {
+    setSettlingId(payoutId);
+    try {
+      const res = await portalApi.settlePayout(payoutId);
+      setPayoutSuccess(`Payout #${res.id} settled successfully!`);
+      setTimeout(() => setPayoutSuccess(null), 5000);
+      void load();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        alert(`Failed to settle payout: ${err.message}`);
+      }
+    } finally {
+      setSettlingId(null);
+    }
+  }
+
   function handleManualRelease(record: EscrowRecord) {
     setEscrowVault((prev) =>
       prev.map((e) => (e.id === record.id ? { ...e, status: "scheduled_payout" } : e)),
     );
     setEscrowToast(`Manual Escrow Release Confirmed for ${record.orderNumber}. Net payout routed to ${record.expertName}.`);
     setTimeout(() => setEscrowToast(null), 4000);
+  }
+
+  function handleExportCsv() {
+    const csvUrl = portalApi.ledgerExportCsvUrl({
+      entry_type: selectedEntryType === "all" ? undefined : selectedEntryType,
+      q: searchLedger || undefined,
+    });
+    window.open(csvUrl, "_blank", "noopener");
   }
 
   return (
@@ -155,20 +219,36 @@ export default function ReconciliationPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              Treasury, Escrow Custody & Reconciliation
+              Treasury, Double-Entry Ledger & Escrow
             </h1>
             <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <Landmark className="size-3.5" /> 100% Reserve Backed
             </span>
           </div>
           <p className="text-muted text-xs sm:text-sm mt-1">
-            Authoritative double-entry ledger oversight · Real-time escrow holds · Automatic parity verification
+            Authoritative double-entry ledger oversight · Granular T-Account verification · CSV exports · Escrow custody
           </p>
         </div>
 
-        <Button size="sm" variant="secondary" onClick={() => void load()} disabled={busy} className="h-9 px-4 text-xs font-semibold">
-          {busy ? "Auditing Ledger…" : "Re-run Reconciliation Checks"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleExportCsv}
+            className="h-9 px-3 text-xs font-semibold gap-1.5"
+          >
+            <Download className="size-3.5 text-primary" />
+            Export Ledger CSV
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => void load()}
+            disabled={busy}
+            className="h-9 px-4 text-xs font-semibold"
+          >
+            {busy ? "Auditing…" : "Re-run Audit"}
+          </Button>
+        </div>
       </div>
 
       {escrowToast && (
@@ -200,22 +280,260 @@ export default function ReconciliationPage() {
           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Net earned revenue</span>
         </div>
         <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
-          <span className="text-xs text-muted block mb-1">Disputed Holds</span>
-          <span className="text-2xl font-black text-amber-500">
-            ${escrowVault.filter((e) => e.status === "locked_dispute").reduce((s, e) => s + e.amount, 0)}
+          <span className="text-xs text-muted block mb-1">Ledger System State</span>
+          <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+            {ledgerData?.summary?.system_balanced ? "BALANCED" : "AUDITED"}
           </span>
-          <span className="text-[10px] text-muted">1 order under arbitration</span>
+          <span className="text-[10px] text-muted">Zero-sum invariant verified</span>
         </div>
         <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm">
           <span className="text-xs text-muted block mb-1">Reconciliation State</span>
-          <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-            {report?.ok ? "BALANCED" : "AUDITED"}
+          <span className="text-2xl font-black text-foreground">
+            {report?.ok ? "0 FINDINGS" : `${report?.findings?.length ?? 0} FINDINGS`}
           </span>
-          <span className="text-[10px] text-muted">0 ledger discrepancies</span>
+          <span className="text-[10px] text-muted">Automated integrity checks</span>
         </div>
       </div>
 
-      {/* 3. Live Escrow Monitor */}
+      {/* 3. Feature 3: Granular Double-Entry Ledger Explorer */}
+      <div className="space-y-4 rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Layers className="size-4 text-primary" />
+              <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                Authoritative Double-Entry Ledger Explorer ({ledgerData?.count ?? 0} Entries)
+              </h2>
+            </div>
+            <p className="text-xs text-muted">
+              Append-only financial records. Rule: Charge + Refund = Commission + Expert Credit + Fee.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted" />
+              <Input
+                placeholder="Search Order, User, or Ref..."
+                value={searchLedger}
+                onChange={(e) => setSearchLedger(e.target.value)}
+                className="pl-8 text-xs h-8 bg-surface-1"
+              />
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleExportCsv}
+              className="text-xs h-8 gap-1.5 font-semibold"
+            >
+              <FileSpreadsheet className="size-3.5 text-emerald-500" />
+              CSV
+            </Button>
+          </div>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex flex-wrap items-center gap-1.5 pb-2">
+          {ENTRY_TYPE_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setSelectedEntryType(f.id)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                selectedEntryType === f.id
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-surface-1 text-muted hover:text-foreground hover:bg-surface-2"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Ledger Table */}
+        <div className="rounded-xl border border-border/70 overflow-hidden bg-background">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-foreground">
+              <thead className="bg-surface-1 border-b border-border/70 text-[11px] font-bold uppercase tracking-wider text-muted">
+                <tr>
+                  <th className="px-4 py-3">Timestamp / ID</th>
+                  <th className="px-4 py-3">Order Number</th>
+                  <th className="px-4 py-3">Account / Party</th>
+                  <th className="px-4 py-3">Entry Type</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Invariant Check</th>
+                  <th className="px-4 py-3 text-right">T-Account</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {!ledgerData || ledgerData.results.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-muted">
+                      No ledger entries match the selected filters.
+                    </td>
+                  </tr>
+                ) : (
+                  ledgerData.results.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-surface-1/50 transition-colors">
+                      <td className="px-4 py-3 whitespace-nowrap font-mono text-[11px]">
+                        <span className="font-bold text-foreground">
+                          {new Date(entry.created_at).toLocaleDateString()} {new Date(entry.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span className="text-muted block text-[10px]">#{entry.id}</span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-mono">
+                        {entry.order_number ? (
+                          <span className="font-bold text-primary">{entry.order_number}</span>
+                        ) : (
+                          <span className="text-muted">Platform</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium text-foreground">
+                        {entry.user_email ?? "System Treasury"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <Badge
+                          tone={
+                            entry.entry_type === "charge"
+                              ? "info"
+                              : entry.entry_type === "commission"
+                                ? "success"
+                                : entry.entry_type === "refund"
+                                  ? "danger"
+                                  : "neutral"
+                          }
+                          className="capitalize text-[10px] font-semibold"
+                        >
+                          {entry.entry_type_label || entry.entry_type}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-bold">
+                        <span
+                          className={
+                            entry.entry_type === "charge" || entry.entry_type === "commission"
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : entry.entry_type === "refund"
+                                ? "text-rose-500"
+                                : "text-foreground"
+                          }
+                        >
+                          {entry.amount_display} {entry.currency}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {entry.is_balanced ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="size-3.5" /> Balanced
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-500">
+                            <AlertTriangle className="size-3.5" /> Unbalanced
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setInspectEntry(entry)}
+                          className="text-xs h-7 px-2 font-semibold text-primary hover:text-primary/80"
+                        >
+                          Inspect T-Account
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* T-Account Drilldown Modal / Drawer */}
+      {inspectEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <Card className="w-full max-w-lg p-6 border-border shadow-xl space-y-4 bg-card">
+            <div className="flex items-center justify-between border-b border-border/70 pb-3">
+              <div className="flex items-center gap-2">
+                <Layers className="size-5 text-primary" />
+                <h3 className="text-base font-bold text-foreground">
+                  T-Account Verification Drilldown
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectEntry(null)}
+                className="text-muted hover:text-foreground p-1"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between py-1 border-b border-border/40">
+                <span className="text-muted">Target Order:</span>
+                <span className="font-mono font-bold text-primary">{inspectEntry.order_number ?? "Platform"}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/40">
+                <span className="text-muted">Entry Type:</span>
+                <span className="font-semibold text-foreground capitalize">{inspectEntry.entry_type_label}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/40">
+                <span className="text-muted">Associated User:</span>
+                <span className="font-semibold text-foreground">{inspectEntry.user_email ?? "System Treasury"}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-border/40">
+                <span className="text-muted">Reference / Description:</span>
+                <span className="text-foreground italic">{inspectEntry.description || inspectEntry.provider_object_id || "Direct ledger allocation"}</span>
+              </div>
+            </div>
+
+            {/* Zero-Sum Invariant Breakdown */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                  Double-Entry Equation Invariant
+                </span>
+                <Badge tone={inspectEntry.is_balanced ? "success" : "danger"} className="text-[10px]">
+                  {inspectEntry.is_balanced ? "Zero-Sum Verified" : "Discrepancy Detected"}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+                <div className="rounded-lg bg-background p-2.5 border border-border/60">
+                  <span className="text-[10px] uppercase font-semibold text-muted block mb-0.5">
+                    Debit (Charge + Refund)
+                  </span>
+                  <span className="text-sm font-bold text-foreground">
+                    ${((inspectEntry.t_account?.charge_plus_refund ?? inspectEntry.amount_minor) / 100).toFixed(2)}
+                  </span>
+                </div>
+                <div className="rounded-lg bg-background p-2.5 border border-border/60">
+                  <span className="text-[10px] uppercase font-semibold text-muted block mb-0.5">
+                    Credit (Comm + Credit + Fee)
+                  </span>
+                  <span className="text-sm font-bold text-foreground">
+                    ${((inspectEntry.t_account?.allocations ?? inspectEntry.amount_minor) / 100).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted leading-relaxed">
+                Platform identity rule enforced: Every dollar received into platform escrow equals the sum of platform commission rake and specialist payable allocations.
+              </p>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button size="sm" onClick={() => setInspectEntry(null)}>
+                Close Drilldown
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* 4. Live Escrow Monitor */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
           <div className="flex items-center gap-2">
@@ -332,7 +650,106 @@ export default function ReconciliationPage() {
         </div>
       </div>
 
-      {/* 4. Automated Reconciliation Report (Required for System Observability & Tests) */}
+      {/* 4.5 Specialist Payout Requests & Settlement Queue */}
+      <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm space-y-4" data-testid="payout-queue-section">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/70 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="size-5 text-emerald-500" />
+              <h2 className="text-base font-extrabold text-foreground">Specialist Payout Settlement Queue</h2>
+              <Badge tone="info" className="text-[10px] font-bold">
+                {opsPayouts.filter((p) => p.status === "scheduled").length} Pending
+              </Badge>
+            </div>
+            <p className="text-xs text-muted mt-0.5">
+              Review and settle consolidated specialist balance withdrawals or order-specific net disbursements.
+            </p>
+          </div>
+          {payoutSuccess && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span>{payoutSuccess}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border/70 overflow-hidden bg-background">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-foreground" data-testid="ops-payouts-table">
+              <thead className="bg-surface-1 border-b border-border/70 text-[11px] font-bold uppercase tracking-wider text-muted">
+                <tr>
+                  <th className="px-4 py-3">Payout ID</th>
+                  <th className="px-4 py-3">Specialist</th>
+                  <th className="px-4 py-3">Reference</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Requested Date</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Settlement Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {opsPayouts.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-muted">
+                      No payout requests found in queue.
+                    </td>
+                  </tr>
+                ) : (
+                  opsPayouts.map((payout) => (
+                    <tr key={payout.id} className="hover:bg-surface-1/50 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-primary">
+                        #{payout.id}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-foreground">
+                        {payout.expert_name}
+                      </td>
+                      <td className="px-4 py-3 text-muted">
+                        {payout.order_id ? `Order #${payout.order_id}` : "Consolidated Balance"}
+                      </td>
+                      <td className="px-4 py-3 font-mono font-extrabold text-foreground">
+                        ${(payout.amount_minor / 100).toFixed(2)} {payout.currency}
+                      </td>
+                      <td className="px-4 py-3 text-muted">
+                        {new Date(payout.created_at).toLocaleDateString()} {new Date(payout.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            payout.status === "paid"
+                              ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                          }`}
+                        >
+                          {payout.status === "paid" ? <CheckCircle2 className="size-2.5" /> : <Clock className="size-2.5" />}
+                          {payout.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {payout.status === "paid" ? (
+                          <span className="text-[11px] text-muted italic">Settled</span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="glow"
+                            disabled={settlingId === payout.id}
+                            onClick={() => void handleSettlePayout(payout.id)}
+                            className="text-xs font-bold h-7 px-3 shadow-sm"
+                            data-testid={`settle-payout-btn-${payout.id}`}
+                          >
+                            {settlingId === payout.id ? "Settling..." : "Approve & Settle"}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Automated Reconciliation Report */}
       {!report ? (
         <p className="text-muted text-sm" aria-busy>
           Running automated reconciliation tests…

@@ -35,6 +35,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                   <div className="relative flex-1">
                     <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
                     <input
+                      suppressHydrationWarning
                       type="email"
                       placeholder="Enter your email"
                       className="w-full rounded-xl border border-border bg-surface-2/80 py-2.5 pl-10 pr-3.5 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"

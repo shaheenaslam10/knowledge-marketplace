@@ -1,7 +1,15 @@
 /** Orders API client (browser) + delivery upload helper. */
 import { apiFetch } from "@/lib/api/client";
+import { API_URL_BROWSER } from "@/lib/config";
 
-import type { DeliveryRecord, OrderDetail, OrderListItem, PaymentInfo } from "./types";
+import type {
+  DeadlineProposalRecord,
+  DeliveryRecord,
+  LiveSessionPayload,
+  OrderDetail,
+  OrderListItem,
+  PaymentInfo,
+} from "./types";
 
 export const ordersApi = {
   pay: (id: string) =>
@@ -48,6 +56,53 @@ export const ordersApi = {
       body: JSON.stringify({ reason }),
       headers: { "Content-Type": "application/json" },
     }),
+  proposeDeadline: (id: string, proposedDueAt: string, note: string) =>
+    apiFetch<DeadlineProposalRecord>({
+      path: `/api/v1/me/orders/${id}/deadline-proposal`,
+      method: "POST",
+      body: JSON.stringify({ proposed_due_at: proposedDueAt, note }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  respondDeadlineProposal: (id: string, action: "accept" | "decline" | "withdraw" | boolean) =>
+    apiFetch<DeadlineProposalRecord>({
+      path: `/api/v1/me/orders/${id}/deadline-proposal/respond`,
+      method: "POST",
+      body: JSON.stringify(typeof action === "string" ? { action } : { accept: action }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  getLiveSession: (id: string) =>
+    apiFetch<LiveSessionPayload>({
+      path: `/api/v1/me/orders/${id}/live-session`,
+    }),
+  scheduleLiveSession: (id: string, scheduledAt: string) =>
+    apiFetch<LiveSessionPayload>({
+      path: `/api/v1/me/orders/${id}/live-session`,
+      method: "POST",
+      body: JSON.stringify({ action: "schedule", scheduled_at: scheduledAt }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  startLiveSession: (id: string) =>
+    apiFetch<LiveSessionPayload>({
+      path: `/api/v1/me/orders/${id}/live-session`,
+      method: "POST",
+      body: JSON.stringify({ action: "start" }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  saveScratchpad: (id: string, content: string) =>
+    apiFetch<LiveSessionPayload>({
+      path: `/api/v1/me/orders/${id}/live-session`,
+      method: "POST",
+      body: JSON.stringify({ action: "save_scratchpad", scratchpad_content: content }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  endLiveSession: (id: string, durationSeconds: number, scratchpadContent: string) =>
+    apiFetch<LiveSessionPayload>({
+      path: `/api/v1/me/orders/${id}/live-session/end`,
+      method: "POST",
+      body: JSON.stringify({ duration_seconds: durationSeconds, scratchpad_content: scratchpadContent }),
+      headers: { "Content-Type": "application/json" },
+    }),
+  getIcsCalendarUrl: (id: string) => `${API_URL_BROWSER}/api/v1/me/orders/${id}/live-session/ics`,
 };
 
 /** Signed, short-lived download URLs come from the existing files API. */
